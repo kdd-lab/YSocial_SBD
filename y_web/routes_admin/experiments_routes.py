@@ -2530,7 +2530,7 @@ def download_experiments_bulk():
 
     Creates a ZIP file containing individually zipped experiments,
     each named {exp_name}.zip.
-    
+
     If exp_ids is 'all', downloads all completed experiments.
     """
     check_privileges(current_user.username)
@@ -2627,7 +2627,9 @@ def download_experiments_bulk():
                         sqlite_cursor = sqlite_raw_conn.cursor()
 
                         for table_name in table_names:
-                            result = pg_conn.execute(text(f"SELECT * FROM {table_name}"))
+                            result = pg_conn.execute(
+                                text(f"SELECT * FROM {table_name}")
+                            )
                             rows = result.fetchall()
                             columns = result.keys()
 
