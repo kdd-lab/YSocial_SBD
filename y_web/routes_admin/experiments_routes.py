@@ -2536,6 +2536,8 @@ def download_experiments_bulk():
 
     Creates a ZIP file containing individually zipped experiments,
     each named {exp_name}.zip.
+    
+    If exp_ids is 'all', downloads all completed experiments.
     """
     check_privileges(current_user.username)
 
@@ -2550,6 +2552,11 @@ def download_experiments_bulk():
     except json.JSONDecodeError:
         flash("Invalid experiment IDs provided.")
         return redirect(url_for("experiments.settings"))
+
+    # Handle 'all' case - download all completed experiments
+    if exp_ids == "all":
+        completed_experiments = Exps.query.filter_by(exp_status="completed").all()
+        exp_ids = [exp.idexp for exp in completed_experiments]
 
     if not exp_ids:
         flash("No experiments selected for download.")

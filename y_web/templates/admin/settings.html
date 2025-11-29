@@ -93,11 +93,18 @@
                                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #17a2b8;"></span>
                                     Completed
                                 </span>
-                                <button id="download-selected-btn" onclick="downloadSelectedExperiments()" 
-                                        style="background-color: #17a2b8; color: white; padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.75rem; display: none;"
-                                        title="Download selected experiments as a ZIP file">
-                                    <i class="mdi mdi-download"></i> Download Selected
-                                </button>
+                                <span style="display: flex; gap: 8px;">
+                                    <button id="download-all-btn" onclick="downloadAllExperiments()" 
+                                            style="background-color: #28a745; color: white; padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.75rem;"
+                                            title="Download all completed experiments as a ZIP file">
+                                        <i class="mdi mdi-download-multiple"></i> Download All
+                                    </button>
+                                    <button id="download-selected-btn" onclick="downloadSelectedExperiments()" 
+                                            style="background-color: #17a2b8; color: white; padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer; font-size: 0.75rem; display: none;"
+                                            title="Download selected experiments as a ZIP file">
+                                        <i class="mdi mdi-download"></i> Download Selected
+                                    </button>
+                                </span>
                             </h3>
                             <div class="box-content" style="flex: 1;">
                                 <div id="table-completed" class="experiment-table compact-table"></div>
@@ -486,6 +493,36 @@
         input.type = 'hidden';
         input.name = 'exp_ids';
         input.value = JSON.stringify(expIds);
+        form.appendChild(input);
+        
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+
+        // Reset button after a delay
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }, 3000);
+    }
+
+    // Function to download all completed experiments
+    function downloadAllExperiments() {
+        // Show loading indicator
+        const btn = document.getElementById('download-all-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Preparing...';
+        btn.disabled = true;
+
+        // Submit a form to download all (empty array or 'all' signal to backend)
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/admin/download_experiments_bulk';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'exp_ids';
+        input.value = JSON.stringify('all');  // Signal to download all completed experiments
         form.appendChild(input);
         
         document.body.appendChild(form);
