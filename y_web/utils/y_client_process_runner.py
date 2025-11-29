@@ -155,8 +155,6 @@ def start_client_process(exp, cli, population, resume=True, db_type="sqlite"):
             filename = None
             pop_name_base = population.name.replace(" ", "")
             # Remove any _N suffix to find the base name
-            import re
-
             base_match = re.match(r"^(.+?)(?:_\d+)?$", pop_name_base)
             if base_match:
                 base_name = base_match.group(1)
