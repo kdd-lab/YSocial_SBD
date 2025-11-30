@@ -977,3 +977,68 @@ def run_tutorial_simulation():
             f"Error starting tutorial simulation: {str(e)}", exc_info=True
         )
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+
+# =====================================================
+# Experiment Details Tutorial Routes
+# =====================================================
+
+
+@tutorial.route("/admin/tutorial/exp_details/check_status")
+@login_required
+def check_exp_details_tutorial_status():
+    """
+    Check if the current user should see the experiment details tutorial.
+
+    Returns:
+        JSON with show_tutorial boolean and user role
+    """
+    user = Admin_users.query.filter_by(username=current_user.username).first()
+
+    if not user or user.role not in ["admin", "researcher"]:
+        return jsonify({"show_tutorial": False, "role": None})
+
+    # Check for exp_details_tutorial_shown attribute (may not exist in older DBs)
+    show_tutorial = not getattr(user, "exp_details_tutorial_shown", False)
+
+    return jsonify({"show_tutorial": show_tutorial, "role": user.role})
+
+
+@tutorial.route("/admin/tutorial/exp_details/dismiss", methods=["POST"])
+@login_required
+def dismiss_exp_details_tutorial():
+    """
+    Mark the experiment details tutorial as shown for the current user.
+
+    Returns:
+        JSON response with success status
+    """
+    user = Admin_users.query.filter_by(username=current_user.username).first()
+
+    if not user or user.role not in ["admin", "researcher"]:
+        return jsonify({"success": False, "message": "Access denied"}), 403
+
+    user.exp_details_tutorial_shown = True
+    db.session.commit()
+
+    return jsonify({"success": True})
+
+
+@tutorial.route("/admin/tutorial/exp_details/reset", methods=["POST"])
+@login_required
+def reset_exp_details_tutorial():
+    """
+    Reset the experiment details tutorial flag to allow showing it again.
+
+    Returns:
+        JSON response with success status
+    """
+    user = Admin_users.query.filter_by(username=current_user.username).first()
+
+    if not user or user.role not in ["admin", "researcher"]:
+        return jsonify({"success": False, "message": "Access denied"}), 403
+
+    user.exp_details_tutorial_shown = False
+    db.session.commit()
+
+    return jsonify({"success": True})

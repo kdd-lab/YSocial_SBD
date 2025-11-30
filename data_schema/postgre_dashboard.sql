@@ -19,7 +19,8 @@ CREATE TABLE admin_users (
     llm_url               TEXT DEFAULT '',
     telemetry_enabled     BOOLEAN DEFAULT TRUE,
     telemetry_notice_shown BOOLEAN DEFAULT FALSE,
-    tutorial_shown        BOOLEAN DEFAULT FALSE
+    tutorial_shown        BOOLEAN DEFAULT FALSE,
+    exp_details_tutorial_shown BOOLEAN DEFAULT FALSE
 );
 
 -- -----------------------------

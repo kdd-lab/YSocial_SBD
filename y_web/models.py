@@ -366,6 +366,7 @@ class Admin_users(UserMixin, db.Model):
     telemetry_enabled = db.Column(db.Boolean, default=True)
     telemetry_notice_shown = db.Column(db.Boolean, default=False)
     tutorial_shown = db.Column(db.Boolean, default=False)
+    exp_details_tutorial_shown = db.Column(db.Boolean, default=False)
 
     def get_id(self):
         """Return user ID with 'admin_' prefix for Flask-Login."""
