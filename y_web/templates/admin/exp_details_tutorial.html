@@ -208,7 +208,7 @@
                     <li><b>Remaining Time Forecast</b> - Estimate when simulation will complete</li>
                 </ul>
                 <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Switch between daily/hourly views for different granularity.</p>`,
-            position: 'top'
+            position: 'overlay'
         },
         {
             id: 'server-logs',
@@ -221,7 +221,7 @@
                     <li><b>Path Filters</b> - Focus on specific API endpoints</li>
                 </ul>
                 <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Use auto-refresh to monitor in real-time.</p>`,
-            position: 'top'
+            position: 'overlay'
         },
         {
             id: 'client-logs',
@@ -234,7 +234,7 @@
                     <li><b>Mean Execution Time</b> - Track action performance</li>
                 </ul>
                 <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Great for understanding agent behavior patterns.</p>`,
-            position: 'top'
+            position: 'overlay'
         },
         {
             id: 'load-experiment',
@@ -360,15 +360,17 @@
         }
         element.style.zIndex = '9998';
         
-        // Position highlight and tooltip
-        positionElements(element, step.position);
-        
-        // Scroll element into view if needed
+        // Scroll element into view first, then position elements after scroll completes
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         
-        // Add pulse animation
-        const highlight = document.getElementById('exp-tutorial-highlight');
-        highlight.classList.add('pulse');
+        // Wait for scroll to complete before positioning tooltip
+        setTimeout(() => {
+            positionElements(element, step.position);
+            
+            // Add pulse animation
+            const highlight = document.getElementById('exp-tutorial-highlight');
+            highlight.classList.add('pulse');
+        }, 500);
     }
     
     // Position the highlight and tooltip
@@ -422,6 +424,11 @@
                     tooltipTop = rect.bottom + scrollTop + gap;
                 }
                 break;
+            case 'overlay':
+                // Position tooltip centered on top of the element
+                tooltipTop = rect.top + scrollTop + (rect.height / 2) - (tooltipHeight / 2);
+                tooltipLeft = rect.left + scrollLeft + (rect.width / 2) - (tooltipWidth / 2);
+                break;
             case 'bottom':
             default:
                 tooltipTop = rect.bottom + scrollTop + gap;
@@ -432,8 +439,10 @@
         
         // Ensure tooltip stays on screen horizontally
         tooltipLeft = Math.max(10, Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 10));
-        // Ensure tooltip stays on screen vertically
-        tooltipTop = Math.max(scrollTop + 10, tooltipTop);
+        // Ensure tooltip stays on screen vertically (use current viewport)
+        const viewportTop = scrollTop;
+        const viewportBottom = scrollTop + window.innerHeight;
+        tooltipTop = Math.max(viewportTop + 10, Math.min(tooltipTop, viewportBottom - tooltipHeight - 10));
         
         tooltip.style.top = tooltipTop + 'px';
         tooltip.style.left = tooltipLeft + 'px';
