@@ -18,7 +18,8 @@ CREATE TABLE admin_users (
     perspective_api       TEXT DEFAULT NULL,
     llm_url               TEXT DEFAULT '',
     telemetry_enabled     BOOLEAN DEFAULT TRUE,
-    telemetry_notice_shown BOOLEAN DEFAULT FALSE
+    telemetry_notice_shown BOOLEAN DEFAULT FALSE,
+    tutorial_shown        BOOLEAN DEFAULT FALSE
 );
 
 -- -----------------------------
@@ -37,7 +38,8 @@ CREATE TABLE exps (
     platform_type      TEXT DEFAULT 'microblogging',
     annotations        TEXT DEFAULT '' NOT NULL,
     server_pid         INTEGER DEFAULT NULL,
-    llm_agents_enabled INTEGER DEFAULT 1 NOT NULL
+    llm_agents_enabled INTEGER DEFAULT 1 NOT NULL,
+    exp_status         VARCHAR(20) DEFAULT 'stopped' NOT NULL
 );
 
 CREATE TABLE exp_stats (
@@ -48,6 +50,38 @@ CREATE TABLE exp_stats (
     posts     INTEGER DEFAULT 0 NOT NULL,
     reactions INTEGER DEFAULT 0 NOT NULL,
     mentions  INTEGER DEFAULT 0 NOT NULL
+);
+
+-- -----------------------------
+-- Experiment Scheduling
+-- -----------------------------
+CREATE TABLE experiment_schedule_groups (
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(100) NOT NULL,
+    order_index  INTEGER NOT NULL DEFAULT 0,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_completed INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE experiment_schedule_items (
+    id            SERIAL PRIMARY KEY,
+    group_id      INTEGER NOT NULL REFERENCES experiment_schedule_groups(id) ON DELETE CASCADE,
+    experiment_id INTEGER NOT NULL REFERENCES exps(idexp) ON DELETE CASCADE,
+    order_index   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE experiment_schedule_status (
+    id               SERIAL PRIMARY KEY,
+    is_running       INTEGER NOT NULL DEFAULT 0,
+    current_group_id INTEGER DEFAULT NULL,
+    started_at       TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE experiment_schedule_logs (
+    id         SERIAL PRIMARY KEY,
+    message    TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    log_type   VARCHAR(20) NOT NULL DEFAULT 'info'
 );
 
 -- -----------------------------
@@ -673,3 +707,23 @@ CREATE TABLE client_log_metrics (
     total_execution_time DOUBLE PRECISION NOT NULL DEFAULT 0.0
 );
 CREATE INDEX idx_client_log_metrics_lookup ON client_log_metrics(exp_id, client_id, aggregation_level, day, hour, method_name);
+
+-- -----------------------------
+-- Log Sync Settings
+-- -----------------------------
+CREATE TABLE log_sync_settings (
+    id                    SERIAL PRIMARY KEY,
+    enabled               BOOLEAN NOT NULL DEFAULT TRUE,
+    sync_interval_minutes INTEGER NOT NULL DEFAULT 10,
+    last_sync             TIMESTAMP DEFAULT NULL
+);
+
+-- -----------------------------
+-- Watchdog Settings
+-- -----------------------------
+CREATE TABLE watchdog_settings (
+    id                   SERIAL PRIMARY KEY,
+    enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+    run_interval_minutes INTEGER NOT NULL DEFAULT 15,
+    last_run             TIMESTAMP DEFAULT NULL
+);
