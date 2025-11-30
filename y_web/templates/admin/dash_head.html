@@ -158,6 +158,27 @@ function dismissBlogPost(postId) {
                         </span>
         </label> -->
         <div class="buttons">
+            <!-- Tutorial Replay Button - only shown on pages with tutorials -->
+            <button id="tutorial-replay-btn" class="button is-solid has-icon" onclick="replayPageTutorial()" title="Replay Tutorial" style="display: none; margin-right: 0.5rem;">
+                <i data-feather="help-circle"></i>
+                <span>Tutorial</span>
+            </button>
+            <script>
+                // Show tutorial button only if a tutorial exists for this page
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Check if startExpDetailsTutorial function exists (experiment details page)
+                    if (typeof window.startExpDetailsTutorial === 'function') {
+                        document.getElementById('tutorial-replay-btn').style.display = 'inline-flex';
+                    }
+                });
+                
+                function replayPageTutorial() {
+                    // Call the appropriate tutorial function based on what's available
+                    if (typeof window.startExpDetailsTutorial === 'function') {
+                        window.startExpDetailsTutorial();
+                    }
+                }
+            </script>
             {% if active_experiments %}
                 {% if active_experiments|length == 1 %}
                     {# Single experiment - direct link #}
