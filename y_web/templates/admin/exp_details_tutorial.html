@@ -1,26 +1,35 @@
 <!-- Experiment Details Tutorial Overlay -->
 <div id="exp-details-tutorial-overlay" style="display: none;">
-    <!-- Backdrop -->
+    <!-- Backdrop with blur - will be clipped to avoid highlighted area -->
     <div id="exp-tutorial-backdrop" style="
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 9998;
-        backdrop-filter: blur(2px);
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 9997;
+        pointer-events: none;
     "></div>
     
-    <!-- Highlight box (positioned dynamically) -->
+    <!-- Highlight box (positioned dynamically) - creates a clear window -->
     <div id="exp-tutorial-highlight" style="
         position: absolute;
         border: 3px solid #039be5;
         border-radius: 12px;
-        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(3, 155, 229, 0.6);
-        z-index: 9999;
+        box-shadow: 0 0 30px rgba(3, 155, 229, 0.8);
+        z-index: 10001;
         pointer-events: none;
         transition: all 0.4s ease-in-out;
+        background: transparent;
+    "></div>
+    
+    <!-- Clone container for highlighted element - ensures it's visible above backdrop -->
+    <div id="exp-tutorial-clone-container" style="
+        position: absolute;
+        z-index: 9999;
+        pointer-events: none;
+        overflow: visible;
     "></div>
     
     <!-- Tooltip/Description Box -->
@@ -136,9 +145,9 @@
     
     /* Pulse animation for the highlight */
     @keyframes exp-tutorial-pulse {
-        0% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(3, 155, 229, 0.6); }
-        50% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 30px rgba(3, 155, 229, 0.9); }
-        100% { box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5), 0 0 20px rgba(3, 155, 229, 0.6); }
+        0% { box-shadow: 0 0 20px rgba(3, 155, 229, 0.6); }
+        50% { box-shadow: 0 0 35px rgba(3, 155, 229, 1); }
+        100% { box-shadow: 0 0 20px rgba(3, 155, 229, 0.6); }
     }
     
     #exp-tutorial-highlight.pulse {
@@ -241,7 +250,7 @@
                 <p style="margin-top: 12px; padding: 10px; background: #e8f5e9; border-radius: 6px; font-size: 0.9em;">
                     <b>💡 Try it now!</b> Click the button to load this experiment's interface, then use the <i class="mdi mdi-login"></i> button to join.
                 </p>`,
-            position: 'bottom',
+            position: 'right',
             isLast: true
         }
     ];
@@ -298,6 +307,9 @@
         return null;
     }
     
+    // Track the currently highlighted element for cleanup
+    let currentHighlightedElement = null;
+    
     // Show a specific step
     function showStep(stepIndex) {
         const step = tutorialSteps[stepIndex];
@@ -333,6 +345,21 @@
             nextBtn.style.background = 'linear-gradient(135deg, #039be5 0%, #00bcd4 100%)';
         }
         
+        // Remove highlight from previous element
+        if (currentHighlightedElement) {
+            currentHighlightedElement.style.position = '';
+            currentHighlightedElement.style.zIndex = '';
+            currentHighlightedElement.style.background = '';
+        }
+        
+        // Add high z-index to current element to bring it above the backdrop
+        currentHighlightedElement = element;
+        const originalPosition = window.getComputedStyle(element).position;
+        if (originalPosition === 'static') {
+            element.style.position = 'relative';
+        }
+        element.style.zIndex = '9998';
+        
         // Position highlight and tooltip
         positionElements(element, step.position);
         
@@ -360,9 +387,15 @@
         highlight.style.width = (rect.width + padding * 2) + 'px';
         highlight.style.height = (rect.height + padding * 2) + 'px';
         
-        // Position tooltip based on position preference
+        // Get tooltip dimensions after content is set
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.display = 'block';
         const tooltipRect = tooltip.getBoundingClientRect();
-        const gap = 20;
+        tooltip.style.visibility = '';
+        
+        const gap = 15;
+        const tooltipWidth = 400;
+        const tooltipHeight = tooltipRect.height;
         
         let tooltipTop, tooltipLeft;
         
@@ -371,20 +404,20 @@
                 tooltipTop = rect.top + scrollTop;
                 tooltipLeft = rect.right + scrollLeft + gap;
                 // Check if tooltip goes off screen
-                if (tooltipLeft + 400 > window.innerWidth) {
-                    tooltipLeft = rect.left + scrollLeft - 400 - gap;
+                if (tooltipLeft + tooltipWidth > window.innerWidth) {
+                    tooltipLeft = rect.left + scrollLeft - tooltipWidth - gap;
                 }
                 break;
             case 'left':
                 tooltipTop = rect.top + scrollTop;
-                tooltipLeft = rect.left + scrollLeft - 400 - gap;
+                tooltipLeft = rect.left + scrollLeft - tooltipWidth - gap;
                 if (tooltipLeft < 0) {
                     tooltipLeft = rect.right + scrollLeft + gap;
                 }
                 break;
             case 'top':
-                tooltipTop = rect.top + scrollTop - tooltipRect.height - gap;
-                tooltipLeft = rect.left + scrollLeft + (rect.width - 400) / 2;
+                tooltipTop = rect.top + scrollTop - tooltipHeight - gap;
+                tooltipLeft = rect.left + scrollLeft + (rect.width / 2) - (tooltipWidth / 2);
                 if (tooltipTop < scrollTop) {
                     tooltipTop = rect.bottom + scrollTop + gap;
                 }
@@ -392,12 +425,14 @@
             case 'bottom':
             default:
                 tooltipTop = rect.bottom + scrollTop + gap;
-                tooltipLeft = rect.left + scrollLeft + (rect.width - 400) / 2;
+                // Center tooltip relative to the element, but ensure it stays visible
+                tooltipLeft = rect.left + scrollLeft + (rect.width / 2) - (tooltipWidth / 2);
                 break;
         }
         
-        // Ensure tooltip stays on screen
-        tooltipLeft = Math.max(10, Math.min(tooltipLeft, window.innerWidth - 410));
+        // Ensure tooltip stays on screen horizontally
+        tooltipLeft = Math.max(10, Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 10));
+        // Ensure tooltip stays on screen vertically
         tooltipTop = Math.max(scrollTop + 10, tooltipTop);
         
         tooltip.style.top = tooltipTop + 'px';
@@ -417,6 +452,14 @@
     // Hide tutorial and mark as completed
     function hideTutorial() {
         tutorialActive = false;
+        
+        // Clean up highlighted element
+        if (currentHighlightedElement) {
+            currentHighlightedElement.style.position = '';
+            currentHighlightedElement.style.zIndex = '';
+            currentHighlightedElement = null;
+        }
+        
         document.getElementById('exp-details-tutorial-overlay').style.display = 'none';
         
         // Mark tutorial as completed
