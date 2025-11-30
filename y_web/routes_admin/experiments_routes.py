@@ -4448,7 +4448,9 @@ def get_schedule_status():
             "success": True,
             "is_running": bool(status.is_running),
             "current_group_id": status.current_group_id,
-            "started_at": status.started_at.isoformat() if status.started_at else None,
+            "started_at": (
+                status.started_at.isoformat() + "Z" if status.started_at else None
+            ),
         }
     )
 
@@ -5032,7 +5034,7 @@ def get_schedule_logs():
                     "message": log.message,
                     "log_type": log.log_type,
                     "created_at": (
-                        log.created_at.isoformat() if log.created_at else None
+                        log.created_at.isoformat() + "Z" if log.created_at else None
                     ),
                 }
                 for log in logs
