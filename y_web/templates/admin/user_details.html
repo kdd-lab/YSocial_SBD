@@ -118,7 +118,7 @@ input:checked + .slider:before {
 
                 <!--Dashboard column-->
                 <div class="column is-12-mobile is-4-tablet" style="display: flex;">
-                    <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="dashboard-box" id="box-user-profile" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">User Profile</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Account information and API configurations for this user.
@@ -173,7 +173,7 @@ input:checked + .slider:before {
 
                  <div class="column is-12-mobile is-8-tablet" style="display: flex;">
 
-                    <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="dashboard-box" id="box-update-llm" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Update LLM Configuration</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Configure the LLM server URL and select a model for text generation tasks.
@@ -223,7 +223,7 @@ input:checked + .slider:before {
             <!-- Row 2: Update Password, Update Email, Add Perspective API (3 columns) -->
             <div class="columns is-multiline" style="align-items: stretch;">
                 <div class="column is-12-mobile is-4-tablet" style="display: flex;">
-                    <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="dashboard-box" id="box-update-password" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Update Password</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Change the user's password with secure validation.
@@ -266,7 +266,7 @@ input:checked + .slider:before {
                 </div>
 
                 <div class="column is-12-mobile is-4-tablet" style="display: flex;">
-                    <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="dashboard-box" id="box-update-email" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Update Email</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Change the user's email address.
@@ -304,7 +304,7 @@ input:checked + .slider:before {
                 </div>
 
                 <div class="column is-12-mobile is-4-tablet" style="display: flex;">
-                    <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="dashboard-box" id="box-perspective-api" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Add Perspective API</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Configure Google's Perspective API for text toxicity analysis.
@@ -341,7 +341,7 @@ input:checked + .slider:before {
                 <!-- Experiment Participation -->
                 <div class="column is-12-mobile is-6-tablet" style="display: flex;">
                     <!--Box-->
-                     <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                     <div class="dashboard-box" id="box-experiment-participation" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Experiment Participation</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Experiments this user owns or participates in.
@@ -388,7 +388,7 @@ input:checked + .slider:before {
                 {% if current_user_role == "admin" %}
                 <!-- Add to Experiment section (admin only) -->
                 <div class="column is-12-mobile is-6-tablet" style="display: flex;">
-                    <div class="dashboard-box" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="dashboard-box" id="box-add-to-experiment" style="flex: 1; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Add to Experiment</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Grant this user access to participate in an experiment.

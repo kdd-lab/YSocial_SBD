@@ -162,17 +162,29 @@
     };
     
     function getActiveTab() {
-        const activeTabBtn = document.querySelector('.misc-tab.active');
-        if (!activeTabBtn) return 'system-settings';
-        const onclick = activeTabBtn.getAttribute('onclick') || '';
-        const match = onclick.match(/switchMiscTab\('([^']+)'\)/);
-        return match ? match[1] : 'system-settings';
-    }
-    
-    function switchToTab(tabName) {
-        if (typeof window.switchMiscTab === 'function') {
-            window.switchMiscTab(tabName);
+        // Check which tab content is visible
+        const tabContents = {
+            'system-settings': document.getElementById('tab-system-settings'),
+            'llm-management': document.getElementById('tab-llm-management'),
+            'demographics': document.getElementById('tab-demographics'),
+            'content-behavior': document.getElementById('tab-content-behavior')
+        };
+        
+        for (const [tabName, tabElement] of Object.entries(tabContents)) {
+            if (tabElement && tabElement.style.display !== 'none') {
+                return tabName;
+            }
         }
+        
+        // Fallback: check button active state
+        const activeTabBtn = document.querySelector('.misc-tab.active');
+        if (activeTabBtn) {
+            const onclick = activeTabBtn.getAttribute('onclick') || '';
+            const match = onclick.match(/switchMiscTab\('([^']+)'\)/);
+            if (match) return match[1];
+        }
+        
+        return 'system-settings';
     }
     
     function buildStepsForCurrentTab() {
@@ -207,23 +219,17 @@
     
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
-            const steps = buildStepsForCurrentTab();
-            
-            if (steps.length > 0) {
-                const tutorial = window.PageTutorialEngine.init('miscellanea', steps);
-                if (tutorial) {
-                    window.startMiscellaneaTutorial = function() {
-                        // Rebuild steps based on current tab when starting
-                        const currentSteps = buildStepsForCurrentTab();
-                        if (currentSteps.length > 0) {
-                            const newTutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
-                            if (newTutorial) {
-                                newTutorial.start();
-                            }
-                        }
-                    };
+            // Define the start function immediately
+            window.startMiscellaneaTutorial = function() {
+                // Rebuild steps based on current tab when starting
+                const currentSteps = buildStepsForCurrentTab();
+                if (currentSteps.length > 0) {
+                    const newTutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
+                    if (newTutorial) {
+                        newTutorial.start();
+                    }
                 }
-            }
+            };
         }, 500);
     });
 })();

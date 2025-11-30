@@ -19,7 +19,7 @@
                     </div>
                     {% endfor %}
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-registered-users">
                         <h3 class="title is-5 is-thin">Registered Users</h3>
 
                         <div class="box-content">
@@ -184,7 +184,7 @@
                         </div>
                     </div>
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-add-user">
                         <h3 class="title is-5 is-thin">Add User</h3>
                         <div class="box-content">
                             <form action="/admin/add_user" enctype="multipart/form-data" method="POST">
@@ -250,7 +250,7 @@
                     </div>
                     <!--Dashboard box-->
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-bulk-create-users">
                         <h3 class="title is-5 is-thin">Bulk Create Users</h3>
                         <div class="box-content">
                             <form action="/admin/bulk_create_users" method="POST">
@@ -276,7 +276,7 @@
                         </div>
                     </div>
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-bulk-assign-users">
                         <h3 class="title is-5 is-thin">Bulk Assign Users to Experiment</h3>
                         <div class="box-content">
                             <form action="/admin/bulk_assign_users" method="POST">

@@ -1,4 +1,4 @@
-<!-- Clients List Tutorial -->
+<!-- Clients Tutorial -->
 {% set TUTORIAL_ID = 'clients' %}
 {% include 'admin/tutorial_base.html' %}
 
@@ -6,68 +6,37 @@
 (function() {
     const clientsSteps = [
         {
-            id: 'client-form',
-            selector: 'form',
+            id: 'new-client',
+            selector: '#box-new-client',
             title: '🤖 Create Simulation Client',
-            description: `<p>Configure a new <b>simulation client</b> to run agents:</p>
+            description: `<p>Configure a new <b>simulation client</b> with these main settings:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Client Name</b> - Identifier for this client</li>
-                    <li><b>Population</b> - Which agent population to use</li>
-                    <li><b>Simulation Days</b> - How long to run (-1 for infinite)</li>
-                </ul>`,
-            position: 'right'
-        },
-        {
-            id: 'behavior-settings',
-            selector: '.dashboard-box:has(h3:contains("Behavior"))',
-            title: '🎯 Agent Behavior Settings',
-            description: `<p>Fine-tune how agents <b>behave</b> in the simulation:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Posting Probability</b> - How often agents post</li>
-                    <li><b>Reading Behavior</b> - Content consumption patterns</li>
-                    <li><b>Social Actions</b> - Following, sharing, commenting</li>
-                </ul>`,
-            position: 'overlay'
-        },
-        {
-            id: 'llm-settings',
-            selector: '.dashboard-box:has(h3:contains("LLM"))',
-            title: '🧠 LLM Configuration',
-            description: `<p>Configure the <b>AI model</b> that powers agent behavior:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Model Selection</b> - Choose the language model</li>
-                    <li><b>Temperature</b> - Control response creativity</li>
-                    <li><b>Max Tokens</b> - Limit response length</li>
-                </ul>`,
-            position: 'overlay'
-        },
-        {
-            id: 'recsys-settings',
-            selector: '.dashboard-box:has(h3:contains("Recommender"))',
-            title: '📊 Recommender Systems',
-            description: `<p>Choose how content is <b>recommended</b> to agents:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Content RecSys</b> - How posts are surfaced</li>
-                    <li><b>Follow RecSys</b> - How follow suggestions work</li>
-                </ul>`,
+                    <li><b>Name</b> - Unique client identifier</li>
+                    <li><b>Description</b> - Purpose of this client</li>
+                    <li><b>Population</b> - Agent population to simulate</li>
+                    <li><b>Simulation Parameters</b> - Duration, agent behavior</li>
+                    <li><b>Action Weights</b> - Agent action probabilities</li>
+                    <li><b>LLM Configuration</b> - AI model settings</li>
+                    <li><b>Recommender Systems</b> - Content and follow suggestions</li>
+                </ul>
+                <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Scroll down to see all configuration sections.</p>`,
             position: 'overlay',
             isLast: true
         }
     ];
     
+    // Filter steps to only include elements that exist
     const filteredSteps = clientsSteps.filter(step => {
-        try {
-            return document.querySelector(step.selector) !== null;
-        } catch (e) {
-            return false;
-        }
+        return document.querySelector(step.selector) !== null;
     });
     
+    // Mark last step
     if (filteredSteps.length > 0) {
         filteredSteps.forEach(s => s.isLast = false);
         filteredSteps[filteredSteps.length - 1].isLast = true;
     }
     
+    // Initialize tutorial when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             if (filteredSteps.length > 0) {
