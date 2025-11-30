@@ -89,30 +89,31 @@
                                 </div>
                                 <hr>
                                 <div id="actions-section">
-                                <b>Actions</b>
-                                <p style="font-size: 0.85em; color: #777; margin-bottom: 0.5em;">Manage experiment data and configuration.</p>
+                                    <b>Actions</b>
+                                    <p style="font-size: 0.85em; color: #777; margin-bottom: 0.5em;">Manage experiment data and configuration.</p>
+                                </div>
                             </div>
                             {% if len(clients)>0 %}
                             <div class="box-line">
-                                    <span class="left">Edit LLM Prompts</span>
-                                    <span class="right">
-                                        <a class="link-tooltip" href="/admin/prompts/{{ experiment.idexp }}" title="Edit">
-                                            <i class="mdi mdi-credit-card" style="font-size: 24px;"></i></a>
-                                    </span>
-                                </div>
+                                <span class="left">Edit LLM Prompts</span>
+                                <span class="right">
+                                    <a class="link-tooltip" href="/admin/prompts/{{ experiment.idexp }}" title="Edit">
+                                        <i class="mdi mdi-credit-card" style="font-size: 24px;"></i></a>
+                                </span>
+                            </div>
                             {% endif %}
 
                             <div class="box-line">
-                                    <span class="left">Download Experiment</span>
-                                    <span class="right"><a class="link-tooltip" href="/admin/download_experiment/{{ experiment.idexp }}" title="Download"><i
-                                     class="mdi mdi-download" style="font-size: 24px;"></i></a></span>
-                                </div>
+                                <span class="left">Download Experiment</span>
+                                <span class="right"><a class="link-tooltip" href="/admin/download_experiment/{{ experiment.idexp }}" title="Download"><i
+                                 class="mdi mdi-download" style="font-size: 24px;"></i></a></span>
+                            </div>
                             <div class="box-line">
-                                    <span class="left">Delete Experiment</span>
-                                    <span class="right"> <a class="link-tooltip" href="/admin/delete_simulation/{{ experiment.idexp }}" 
-                                                            title="Delete"><i
-                                     class="mdi mdi-delete" style="font-size: 24px;"></i></a></span>
-                                </div>
+                                <span class="left">Delete Experiment</span>
+                                <span class="right"> <a class="link-tooltip" href="/admin/delete_simulation/{{ experiment.idexp }}" 
+                                                        title="Delete"><i
+                                 class="mdi mdi-delete" style="font-size: 24px;"></i></a></span>
+                            </div>
 
                         </div>
                     </div>

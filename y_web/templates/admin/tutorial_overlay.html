@@ -1501,18 +1501,18 @@
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                // Redirect to experiment details page
-                window.location.href = `/admin/experiment_details/${createdExperimentId}`;
+                // Redirect to experiment details page with from_tutorial param
+                window.location.href = `/admin/experiment_details/${createdExperimentId}?from_tutorial=true`;
             } else {
                 console.error('Error starting simulation:', result.message);
                 // Still redirect - user can start manually
-                window.location.href = `/admin/experiment_details/${createdExperimentId}`;
+                window.location.href = `/admin/experiment_details/${createdExperimentId}?from_tutorial=true`;
             }
         })
         .catch(error => {
             console.error('Error starting simulation:', error);
             // Still redirect even if there's an error - the user can start manually
-            window.location.href = `/admin/experiment_details/${createdExperimentId}`;
+            window.location.href = `/admin/experiment_details/${createdExperimentId}?from_tutorial=true`;
         });
     }
     

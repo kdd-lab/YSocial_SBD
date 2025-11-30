@@ -255,6 +255,16 @@
         const urlParams = new URLSearchParams(window.location.search);
         const fromTutorial = urlParams.get('from_tutorial') === 'true';
         
+        // If coming from onboarding tutorial, always show the exp details tutorial
+        if (fromTutorial) {
+            // Show tutorial after a short delay to let the page render
+            setTimeout(() => {
+                startTutorial();
+            }, 1000);
+            return;
+        }
+        
+        // Otherwise, check the status from the server (only show if not seen before)
         fetch('/admin/tutorial/exp_details/check_status')
             .then(response => response.json())
             .then(data => {
