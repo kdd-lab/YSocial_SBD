@@ -1,0 +1,96 @@
+<!-- Client Details Tutorial -->
+{% set TUTORIAL_ID = 'clientdetails' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const clientDetailsSteps = [
+        {
+            id: 'client-info',
+            selector: '.dashboard-box:first-of-type',
+            title: '📋 Client Overview',
+            description: `<p>Basic information about this <b>simulation client</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Name</b> - Client identifier</li>
+                    <li><b>Population</b> - Linked agent population</li>
+                    <li><b>Status</b> - Current running state</li>
+                    <li><b>Progress</b> - Simulation completion</li>
+                </ul>`,
+            position: 'right'
+        },
+        {
+            id: 'simulation-settings',
+            selector: '.dashboard-box:has(h3:contains("Simulation"))',
+            title: '⚙️ Simulation Settings',
+            description: `<p>Configure <b>simulation parameters</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Duration</b> - How many days to simulate</li>
+                    <li><b>Posting Probability</b> - Agent activity level</li>
+                    <li><b>Network Type</b> - Social graph structure</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'behavior-settings',
+            selector: '.dashboard-box:has(h3:contains("Behavior"))',
+            title: '🎯 Behavior Configuration',
+            description: `<p>Fine-tune <b>agent behaviors</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Reading Patterns</b> - How agents consume content</li>
+                    <li><b>Social Actions</b> - Following, sharing, commenting</li>
+                    <li><b>Attention Window</b> - Content visibility duration</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'llm-config',
+            selector: '.dashboard-box:has(h3:contains("LLM"))',
+            title: '🧠 LLM Settings',
+            description: `<p>Configure the <b>AI model</b> for this client:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Model</b> - Language model selection</li>
+                    <li><b>Temperature</b> - Response creativity</li>
+                    <li><b>Max Tokens</b> - Response length limit</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'agents-list',
+            selector: '.dashboard-box:has(h3:contains("Agent"))',
+            title: '👥 Client Agents',
+            description: `<p>View and manage <b>agents</b> in this client:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>See all agents assigned to this client</li>
+                    <li>Adjust individual agent activity levels</li>
+                    <li>Download agent list for analysis</li>
+                </ul>`,
+            position: 'overlay',
+            isLast: true
+        }
+    ];
+    
+    const filteredSteps = clientDetailsSteps.filter(step => {
+        try {
+            return document.querySelector(step.selector) !== null;
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (filteredSteps.length > 0) {
+                const tutorial = window.PageTutorialEngine.init('clientdetails', filteredSteps);
+                if (tutorial) {
+                    window.startClientDetailsTutorial = tutorial.start;
+                }
+            }
+        }, 500);
+    });
+})();
+</script>

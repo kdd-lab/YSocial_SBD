@@ -1,0 +1,53 @@
+<!-- Users List Tutorial -->
+{% set TUTORIAL_ID = 'users' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const usersSteps = [
+        {
+            id: 'users-table',
+            selector: '#table',
+            title: '👤 Platform Users',
+            description: `<p>This table shows all <b>registered users</b> who can access the platform:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Username</b> - User's login name</li>
+                    <li><b>Email</b> - Contact email address</li>
+                    <li><b>Role</b> - Access level (Admin, Researcher, User)</li>
+                    <li><b>Last Seen</b> - Most recent activity</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'user-actions',
+            selector: '.gridjs-td:last-child',
+            title: '⚡ User Management',
+            description: `<p>Manage users with these actions:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>View Details</b> - See user profile and activity</li>
+                    <li><b>Edit</b> - Change user role or information</li>
+                    <li><b>Delete</b> - Remove user from system</li>
+                </ul>`,
+            position: 'left',
+            isLast: true
+        }
+    ];
+    
+    const filteredSteps = usersSteps.filter(step => document.querySelector(step.selector) !== null);
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (filteredSteps.length > 0) {
+                const tutorial = window.PageTutorialEngine.init('users', filteredSteps);
+                if (tutorial) {
+                    window.startUsersTutorial = tutorial.start;
+                }
+            }
+        }, 1000);
+    });
+})();
+</script>

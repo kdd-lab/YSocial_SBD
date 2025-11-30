@@ -1,0 +1,82 @@
+<!-- Clients List Tutorial -->
+{% set TUTORIAL_ID = 'clients' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const clientsSteps = [
+        {
+            id: 'client-form',
+            selector: 'form',
+            title: '🤖 Create Simulation Client',
+            description: `<p>Configure a new <b>simulation client</b> to run agents:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Client Name</b> - Identifier for this client</li>
+                    <li><b>Population</b> - Which agent population to use</li>
+                    <li><b>Simulation Days</b> - How long to run (-1 for infinite)</li>
+                </ul>`,
+            position: 'right'
+        },
+        {
+            id: 'behavior-settings',
+            selector: '.dashboard-box:has(h3:contains("Behavior"))',
+            title: '🎯 Agent Behavior Settings',
+            description: `<p>Fine-tune how agents <b>behave</b> in the simulation:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Posting Probability</b> - How often agents post</li>
+                    <li><b>Reading Behavior</b> - Content consumption patterns</li>
+                    <li><b>Social Actions</b> - Following, sharing, commenting</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'llm-settings',
+            selector: '.dashboard-box:has(h3:contains("LLM"))',
+            title: '🧠 LLM Configuration',
+            description: `<p>Configure the <b>AI model</b> that powers agent behavior:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Model Selection</b> - Choose the language model</li>
+                    <li><b>Temperature</b> - Control response creativity</li>
+                    <li><b>Max Tokens</b> - Limit response length</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'recsys-settings',
+            selector: '.dashboard-box:has(h3:contains("Recommender"))',
+            title: '📊 Recommender Systems',
+            description: `<p>Choose how content is <b>recommended</b> to agents:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Content RecSys</b> - How posts are surfaced</li>
+                    <li><b>Follow RecSys</b> - How follow suggestions work</li>
+                </ul>`,
+            position: 'overlay',
+            isLast: true
+        }
+    ];
+    
+    const filteredSteps = clientsSteps.filter(step => {
+        try {
+            return document.querySelector(step.selector) !== null;
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (filteredSteps.length > 0) {
+                const tutorial = window.PageTutorialEngine.init('clients', filteredSteps);
+                if (tutorial) {
+                    window.startClientsTutorial = tutorial.start;
+                }
+            }
+        }, 500);
+    });
+})();
+</script>

@@ -1,0 +1,65 @@
+<!-- Pages List Tutorial -->
+{% set TUTORIAL_ID = 'pages' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const pagesSteps = [
+        {
+            id: 'pages-table',
+            selector: '#table',
+            title: '📄 Available Pages',
+            description: `<p>This table shows all <b>content pages</b> in your simulations:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Name</b> - Page identifier</li>
+                    <li><b>Type</b> - News source, influencer, etc.</li>
+                    <li><b>Keywords</b> - Content focus areas</li>
+                    <li><b>Leaning</b> - Political orientation</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'create-page',
+            selector: '.sidebar-box',
+            title: '➕ Create New Page',
+            description: `<p>Add a new <b>content page</b> to your simulations:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>Enter page name and description</li>
+                    <li>Set page type and content focus</li>
+                    <li>Configure posting behavior</li>
+                </ul>`,
+            position: 'left'
+        },
+        {
+            id: 'page-actions',
+            selector: '.gridjs-td:last-child',
+            title: '⚡ Page Actions',
+            description: `<p>Manage pages with these actions:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>View Details</b> - See page configuration</li>
+                    <li><b>Edit</b> - Modify page settings</li>
+                    <li><b>Delete</b> - Remove page from system</li>
+                </ul>`,
+            position: 'left',
+            isLast: true
+        }
+    ];
+    
+    const filteredSteps = pagesSteps.filter(step => document.querySelector(step.selector) !== null);
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (filteredSteps.length > 0) {
+                const tutorial = window.PageTutorialEngine.init('pages', filteredSteps);
+                if (tutorial) {
+                    window.startPagesTutorial = tutorial.start;
+                }
+            }
+        }, 1000);
+    });
+})();
+</script>

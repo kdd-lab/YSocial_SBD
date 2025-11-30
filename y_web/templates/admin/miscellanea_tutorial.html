@@ -1,0 +1,120 @@
+<!-- Miscellanea Tutorial -->
+{% set TUTORIAL_ID = 'miscellanea' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const miscellaneaSteps = [
+        {
+            id: 'tabs-navigation',
+            selector: '.misc-tabs',
+            title: '📑 Configuration Tabs',
+            description: `<p>Navigate between different <b>configuration sections</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>System Settings</b> - Platform configuration</li>
+                    <li><b>LLM Management</b> - AI model settings</li>
+                    <li><b>Demographics</b> - Agent attributes</li>
+                    <li><b>Content & Behavior</b> - Simulation settings</li>
+                </ul>`,
+            position: 'bottom'
+        },
+        {
+            id: 'system-settings',
+            selector: '#tab-system-settings',
+            title: '⚙️ System Settings',
+            description: `<p>Configure <b>platform-wide settings</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Log Sync</b> - Automated log synchronization</li>
+                    <li><b>Watchdog</b> - Process monitoring</li>
+                    <li><b>Telemetry</b> - Usage analytics</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'llm-management',
+            selector: '#tab-llm-management',
+            title: '🧠 LLM Management',
+            description: `<p>Manage <b>AI language models</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Available Models</b> - View installed models</li>
+                    <li><b>Pull Models</b> - Download new models</li>
+                    <li><b>Model Status</b> - Check download progress</li>
+                </ul>
+                <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Only visible when LLM backend is configured.</p>`,
+            position: 'overlay'
+        },
+        {
+            id: 'demographics',
+            selector: '#tab-demographics',
+            title: '🌍 Demographics & Attributes',
+            description: `<p>Configure <b>agent characteristics</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Languages</b> - Supported languages</li>
+                    <li><b>Nationalities</b> - Agent nationalities</li>
+                    <li><b>Political Leanings</b> - Political orientations</li>
+                    <li><b>Education Levels</b> - Education categories</li>
+                    <li><b>Professions</b> - Job categories</li>
+                </ul>`,
+            position: 'overlay'
+        },
+        {
+            id: 'content-behavior',
+            selector: '#tab-content-behavior',
+            title: '📝 Content & Behavior',
+            description: `<p>Configure <b>simulation behaviors</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Toxicity Levels</b> - Content toxicity settings</li>
+                    <li><b>Age Classes</b> - Age group definitions</li>
+                    <li><b>Activity Profiles</b> - Agent activity patterns</li>
+                    <li><b>Recommender Systems</b> - Content/follow algorithms</li>
+                </ul>`,
+            position: 'overlay',
+            isLast: true
+        }
+    ];
+    
+    // Filter steps to only include visible tabs
+    const filteredSteps = miscellaneaSteps.filter(step => {
+        const element = document.querySelector(step.selector);
+        if (!element) return false;
+        
+        // For tab content, check if it's visible
+        if (step.selector.startsWith('#tab-')) {
+            return element.classList.contains('active') || step.id === 'tabs-navigation';
+        }
+        return true;
+    });
+    
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            // Re-filter based on current tab state
+            const currentSteps = miscellaneaSteps.filter(step => {
+                const element = document.querySelector(step.selector);
+                if (!element) return false;
+                // Always include tabs navigation
+                if (step.id === 'tabs-navigation') return true;
+                // For tab content, only include the currently active one
+                if (step.selector.startsWith('#tab-')) {
+                    return element.classList.contains('active');
+                }
+                return true;
+            });
+            
+            if (currentSteps.length > 0) {
+                currentSteps.forEach(s => s.isLast = false);
+                currentSteps[currentSteps.length - 1].isLast = true;
+                
+                const tutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
+                if (tutorial) {
+                    window.startMiscellaneaTutorial = tutorial.start;
+                }
+            }
+        }, 500);
+    });
+})();
+</script>

@@ -1,0 +1,98 @@
+<!-- Dashboard (Experiments List) Tutorial -->
+{% set TUTORIAL_ID = 'dashboard' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const dashboardSteps = [
+        {
+            id: 'running-experiments',
+            selector: '#running-experiments-container',
+            title: '🟢 Running Experiments',
+            description: `<p>This section shows all <b>currently active experiments</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Client Progress</b> - Real-time progress bars for each simulation client</li>
+                    <li><b>Play/Pause/Stop</b> - Control individual clients or the entire experiment</li>
+                    <li><b>JupyterLab</b> - Start analysis environment for data exploration</li>
+                </ul>`,
+            position: 'bottom',
+            fallbackSelector: '.dashboard-box:first-of-type'
+        },
+        {
+            id: 'completed-experiments',
+            selector: '#completed-experiments-container',
+            title: '🔵 Completed Experiments',
+            description: `<p>Experiments where <b>all clients have finished</b> their simulation runs:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>View experiment details and results</li>
+                    <li>Download data or restart simulations</li>
+                    <li>Delete experiments you no longer need</li>
+                </ul>`,
+            position: 'right',
+            fallbackSelector: '.dashboard-box:nth-of-type(2)'
+        },
+        {
+            id: 'stopped-experiments',
+            selector: '#stopped-experiments-container',
+            title: '⚫ Stopped/Scheduled Experiments',
+            description: `<p>Experiments that are <b>paused or scheduled</b> to run:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>Resume stopped experiments</li>
+                    <li>Manage scheduled experiment queues</li>
+                    <li>Configure experiment timing</li>
+                </ul>`,
+            position: 'left',
+            fallbackSelector: '.dashboard-box:nth-of-type(3)'
+        },
+        {
+            id: 'quick-reference',
+            selector: '.column.is-4 .dashboard-box.is-compact',
+            title: '📚 Quick Reference Guide',
+            description: `<p>A helpful <b>step-by-step guide</b> for running experiments:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>How to create populations and agents</li>
+                    <li>Setting up simulation clients</li>
+                    <li>Starting and monitoring experiments</li>
+                </ul>`,
+            position: 'left'
+        },
+        {
+            id: 'create-experiment-btn',
+            selector: 'a[href="/admin/populations"]',
+            title: '➕ Create New Experiment',
+            description: `<p>Ready to start a new simulation? Click <b>Create Experiment</b> to begin!</p>
+                <p style="margin-top: 10px;">This will guide you through:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>Creating a population of agents</li>
+                    <li>Configuring the experiment parameters</li>
+                    <li>Setting up simulation clients</li>
+                </ul>`,
+            position: 'bottom',
+            isLast: true
+        }
+    ];
+    
+    // Filter steps to only include elements that exist
+    const filteredSteps = dashboardSteps.filter(step => {
+        const element = document.querySelector(step.selector) || 
+                       (step.fallbackSelector && document.querySelector(step.fallbackSelector));
+        return element !== null;
+    });
+    
+    // Mark last step
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    // Initialize tutorial when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        if (filteredSteps.length > 0) {
+            const tutorial = window.PageTutorialEngine.init('dashboard', filteredSteps);
+            if (tutorial) {
+                window.startDashboardTutorial = tutorial.start;
+            }
+        }
+    });
+})();
+</script>

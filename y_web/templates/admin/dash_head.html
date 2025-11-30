@@ -166,16 +166,49 @@ function dismissBlogPost(postId) {
             <script>
                 // Show tutorial button only if a tutorial exists for this page
                 document.addEventListener('DOMContentLoaded', function() {
-                    // Check if startExpDetailsTutorial function exists (experiment details page)
-                    if (typeof window.startExpDetailsTutorial === 'function') {
-                        document.getElementById('tutorial-replay-btn').style.display = 'inline-flex';
-                    }
+                    // Wait a bit for tutorial scripts to register their functions
+                    setTimeout(function() {
+                        // Check for any available tutorial functions
+                        const tutorialFunctions = [
+                            'startExpDetailsTutorial',
+                            'startDashboardTutorial',
+                            'startAgentsTutorial',
+                            'startUsersTutorial',
+                            'startClientsTutorial',
+                            'startPagesTutorial',
+                            'startClientDetailsTutorial',
+                            'startUserDetailsTutorial',
+                            'startMiscellaneaTutorial'
+                        ];
+                        
+                        const hasTutorial = tutorialFunctions.some(fn => typeof window[fn] === 'function');
+                        
+                        if (hasTutorial) {
+                            document.getElementById('tutorial-replay-btn').style.display = 'inline-flex';
+                        }
+                    }, 1500);
                 });
                 
                 function replayPageTutorial() {
                     // Call the appropriate tutorial function based on what's available
                     if (typeof window.startExpDetailsTutorial === 'function') {
                         window.startExpDetailsTutorial();
+                    } else if (typeof window.startDashboardTutorial === 'function') {
+                        window.startDashboardTutorial();
+                    } else if (typeof window.startAgentsTutorial === 'function') {
+                        window.startAgentsTutorial();
+                    } else if (typeof window.startUsersTutorial === 'function') {
+                        window.startUsersTutorial();
+                    } else if (typeof window.startClientsTutorial === 'function') {
+                        window.startClientsTutorial();
+                    } else if (typeof window.startPagesTutorial === 'function') {
+                        window.startPagesTutorial();
+                    } else if (typeof window.startClientDetailsTutorial === 'function') {
+                        window.startClientDetailsTutorial();
+                    } else if (typeof window.startUserDetailsTutorial === 'function') {
+                        window.startUserDetailsTutorial();
+                    } else if (typeof window.startMiscellaneaTutorial === 'function') {
+                        window.startMiscellaneaTutorial();
                     }
                 }
             </script>

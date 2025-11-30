@@ -1,0 +1,70 @@
+<!-- User Details Tutorial -->
+{% set TUTORIAL_ID = 'userdetails' %}
+{% include 'admin/tutorial_base.html' %}
+
+<script>
+(function() {
+    const userDetailsSteps = [
+        {
+            id: 'user-info',
+            selector: '.dashboard-box:first-of-type',
+            title: '👤 User Profile',
+            description: `<p>View and edit <b>user information</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Username</b> - User's login name</li>
+                    <li><b>Email</b> - Contact address</li>
+                    <li><b>Role</b> - Access level permissions</li>
+                </ul>`,
+            position: 'right'
+        },
+        {
+            id: 'user-activity',
+            selector: '.dashboard-box:has(h3:contains("Activity"))',
+            title: '📊 User Activity',
+            description: `<p>Track <b>user engagement</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Last Seen</b> - Most recent login</li>
+                    <li><b>Experiments</b> - Associated experiments</li>
+                </ul>`,
+            position: 'right'
+        },
+        {
+            id: 'user-settings',
+            selector: '.dashboard-box:has(h3:contains("Settings"))',
+            title: '⚙️ User Settings',
+            description: `<p>Manage <b>user preferences</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>LLM Configuration</b> - Default AI model</li>
+                    <li><b>API Keys</b> - External service access</li>
+                    <li><b>Profile</b> - Avatar and display name</li>
+                </ul>`,
+            position: 'overlay',
+            isLast: true
+        }
+    ];
+    
+    const filteredSteps = userDetailsSteps.filter(step => {
+        try {
+            return document.querySelector(step.selector) !== null;
+        } catch (e) {
+            return false;
+        }
+    });
+    
+    if (filteredSteps.length > 0) {
+        filteredSteps.forEach(s => s.isLast = false);
+        filteredSteps[filteredSteps.length - 1].isLast = true;
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+            if (filteredSteps.length > 0) {
+                const tutorial = window.PageTutorialEngine.init('userdetails', filteredSteps);
+                if (tutorial) {
+                    window.startUserDetailsTutorial = tutorial.start;
+                }
+            }
+        }, 500);
+    });
+})();
+</script>
