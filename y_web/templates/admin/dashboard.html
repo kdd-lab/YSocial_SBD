@@ -280,7 +280,7 @@
                     
                     <!-- Currently Running Experiments (Active) - Full width -->
                     {% if len(running_experiments) > 0 %}
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-running-experiments">
                          <h3 class="title is-5 is-thin" style="display: flex; align-items: center; gap: 10px;">
                             <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #28a745;"></span>
                             Currently Running Experiments
@@ -311,7 +311,7 @@
                         <!-- Completed Experiments - Half width on desktop -->
                         {% if len(completed_experiments) > 0 %}
                         <div class="column is-6-desktop is-12-tablet is-12-mobile" style="display: flex;">
-                            <div class="dashboard-box" style="flex: 1; margin-bottom: 0; display: flex; flex-direction: column;">
+                            <div class="dashboard-box" id="box-completed-experiments" style="flex: 1; margin-bottom: 0; display: flex; flex-direction: column;">
                                  <h3 class="title is-6 is-thin" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #17a2b8;"></span>
                                     Completed
@@ -341,7 +341,7 @@
                         <!-- Stopped/Scheduled Experiments - Half width on desktop -->
                         {% if len(stopped_experiments) > 0 %}
                         <div class="column is-6-desktop is-12-tablet is-12-mobile" style="display: flex;">
-                            <div class="dashboard-box" style="flex: 1; margin-bottom: 0; display: flex; flex-direction: column;">
+                            <div class="dashboard-box" id="box-stopped-experiments" style="flex: 1; margin-bottom: 0; display: flex; flex-direction: column;">
                                  <h3 class="title is-6 is-thin" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d;"></span>
                                     Stopped / Scheduled
@@ -490,7 +490,7 @@
                 <div class="column is-4">
                     <!--Dashboard box-->
 
-                    <div class="dashboard-box is-compact">
+                    <div class="dashboard-box is-compact" id="box-quick-reference">
                         <h3 class="title is-5 is-thin">Quick Reference Guide</h3>
                         <div class="help-block">
                             <p>

@@ -4,114 +4,224 @@
 
 <script>
 (function() {
-    const miscellaneaSteps = [
-        {
+    // Define all tutorial steps for each tab
+    const allSteps = {
+        // Tab navigation
+        'tabs-navigation': {
             id: 'tabs-navigation',
             selector: '.misc-tabs',
             title: '📑 Configuration Tabs',
-            description: `<p>Navigate between different <b>configuration sections</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>System Settings</b> - Platform configuration</li>
-                    <li><b>LLM Management</b> - AI model settings</li>
-                    <li><b>Demographics</b> - Agent attributes</li>
-                    <li><b>Content & Behavior</b> - Simulation settings</li>
-                </ul>`,
-            position: 'bottom'
+            description: `<p>Navigate between different <b>configuration sections</b>. Each tab contains related settings for your simulation platform.</p>`,
+            position: 'bottom',
+            tab: null
         },
-        {
-            id: 'system-settings',
-            selector: '#tab-system-settings',
-            title: '⚙️ System Settings',
-            description: `<p>Configure <b>platform-wide settings</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Log Sync</b> - Automated log synchronization</li>
-                    <li><b>Watchdog</b> - Process monitoring</li>
-                    <li><b>Telemetry</b> - Usage analytics</li>
-                </ul>`,
-            position: 'overlay'
-        },
-        {
-            id: 'llm-management',
-            selector: '#tab-llm-management',
-            title: '🧠 LLM Management',
-            description: `<p>Manage <b>AI language models</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Available Models</b> - View installed models</li>
-                    <li><b>Pull Models</b> - Download new models</li>
-                    <li><b>Model Status</b> - Check download progress</li>
-                </ul>
-                <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Only visible when LLM backend is configured.</p>`,
-            position: 'overlay'
-        },
-        {
-            id: 'demographics',
-            selector: '#tab-demographics',
-            title: '🌍 Demographics & Attributes',
-            description: `<p>Configure <b>agent characteristics</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Languages</b> - Supported languages</li>
-                    <li><b>Nationalities</b> - Agent nationalities</li>
-                    <li><b>Political Leanings</b> - Political orientations</li>
-                    <li><b>Education Levels</b> - Education categories</li>
-                    <li><b>Professions</b> - Job categories</li>
-                </ul>`,
-            position: 'overlay'
-        },
-        {
-            id: 'content-behavior',
-            selector: '#tab-content-behavior',
-            title: '📝 Content & Behavior',
-            description: `<p>Configure <b>simulation behaviors</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Toxicity Levels</b> - Content toxicity settings</li>
-                    <li><b>Age Classes</b> - Age group definitions</li>
-                    <li><b>Activity Profiles</b> - Agent activity patterns</li>
-                    <li><b>Recommender Systems</b> - Content/follow algorithms</li>
-                </ul>`,
-            position: 'overlay',
-            isLast: true
-        }
-    ];
-    
-    // Filter steps to only include visible tabs
-    const filteredSteps = miscellaneaSteps.filter(step => {
-        const element = document.querySelector(step.selector);
-        if (!element) return false;
         
-        // For tab content, check if it's visible
-        if (step.selector.startsWith('#tab-')) {
-            return element.classList.contains('active') || step.id === 'tabs-navigation';
+        // System Settings tab
+        'system-updates': {
+            id: 'system-updates',
+            selector: '#box-system-updates',
+            title: '🔄 System Updates',
+            description: `<p><b>Check for new YSocial releases</b> and stay up to date with the latest features and improvements.</p>`,
+            position: 'right',
+            tab: 'system-settings'
+        },
+        'telemetry-settings': {
+            id: 'telemetry-settings',
+            selector: '#box-telemetry-settings',
+            title: '📊 Telemetry Settings',
+            description: `<p>Control <b>anonymous usage data collection</b> to help improve YSocial. No personal data is collected.</p>`,
+            position: 'left',
+            tab: 'system-settings'
+        },
+        'log-sync': {
+            id: 'log-sync',
+            selector: '#box-log-sync',
+            title: '📝 Automatic Log Synchronization',
+            description: `<p><b>Periodic log reading</b> from running experiments keeps plot data updated and prevents data loss during log rotation.</p>`,
+            position: 'right',
+            tab: 'system-settings'
+        },
+        'watchdog': {
+            id: 'watchdog',
+            selector: '#box-watchdog',
+            title: '🐕 Process Watchdog',
+            description: `<p><b>Monitor and auto-restart</b> hung server/client processes to ensure continuous operation of your experiments.</p>`,
+            position: 'overlay',
+            tab: 'system-settings'
+        },
+        'about-system': {
+            id: 'about-system',
+            selector: '#box-about-system',
+            title: 'ℹ️ About System Settings',
+            description: `<p>Quick reference for all <b>system configuration options</b> and their purposes.</p>`,
+            position: 'left',
+            tab: 'system-settings'
+        },
+        
+        // LLM Management tab
+        'llm-server': {
+            id: 'llm-server',
+            selector: '#box-llm-server',
+            title: '🖥️ LLM Server Status',
+            description: `<p>View the status of your <b>self-hosted LLM server</b>. Check if it's installed and running.</p>`,
+            position: 'right',
+            tab: 'llm-management'
+        },
+        'add-llm-model': {
+            id: 'add-llm-model',
+            selector: '#box-add-llm-model',
+            title: '➕ Add LLM Model',
+            description: `<p><b>Pull new AI models</b> from the Ollama directory to use in your simulations.</p>`,
+            position: 'left',
+            tab: 'llm-management'
+        },
+        'available-llms': {
+            id: 'available-llms',
+            selector: '#box-available-llms',
+            title: '📋 Available LLMs',
+            description: `<p>View all <b>installed language models</b> with their sizes and details. Delete models you no longer need.</p>`,
+            position: 'overlay',
+            tab: 'llm-management'
+        },
+        
+        // Demographics tab
+        'political-leanings': {
+            id: 'political-leanings',
+            selector: '#box-political-leanings',
+            title: '🗳️ Political Leanings',
+            description: `<p>Define <b>political orientations</b> that agents can have. Edit names directly in the table.</p>`,
+            position: 'right',
+            tab: 'demographics'
+        },
+        'education-levels': {
+            id: 'education-levels',
+            selector: '#box-education-levels',
+            title: '🎓 Education Levels',
+            description: `<p>Configure <b>education categories</b> for agent demographics (e.g., High School, Bachelor's, PhD).</p>`,
+            position: 'left',
+            tab: 'demographics'
+        },
+        'professions': {
+            id: 'professions',
+            selector: '#box-professions',
+            title: '💼 Professions',
+            description: `<p>Define <b>job categories</b> that agents can have in your simulations.</p>`,
+            position: 'right',
+            tab: 'demographics'
+        },
+        'languages': {
+            id: 'languages',
+            selector: '#box-languages',
+            title: '🌐 Languages',
+            description: `<p>Configure <b>supported languages</b> for agent communication in simulations.</p>`,
+            position: 'left',
+            tab: 'demographics'
+        },
+        'nationalities': {
+            id: 'nationalities',
+            selector: '#box-nationalities',
+            title: '🌍 Nationalities',
+            description: `<p>Define <b>agent nationalities</b> available for demographic configuration.</p>`,
+            position: 'right',
+            tab: 'demographics'
+        },
+        'age-classes': {
+            id: 'age-classes',
+            selector: '#box-age-classes',
+            title: '📅 Age Classes',
+            description: `<p>Configure <b>age group definitions</b> with minimum and maximum age ranges.</p>`,
+            position: 'left',
+            tab: 'demographics'
+        },
+        
+        // Content & Behavior tab
+        'topics': {
+            id: 'topics',
+            selector: '#box-topics',
+            title: '💬 Topics',
+            description: `<p>Define <b>content topics</b> that agents can discuss and post about.</p>`,
+            position: 'right',
+            tab: 'content-behavior'
+        },
+        'toxicity-levels': {
+            id: 'toxicity-levels',
+            selector: '#box-toxicity-levels',
+            title: '⚠️ Toxicity Levels',
+            description: `<p>Configure <b>toxicity categories</b> for content classification in simulations.</p>`,
+            position: 'left',
+            tab: 'content-behavior'
+        },
+        'activity-profiles': {
+            id: 'activity-profiles',
+            selector: '#box-activity-profiles',
+            title: '📈 Activity Profiles',
+            description: `<p>Define <b>agent activity patterns</b> including hourly activity levels throughout the day.</p>`,
+            position: 'overlay',
+            tab: 'content-behavior'
         }
-        return true;
-    });
+    };
     
-    if (filteredSteps.length > 0) {
-        filteredSteps.forEach(s => s.isLast = false);
-        filteredSteps[filteredSteps.length - 1].isLast = true;
+    function getActiveTab() {
+        const activeTabBtn = document.querySelector('.misc-tab.active');
+        if (!activeTabBtn) return 'system-settings';
+        const onclick = activeTabBtn.getAttribute('onclick') || '';
+        const match = onclick.match(/switchMiscTab\('([^']+)'\)/);
+        return match ? match[1] : 'system-settings';
+    }
+    
+    function switchToTab(tabName) {
+        if (typeof window.switchMiscTab === 'function') {
+            window.switchMiscTab(tabName);
+        }
+    }
+    
+    function buildStepsForCurrentTab() {
+        const activeTab = getActiveTab();
+        const steps = [];
+        
+        // Always start with tab navigation
+        const tabsNav = allSteps['tabs-navigation'];
+        if (document.querySelector(tabsNav.selector)) {
+            steps.push({...tabsNav});
+        }
+        
+        // Add steps for the current active tab
+        for (const key in allSteps) {
+            const step = allSteps[key];
+            if (step.tab === activeTab) {
+                const element = document.querySelector(step.selector);
+                if (element) {
+                    steps.push({...step});
+                }
+            }
+        }
+        
+        // Mark last step
+        if (steps.length > 0) {
+            steps.forEach(s => s.isLast = false);
+            steps[steps.length - 1].isLast = true;
+        }
+        
+        return steps;
     }
     
     document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
-            // Re-filter based on current tab state
-            const currentSteps = miscellaneaSteps.filter(step => {
-                const element = document.querySelector(step.selector);
-                if (!element) return false;
-                // Always include tabs navigation
-                if (step.id === 'tabs-navigation') return true;
-                // For tab content, only include the currently active one
-                if (step.selector.startsWith('#tab-')) {
-                    return element.classList.contains('active');
-                }
-                return true;
-            });
+            const steps = buildStepsForCurrentTab();
             
-            if (currentSteps.length > 0) {
-                currentSteps.forEach(s => s.isLast = false);
-                currentSteps[currentSteps.length - 1].isLast = true;
-                
-                const tutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
+            if (steps.length > 0) {
+                const tutorial = window.PageTutorialEngine.init('miscellanea', steps);
                 if (tutorial) {
-                    window.startMiscellaneaTutorial = tutorial.start;
+                    window.startMiscellaneaTutorial = function() {
+                        // Rebuild steps based on current tab when starting
+                        const currentSteps = buildStepsForCurrentTab();
+                        if (currentSteps.length > 0) {
+                            const newTutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
+                            if (newTutorial) {
+                                newTutorial.start();
+                            }
+                        }
+                    };
                 }
             }
         }, 500);

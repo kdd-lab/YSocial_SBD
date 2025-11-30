@@ -7,7 +7,7 @@
     const dashboardSteps = [
         {
             id: 'running-experiments',
-            selector: '#running-experiments-container',
+            selector: '#box-running-experiments',
             title: '🟢 Running Experiments',
             description: `<p>This section shows all <b>currently active experiments</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
@@ -15,12 +15,11 @@
                     <li><b>Play/Pause/Stop</b> - Control individual clients or the entire experiment</li>
                     <li><b>JupyterLab</b> - Start analysis environment for data exploration</li>
                 </ul>`,
-            position: 'bottom',
-            fallbackSelector: '.dashboard-box:first-of-type'
+            position: 'bottom'
         },
         {
             id: 'completed-experiments',
-            selector: '#completed-experiments-container',
+            selector: '#box-completed-experiments',
             title: '🔵 Completed Experiments',
             description: `<p>Experiments where <b>all clients have finished</b> their simulation runs:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
@@ -28,12 +27,11 @@
                     <li>Download data or restart simulations</li>
                     <li>Delete experiments you no longer need</li>
                 </ul>`,
-            position: 'right',
-            fallbackSelector: '.dashboard-box:nth-of-type(2)'
+            position: 'right'
         },
         {
             id: 'stopped-experiments',
-            selector: '#stopped-experiments-container',
+            selector: '#box-stopped-experiments',
             title: '⚫ Stopped/Scheduled Experiments',
             description: `<p>Experiments that are <b>paused or scheduled</b> to run:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
@@ -41,12 +39,11 @@
                     <li>Manage scheduled experiment queues</li>
                     <li>Configure experiment timing</li>
                 </ul>`,
-            position: 'left',
-            fallbackSelector: '.dashboard-box:nth-of-type(3)'
+            position: 'left'
         },
         {
             id: 'quick-reference',
-            selector: '.column.is-4 .dashboard-box.is-compact',
+            selector: '#box-quick-reference',
             title: '📚 Quick Reference Guide',
             description: `<p>A helpful <b>step-by-step guide</b> for running experiments:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
@@ -74,9 +71,7 @@
     
     // Filter steps to only include elements that exist
     const filteredSteps = dashboardSteps.filter(step => {
-        const element = document.querySelector(step.selector) || 
-                       (step.fallbackSelector && document.querySelector(step.fallbackSelector));
-        return element !== null;
+        return document.querySelector(step.selector) !== null;
     });
     
     // Mark last step

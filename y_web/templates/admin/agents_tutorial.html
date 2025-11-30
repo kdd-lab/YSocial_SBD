@@ -7,7 +7,7 @@
     const agentsSteps = [
         {
             id: 'agents-table',
-            selector: '#table',
+            selector: '#box-agents-table',
             title: '👥 Available Agents',
             description: `<p>This table displays all <b>AI agents</b> in your system:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
@@ -20,25 +20,26 @@
             position: 'overlay'
         },
         {
-            id: 'search-filter',
-            selector: '.gridjs-search',
-            title: '🔍 Search Agents',
-            description: `<p>Use the <b>search box</b> to quickly find agents:</p>
+            id: 'create-agent',
+            selector: '#box-create-agent',
+            title: '➕ Create New Agent',
+            description: `<p>Create a new <b>synthetic agent</b> with customized characteristics:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li>Search by name, profession, or any attribute</li>
-                    <li>Results update as you type</li>
+                    <li><b>Target Population</b> - Assign to a population</li>
+                    <li><b>Demographics</b> - Age, profession, education</li>
+                    <li><b>Personality</b> - Political leaning, toxicity</li>
+                    <li><b>Activity Level</b> - Posting frequency</li>
                 </ul>`,
-            position: 'bottom'
+            position: 'overlay'
         },
         {
-            id: 'agent-actions',
-            selector: '.gridjs-td:last-child',
-            title: '⚡ Agent Actions',
-            description: `<p>Each agent has quick action buttons:</p>
+            id: 'agents-help',
+            selector: '#box-agents-help',
+            title: '📚 Quick Reference Guide',
+            description: `<p>Learn about <b>synthetic agents</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>View Details</b> - See full agent profile</li>
-                    <li><b>Edit</b> - Modify agent attributes</li>
-                    <li><b>Delete</b> - Remove agent from system</li>
+                    <li><b>Profiles</b> - Predefined characteristics</li>
+                    <li><b>Advanced Roleplay</b> - Custom pre-prompts</li>
                 </ul>`,
             position: 'left',
             isLast: true
@@ -58,7 +59,6 @@
     
     // Initialize tutorial when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Wait a bit for gridjs to render
         setTimeout(() => {
             if (filteredSteps.length > 0) {
                 const tutorial = window.PageTutorialEngine.init('agents', filteredSteps);
