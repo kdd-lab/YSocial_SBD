@@ -1538,16 +1538,19 @@
                                     emotionToggle.disabled = true;
                                     perspectiveApiField.style.display = 'none';
 
-                                    // Clear and disable topics input, set to "Topic1"
+                                    // Clear and disable topics input, set to 10 default topics
                                     tagList.length = 0;
                                     while (tags.firstChild) {
                                         tags.removeChild(tags.firstChild);
                                     }
-                                    tagList.push('Topic1');
-                                    const tag = document.createElement('li');
-                                    tag.innerHTML = `Topic1 <button class="delete-button" disabled style="cursor: not-allowed; opacity: 0.5;">X</button>`;
-                                    tags.appendChild(tag);
-                                    hiddenInput.value = 'Topic1';
+                                    const defaultTopics = ['Topic1', 'Topic2', 'Topic3', 'Topic4', 'Topic5', 'Topic6', 'Topic7', 'Topic8', 'Topic9', 'Topic10'];
+                                    defaultTopics.forEach(function(topicName) {
+                                        tagList.push(topicName);
+                                        const tag = document.createElement('li');
+                                        tag.innerHTML = `${topicName} <button class="delete-button" disabled style="cursor: not-allowed; opacity: 0.5;">X</button>`;
+                                        tags.appendChild(tag);
+                                    });
+                                    hiddenInput.value = defaultTopics.join(',');
                                     inputTag.disabled = true;
                                     inputTag.placeholder = 'Topics disabled when LLM agents are off';
                                     updateButtonState();
