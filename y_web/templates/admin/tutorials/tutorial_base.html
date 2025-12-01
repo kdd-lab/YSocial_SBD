@@ -396,6 +396,7 @@
                 state.currentHighlightedElement.style.background = '';
                 state.currentHighlightedElement.style.borderRadius = '';
                 state.currentHighlightedElement.style.padding = '';
+                state.currentHighlightedElement.style.boxShadow = '';
             }
             
             // Highlight current element - elevate above backdrop with solid background
@@ -405,12 +406,18 @@
                 element.style.position = 'relative';
             }
             element.style.zIndex = '9998';
+            
             // Add white background so element appears above the dark backdrop
+            // Check if element is inside sidebar or has transparent background
             const computedBg = window.getComputedStyle(element).backgroundColor;
-            if (!computedBg || computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)') {
+            const isInSidebar = element.closest('.dashboard-aside') !== null;
+            const isTransparent = !computedBg || computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)';
+            
+            if (isTransparent || isInSidebar) {
                 element.style.background = '#ffffff';
                 element.style.borderRadius = '8px';
-                element.style.padding = '12px';
+                element.style.padding = '10px 12px';
+                element.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
             }
             
             // Scroll and position
@@ -440,6 +447,7 @@
                 state.currentHighlightedElement.style.background = '';
                 state.currentHighlightedElement.style.borderRadius = '';
                 state.currentHighlightedElement.style.padding = '';
+                state.currentHighlightedElement.style.boxShadow = '';
                 state.currentHighlightedElement = null;
             }
             

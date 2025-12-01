@@ -550,25 +550,25 @@
 </div>
 
 <!-- Floating Services Indicator - Compact Side by Side -->
-<div id="services-indicator" style="position: fixed; bottom: 15px; right: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.95); border-radius: 6px; padding: 6px 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); backdrop-filter: blur(10px); border: 1px solid rgba(0,0,0,0.08);">
+<div id="services-indicator" style="position: fixed; bottom: 15px; right: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.95); border-radius: 6px; padding: 8px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); backdrop-filter: blur(10px); border: 1px solid rgba(0,0,0,0.08);">
     <div style="display: flex; flex-direction: row; gap: 12px; align-items: center;">
         <!-- Database Status -->
-        <div style="display: flex; align-items: center; gap: 4px;" title="{{ dbtype }}{% if db_server %} ({{ db_server }}:{{ dbport }}){% endif %}">
-            <i class="mdi mdi-database" style="font-size: 14px; color: #555;"></i>
-            <span style="font-size: 0.75em; color: #555; font-weight: 500;">{{ dbtype }}</span>
-            <i class="mdi mdi-checkbox-blank-circle {% if db_conn %} active {% endif %}" style="font-size: 10px;"></i>
+        <div style="display: flex; align-items: center; gap: 6px;" title="{{ dbtype }}{% if db_server %} ({{ db_server }}:{{ dbport }}){% endif %}">
+            <i class="mdi mdi-database" style="font-size: 16px; color: #555;"></i>
+            <span style="font-size: 0.8em; color: #444; font-weight: 500;">{{ dbtype }}</span>
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: {% if db_conn %}#22c55e{% else %}#ef4444{% endif %};"></span>
         </div>
         {% if llm_backend['backend'] is not none %}
         <!-- Separator -->
-        <div style="width: 1px; height: 14px; background: rgba(0,0,0,0.1);"></div>
+        <div style="width: 1px; height: 16px; background: rgba(0,0,0,0.15);"></div>
         <!-- LLM Server Status -->
-        <div style="display: flex; align-items: center; gap: 4px;" title="LLM Server: {{ llm_backend['backend']|upper }}">
-            <i class="mdi mdi-brain" style="font-size: 14px; color: #555;"></i>
-            <span style="font-size: 0.75em; color: #555; font-weight: 500;">{{ llm_backend['backend']|upper }}</span>
-            <i class="mdi mdi-checkbox-blank-circle {% if llm_backend['status'] %} active {% endif %}" style="font-size: 10px;"></i>
+        <div style="display: flex; align-items: center; gap: 6px;" title="LLM Server: {{ llm_backend['backend']|upper }}">
+            <i class="mdi mdi-brain" style="font-size: 16px; color: #555;"></i>
+            <span style="font-size: 0.8em; color: #444; font-weight: 500;">{{ llm_backend['backend']|upper }}</span>
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: {% if llm_backend['status'] %}#22c55e{% else %}#ef4444{% endif %};"></span>
             {% if llm_backend['backend'] == 'ollama' and not llm_backend['status'] %}
             <a href="/admin/start_ollama/" title="Start Ollama" style="margin-left: 2px;">
-                <i class="mdi mdi-play-circle-outline" style="font-size: 14px; color: #22c55e;"></i>
+                <i class="mdi mdi-play-circle-outline" style="font-size: 16px; color: #22c55e;"></i>
             </a>
             {% endif %}
         </div>
