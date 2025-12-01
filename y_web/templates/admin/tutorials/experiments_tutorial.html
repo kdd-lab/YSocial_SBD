@@ -97,45 +97,32 @@
         }
     ];
     
-    // Filter steps to only include elements that exist and are visible
-    const filteredSteps = experimentsSteps.filter(step => {
-        const el = document.querySelector(step.selector);
-        if (!el) return false;
-        // Check if element is visible (has display !== 'none')
-        const style = window.getComputedStyle(el);
-        return style.display !== 'none';
-    });
-    
-    // Mark last step
-    if (filteredSteps.length > 0) {
-        filteredSteps.forEach(s => s.isLast = false);
-        filteredSteps[filteredSteps.length - 1].isLast = true;
+    function getVisibleSteps() {
+        return experimentsSteps.filter(step => {
+            const el = document.querySelector(step.selector);
+            if (!el) return false;
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none';
+        });
     }
     
     // Initialize tutorial when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Wait a bit for dynamic content to load (experiments tables)
-        setTimeout(function() {
-            // Re-filter after dynamic content loads
-            const dynamicFilteredSteps = experimentsSteps.filter(step => {
-                const el = document.querySelector(step.selector);
-                if (!el) return false;
-                const style = window.getComputedStyle(el);
-                return style.display !== 'none';
-            });
+        // Always register the tutorial function immediately
+        window.startExperimentsTutorial = function() {
+            // Get visible steps at the time of starting
+            const visibleSteps = getVisibleSteps();
             
-            if (dynamicFilteredSteps.length > 0) {
-                dynamicFilteredSteps.forEach(s => s.isLast = false);
-                dynamicFilteredSteps[dynamicFilteredSteps.length - 1].isLast = true;
-            }
-            
-            if (dynamicFilteredSteps.length > 0) {
-                const tutorial = window.PageTutorialEngine.init('experiments', dynamicFilteredSteps);
+            if (visibleSteps.length > 0) {
+                visibleSteps.forEach(s => s.isLast = false);
+                visibleSteps[visibleSteps.length - 1].isLast = true;
+                
+                const tutorial = window.PageTutorialEngine.init('experiments', visibleSteps);
                 if (tutorial) {
-                    window.startExperimentsTutorial = tutorial.start;
+                    tutorial.start();
                 }
             }
-        }, 1500); // Wait for Grid.js tables to load
+        };
     });
 })();
 </script>
