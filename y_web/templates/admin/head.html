@@ -253,22 +253,30 @@
         display: flex;
         flex-direction: column;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-        padding-top: 0; /* No padding - content starts immediately */
+        padding-top: 48px; /* Space for hamburger button */
     }
     
     .dashboard-aside.open {
         left: 0;
     }
     
-    /* Mobile sidebar header with logo - positioned below hamburger */
+    /* Mobile sidebar header with logo - centered, first element */
     .dashboard-aside .dashboard-aside-brand {
-        display: flex;
+        display: flex !important;
         align-items: center;
         justify-content: center;
-        padding: 55px 20px 8px 20px; /* Top padding for hamburger clearance */
+        padding: 16px 20px;
         border-bottom: 1px solid #e6e6e6;
         background: #fafafa;
         margin: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .dashboard-aside .dashboard-aside-brand img {
+        display: block;
+        max-width: 120px;
+        height: auto;
     }
     
     /* Sidebar body - vertical list with no extra spacing */
