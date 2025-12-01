@@ -234,10 +234,55 @@
         z-index: 1060;
         transition: left 0.3s ease;
         overflow-y: auto;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
     }
     
     .dashboard-aside.open {
         left: 0;
+    }
+    
+    /* Ensure sidebar body items are stacked vertically */
+    .dashboard-aside-body {
+        display: flex;
+        flex-direction: column;
+        padding: 0 10px;
+    }
+    
+    .dashboard-aside-body hr {
+        width: 100%;
+        margin: 8px 0;
+        border: none;
+        border-top: 1px solid #e6e6e6;
+    }
+    
+    .dashboard-aside-link {
+        display: block;
+        width: 100%;
+        padding: 10px 15px;
+        margin: 2px 0;
+        border-radius: 6px;
+    }
+    
+    .dashboard-aside-link div {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .dashboard-aside-link:hover {
+        background: #f5f5f5;
+    }
+    
+    /* Ensure end section is also vertical */
+    .dashboard-aside-end {
+        display: flex;
+        flex-direction: column;
+        padding: 0 10px;
+        margin-top: auto;
+        border-top: 1px solid #e6e6e6;
+        padding-top: 10px;
     }
     
     /* Adjust main content when sidebar is hidden */
