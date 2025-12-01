@@ -238,43 +238,44 @@
         display: flex;
         flex-direction: column;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+        padding-top: 60px; /* Space for hamburger button */
     }
     
     .dashboard-aside.open {
         left: 0;
     }
     
-    /* Mobile sidebar header with logo */
+    /* Mobile sidebar header with logo - positioned below hamburger */
     .dashboard-aside .dashboard-aside-brand {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        padding: 16px 20px;
+        justify-content: center;
+        padding: 12px 20px;
         border-bottom: 1px solid #e6e6e6;
         background: #fafafa;
     }
     
-    /* Sidebar body - vertical list */
+    /* Sidebar body - vertical list with reduced spacing */
     .dashboard-aside-body {
         display: flex;
         flex-direction: column;
-        padding: 8px 0;
-        flex: 1;
+        padding: 4px 0;
+        flex: 0; /* Don't expand - let content dictate height */
     }
     
     .dashboard-aside-body hr {
         width: calc(100% - 32px);
-        margin: 8px 16px;
+        margin: 4px 16px;
         border: none;
         border-top: 1px solid #e6e6e6;
     }
     
-    /* Standard mobile menu item */
+    /* Standard mobile menu item - reduced padding */
     .dashboard-aside-link {
         display: flex;
         align-items: center;
         width: 100%;
-        padding: 14px 20px;
+        padding: 12px 20px;
         text-decoration: none;
         color: #333;
         transition: background 0.2s, color 0.2s;
@@ -325,12 +326,11 @@
         color: #039be5;
     }
     
-    /* Footer section */
+    /* Footer section - reduced spacing, no auto margin */
     .dashboard-aside-end {
         display: flex;
         flex-direction: column;
-        padding: 8px 0;
-        margin-top: auto;
+        padding: 4px 0;
         border-top: 1px solid #e6e6e6;
         background: #fafafa;
     }
@@ -347,7 +347,7 @@
     }
 }
 
-/* Tutorial highlighting for sidebar elements */
+/* Tutorial highlighting for sidebar elements - works on both desktop and mobile */
 .dashboard-aside-link.tutorial-highlighted {
     position: relative !important;
     z-index: 10000 !important;
@@ -355,6 +355,14 @@
     box-shadow: 0 4px 20px rgba(3, 155, 229, 0.4) !important;
     border-radius: 8px !important;
     border-left-color: #039be5 !important;
+}
+
+/* Desktop sidebar tutorial highlighting */
+@media screen and (min-width: 769px) {
+    .dashboard-aside-link.tutorial-highlighted {
+        margin: 4px 8px;
+        padding: 10px 12px !important;
+    }
 }
 </style>
 
