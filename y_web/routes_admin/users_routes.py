@@ -44,10 +44,10 @@ def user_data():
     Returns:
         Rendered user data template with available models and ollama status
     """
-    # Check if user is admin (researchers should not access this page)
+    # Check if user is admin or researcher
     user = Admin_users.query.filter_by(username=current_user.username).first()
-    if user.role != "admin":
-        flash("Access denied. This page is only accessible to administrators.", "error")
+    if user.role not in ["admin", "researcher"]:
+        flash("Access denied. This page is only accessible to administrators and researchers.", "error")
         return redirect(url_for("admin.dashboard"))
 
     check_privileges(current_user.username)
@@ -70,6 +70,7 @@ def user_data():
         llm_backend=llm_backend,
         experiments=experiments,
         all_users=all_users,
+        current_user_role=user.role,
     )
 
 
@@ -142,13 +143,42 @@ def update():
     """
     Update user information from form data.
 
+    Role change restrictions:
+    - Only admin users can change user roles
+    - Admin users cannot change the role of other admin users
+    - Admin users can change roles of researchers and regular users
+
     Returns:
         Redirect to users page
     """
     data = request.get_json()
     if "id" not in data:
         abort(400)
+
+    # Get current user's role
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
     user = Admin_users.query.get(data["id"])
+
+    # Handle role changes with restrictions
+    if "role" in data:
+        new_role = data["role"]
+
+        # Only admin can change roles
+        if current_admin_user.role != "admin":
+            # Non-admin users cannot change roles at all
+            del data["role"]
+        else:
+            # Admin users cannot change the role of other admin users
+            if user.role == "admin" and user.id != current_admin_user.id:
+                # Cannot change another admin's role
+                del data["role"]
+            # Prevent demoting yourself from admin
+            elif user.id == current_admin_user.id and new_role != "admin":
+                del data["role"]
+
     for field in ["username", "password", "email", "last_seen", "role"]:
         if field in data:
             setattr(user, field, data[field])
@@ -225,10 +255,19 @@ def add_user():
     """
     Create a new admin user from form data.
 
+    Role restrictions:
+    - Admin users can create users with any role (admin, researcher, user)
+    - Researcher users can only create users with 'user' role
+
     Returns:
         Redirect to users page
     """
     check_privileges(current_user.username)
+
+    # Get current user's role
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
 
     username = request.form.get("username")
     email = request.form.get("email")
@@ -236,6 +275,14 @@ def add_user():
     role = request.form.get("role")
     llm = request.form.get("llm")
     profile_pic = request.form.get("profile_pic")
+
+    # Enforce role restrictions: researchers can only create 'user' role
+    if current_admin_user.role != "admin" and role in ["admin", "researcher"]:
+        flash(
+            "You do not have permission to create admin or researcher users. Only 'user' role is allowed.",
+            "error",
+        )
+        return redirect(url_for("users.user_data"))
 
     user = Admin_users(
         username=username,
@@ -653,10 +700,20 @@ def bulk_create_users():
     Expected format: username,email,role per line (password will be auto-generated)
     or with password: username,email,role,password
 
+    Role restrictions:
+    - Admin users can create users with any role (admin, researcher, user)
+    - Researcher users can only create users with 'user' role
+
     Returns:
         Redirect to users page with status message
     """
     check_privileges(current_user.username)
+
+    # Get current user's role
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+    is_admin = current_admin_user.role == "admin"
 
     users_data = request.form.get("users_data", "").strip()
     role_filter = request.form.get("role", "user")  # Default role for bulk creation
@@ -693,6 +750,13 @@ def bulk_create_users():
         if role not in ["admin", "researcher", "user"]:
             errors.append(
                 f"Line {i}: Invalid role '{role}' (must be admin, researcher, or user)"
+            )
+            continue
+
+        # Enforce role restrictions: researchers can only create 'user' role
+        if not is_admin and role in ["admin", "researcher"]:
+            errors.append(
+                f"Line {i}: You do not have permission to create '{role}' users. Only 'user' role is allowed."
             )
             continue
 
