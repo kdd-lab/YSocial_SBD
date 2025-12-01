@@ -794,6 +794,36 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run tutorial_shown column migration: {e}")
 
+        # Run exp_details_tutorial_shown column migration
+        try:
+            if db_type == "sqlite":
+                from y_web.migrations.add_exp_details_tutorial_column import (
+                    migrate_sqlite as migrate_exp_details_tutorial_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_exp_details_tutorial_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_exp_details_tutorial_column import (
+                    migrate_postgresql as migrate_exp_details_tutorial_postgresql,
+                )
+
+                # Get PostgreSQL connection details from app config
+                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
+                if pg_config:
+                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
+                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
+                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
+                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
+                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
+                    if pg_password:
+                        migrate_exp_details_tutorial_postgresql(
+                            pg_host, pg_port, pg_database, pg_user, pg_password
+                        )
+        except Exception as e:
+            print(f"Failed to run exp_details_tutorial_shown column migration: {e}")
+
         # Ensure all tables defined in models exist (including release_info)
         # This creates any missing tables that are defined in models.py
         try:

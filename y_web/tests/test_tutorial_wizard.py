@@ -242,6 +242,31 @@ class TestMigrationScript:
         assert callable(migrate_postgresql)
 
 
+class TestExpDetailsMigrationScript:
+    """Tests for the exp_details_tutorial_shown column migration script."""
+
+    def test_migration_script_exists(self):
+        """Test that the migration script file exists."""
+        import os
+
+        migration_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "migrations",
+            "add_exp_details_tutorial_column.py",
+        )
+        assert os.path.exists(migration_path)
+
+    def test_migration_functions_exist(self):
+        """Test that migration functions are defined."""
+        from y_web.migrations.add_exp_details_tutorial_column import (
+            migrate_postgresql,
+            migrate_sqlite,
+        )
+
+        assert callable(migrate_sqlite)
+        assert callable(migrate_postgresql)
+
+
 class TestTutorialTemplate:
     """Tests for the tutorial template file."""
 
@@ -253,6 +278,7 @@ class TestTutorialTemplate:
             os.path.dirname(os.path.dirname(__file__)),
             "templates",
             "admin",
+            "tutorials",
             "tutorial_overlay.html",
         )
         assert os.path.exists(template_path)
@@ -265,6 +291,7 @@ class TestTutorialTemplate:
             os.path.dirname(os.path.dirname(__file__)),
             "templates",
             "admin",
+            "tutorials",
             "tutorial_overlay.html",
         )
 
