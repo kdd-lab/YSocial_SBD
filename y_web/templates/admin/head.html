@@ -76,7 +76,15 @@
 <!-- Pageloader -->
 <div class="pageloader"></div>
 <div class="infraloader is-active"></div>
-<div class="dashboard-aside">
+<!-- Mobile Sidebar Toggle Button -->
+<button id="sidebar-toggle" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+    <i data-feather="menu"></i>
+</button>
+
+<!-- Mobile Sidebar Overlay -->
+<div id="sidebar-overlay" class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<div class="dashboard-aside" id="dashboard-sidebar">
     <a class="dashboard-aside-brand">
         <img
                 class="logo light-image"
@@ -96,7 +104,7 @@
 
     <div class="dashboard-aside-body">
         <hr>
-        <a href="/admin/dashboard" class="dashboard-aside-link">
+        <a href="/admin/dashboard" class="dashboard-aside-link" id="sidebar-home">
             <div>
                 <i data-feather="home"></i>
                 <span>Home</span>
@@ -104,61 +112,61 @@
         </a>
 
         {% if current_user_role == "admin" %}
-        <a href="/admin/users" class="dashboard-aside-link">
+        <a href="/admin/users" class="dashboard-aside-link sidebar-collapsible" id="sidebar-users">
             <div>
                 <i data-feather="users"></i>
                 <span>Users</span>
             </div>
         </a>
         {% else %}
-        <a href="/admin/user_details/{{ current_user_id }}" class="dashboard-aside-link">
+        <a href="/admin/user_details/{{ current_user_id }}" class="dashboard-aside-link sidebar-collapsible" id="sidebar-profile">
             <div>
                 <i data-feather="user"></i>
                 <span>My Profile</span>
             </div>
         </a>
         {% endif %}
-        <hr>
+        <hr class="sidebar-collapsible">
 
-        <a href="/admin/experiments" class="dashboard-aside-link">
+        <a href="/admin/experiments" class="dashboard-aside-link sidebar-collapsible" id="sidebar-experiments">
             <div>
                 <i data-feather="server"></i>
                 <span>Experiments</span>
             </div>
         </a>
-        <a href="/admin/populations" class="dashboard-aside-link">
+        <a href="/admin/populations" class="dashboard-aside-link sidebar-collapsible" id="sidebar-populations">
             <div>
                 <i data-feather="codesandbox"></i>
                 <span>Populations</span>
             </div>
         </a>
-        <hr>
-        <a href="/admin/agents" class="dashboard-aside-link">
+        <hr class="sidebar-collapsible">
+        <a href="/admin/agents" class="dashboard-aside-link sidebar-collapsible" id="sidebar-agents">
             <div>
                 <i data-feather="cpu"></i>
                 <span>Synthetic Agents</span>
             </div>
         </a>
-        <a href="/admin/pages" class="dashboard-aside-link">
+        <a href="/admin/pages" class="dashboard-aside-link sidebar-collapsible" id="sidebar-pages">
             <div>
                 <i data-feather="file"></i>
                 <span>Pages</span>
             </div>
         </a>
 
-        <hr>
+        <hr class="sidebar-collapsible">
 
     </div>
     <div class="dashboard-aside-end">
         {% if current_user_role == "admin" %}
-        <a href="/admin/miscellanea" class="dashboard-aside-link">
+        <a href="/admin/miscellanea" class="dashboard-aside-link sidebar-collapsible" id="sidebar-miscellanea">
             <div>
                 <i data-feather="more-horizontal"></i>
                 <span>Miscellanea</span>
             </div>
         </a>
         {% endif %}
-        <a href="/admin/about" class="dashboard-aside-link">
+        <a href="/admin/about" class="dashboard-aside-link sidebar-collapsible" id="sidebar-about">
             <div>
                 <i data-feather="compass"></i>
                 <span>About</span>
@@ -169,6 +177,115 @@
         </a>-->
     </div>
 </div>
+
+<!-- Mobile Sidebar Styles -->
+<style>
+/* Sidebar toggle button - only visible on small screens */
+.sidebar-toggle-btn {
+    display: none;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1100;
+    background: #fff;
+    border: 1px solid #e6e6e6;
+    border-radius: 6px;
+    padding: 8px 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.sidebar-toggle-btn svg {
+    width: 20px;
+    height: 20px;
+    color: #333;
+}
+
+/* Overlay for mobile sidebar */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1050;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* Mobile responsive styles */
+@media screen and (max-width: 768px) {
+    .sidebar-toggle-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .dashboard-aside {
+        position: fixed;
+        left: -260px;
+        top: 0;
+        height: 100vh;
+        width: 240px;
+        z-index: 1060;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+    }
+    
+    .dashboard-aside.open {
+        left: 0;
+    }
+    
+    /* Adjust main content when sidebar is hidden */
+    .view-wrapper {
+        margin-left: 0 !important;
+        padding-left: 15px;
+        padding-top: 50px;
+    }
+    
+    .dashboard-container {
+        padding-left: 0 !important;
+    }
+}
+</style>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('dashboard-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (sidebar.classList.contains('open')) {
+        closeSidebar();
+    } else {
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+    }
+}
+
+function closeSidebar() {
+    const sidebar = document.getElementById('dashboard-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+}
+
+// Close sidebar when clicking on a link (for mobile)
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarLinks = document.querySelectorAll('.dashboard-aside-link');
+    sidebarLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                closeSidebar();
+            }
+        });
+    });
+});
+</script>
 
 
 
