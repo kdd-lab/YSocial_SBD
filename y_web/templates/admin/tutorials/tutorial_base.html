@@ -397,6 +397,7 @@
                 state.currentHighlightedElement.style.borderRadius = '';
                 state.currentHighlightedElement.style.padding = '';
                 state.currentHighlightedElement.style.boxShadow = '';
+                state.currentHighlightedElement.classList.remove('tutorial-highlighted');
             }
             
             // Highlight current element - elevate above backdrop with solid background
@@ -405,19 +406,32 @@
             if (originalPosition === 'static') {
                 element.style.position = 'relative';
             }
-            element.style.zIndex = '9998';
             
-            // Add white background so element appears above the dark backdrop
-            // Check if element is inside sidebar or has transparent background
-            const computedBg = window.getComputedStyle(element).backgroundColor;
+            // Check if element is inside sidebar
             const isInSidebar = element.closest('.dashboard-aside') !== null;
-            const isTransparent = !computedBg || computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)';
             
-            if (isTransparent || isInSidebar) {
-                element.style.background = '#ffffff';
-                element.style.borderRadius = '8px';
-                element.style.padding = '10px 12px';
-                element.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            if (isInSidebar) {
+                // For sidebar elements, use CSS class for proper highlighting
+                element.classList.add('tutorial-highlighted');
+                // Also elevate the sidebar itself during tutorial
+                const sidebar = element.closest('.dashboard-aside');
+                if (sidebar) {
+                    sidebar.style.zIndex = '9999';
+                }
+            } else {
+                // For other elements, apply inline styles
+                element.style.zIndex = '9998';
+                
+                // Add white background so element appears above the dark backdrop
+                const computedBg = window.getComputedStyle(element).backgroundColor;
+                const isTransparent = !computedBg || computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)';
+                
+                if (isTransparent) {
+                    element.style.background = '#ffffff';
+                    element.style.borderRadius = '8px';
+                    element.style.padding = '10px 12px';
+                    element.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                }
             }
             
             // Scroll and position
@@ -448,6 +462,14 @@
                 state.currentHighlightedElement.style.borderRadius = '';
                 state.currentHighlightedElement.style.padding = '';
                 state.currentHighlightedElement.style.boxShadow = '';
+                state.currentHighlightedElement.classList.remove('tutorial-highlighted');
+                
+                // Reset sidebar z-index if element was in sidebar
+                const sidebar = state.currentHighlightedElement.closest('.dashboard-aside');
+                if (sidebar) {
+                    sidebar.style.zIndex = '';
+                }
+                
                 state.currentHighlightedElement = null;
             }
             

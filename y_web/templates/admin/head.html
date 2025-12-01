@@ -227,62 +227,92 @@
     
     .dashboard-aside {
         position: fixed;
-        left: -260px;
+        left: -200px;
         top: 0;
         height: 100vh;
-        width: 240px;
+        width: 180px;
         z-index: 1060;
         transition: left 0.3s ease;
         overflow-y: auto;
         background: #fff;
         display: flex;
         flex-direction: column;
+        padding-top: 10px;
     }
     
     .dashboard-aside.open {
         left: 0;
     }
     
-    /* Ensure sidebar body items are stacked vertically */
+    /* Hide brand logo on mobile to save space */
+    .dashboard-aside .dashboard-aside-brand {
+        display: none;
+    }
+    
+    /* Ensure sidebar body items are in a grid for icon-below-text layout */
     .dashboard-aside-body {
         display: flex;
-        flex-direction: column;
-        padding: 0 10px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 5px;
+        gap: 5px;
     }
     
     .dashboard-aside-body hr {
         width: 100%;
-        margin: 8px 0;
+        margin: 5px 0;
         border: none;
         border-top: 1px solid #e6e6e6;
     }
     
     .dashboard-aside-link {
-        display: block;
-        width: 100%;
-        padding: 10px 15px;
-        margin: 2px 0;
-        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 70px;
+        height: 70px;
+        padding: 8px 4px;
+        margin: 2px;
+        border-radius: 8px;
+        text-decoration: none;
+        text-align: center;
     }
     
     .dashboard-aside-link div {
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 12px;
+        gap: 4px;
+    }
+    
+    .dashboard-aside-link svg {
+        width: 24px !important;
+        height: 24px !important;
+    }
+    
+    .dashboard-aside-link span {
+        font-size: 0.65em;
+        line-height: 1.1;
+        word-wrap: break-word;
+        max-width: 60px;
     }
     
     .dashboard-aside-link:hover {
         background: #f5f5f5;
     }
     
-    /* Ensure end section is also vertical */
+    /* Ensure end section is also in grid */
     .dashboard-aside-end {
         display: flex;
-        flex-direction: column;
-        padding: 0 10px;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 5px;
         margin-top: auto;
         border-top: 1px solid #e6e6e6;
-        padding-top: 10px;
+        gap: 5px;
     }
     
     /* Adjust main content when sidebar is hidden */
@@ -295,6 +325,15 @@
     .dashboard-container {
         padding-left: 0 !important;
     }
+}
+
+/* Tutorial highlighting for sidebar elements */
+.dashboard-aside-link.tutorial-highlighted {
+    position: relative !important;
+    z-index: 10000 !important;
+    background: #ffffff !important;
+    box-shadow: 0 4px 20px rgba(3, 155, 229, 0.4) !important;
+    border-radius: 8px !important;
 }
 </style>
 
