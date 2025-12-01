@@ -184,20 +184,20 @@
 .sidebar-toggle-btn {
     display: none;
     position: fixed;
-    top: 10px;
-    left: 10px;
+    top: 12px;
+    left: 12px;
     z-index: 1100;
     background: #fff;
     border: 1px solid #e6e6e6;
-    border-radius: 6px;
-    padding: 8px 12px;
+    border-radius: 8px;
+    padding: 10px 12px;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .sidebar-toggle-btn svg {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     color: #333;
 }
 
@@ -227,99 +227,119 @@
     
     .dashboard-aside {
         position: fixed;
-        left: -200px;
+        left: -280px;
         top: 0;
         height: 100vh;
-        width: 180px;
+        width: 260px;
         z-index: 1060;
         transition: left 0.3s ease;
         overflow-y: auto;
         background: #fff;
         display: flex;
         flex-direction: column;
-        padding-top: 10px;
+        box-shadow: 2px 0 12px rgba(0,0,0,0.15);
     }
     
     .dashboard-aside.open {
         left: 0;
     }
     
-    /* Hide brand logo on mobile to save space */
+    /* Mobile sidebar header with logo */
     .dashboard-aside .dashboard-aside-brand {
-        display: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e6e6e6;
+        background: #fafafa;
     }
     
-    /* Ensure sidebar body items are in a grid for icon-below-text layout */
+    /* Sidebar body - vertical list */
     .dashboard-aside-body {
         display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 5px;
-        gap: 5px;
+        flex-direction: column;
+        padding: 8px 0;
+        flex: 1;
     }
     
     .dashboard-aside-body hr {
-        width: 100%;
-        margin: 5px 0;
+        width: calc(100% - 32px);
+        margin: 8px 16px;
         border: none;
         border-top: 1px solid #e6e6e6;
     }
     
+    /* Standard mobile menu item */
     .dashboard-aside-link {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        width: 70px;
-        height: 70px;
-        padding: 8px 4px;
-        margin: 2px;
-        border-radius: 8px;
+        width: 100%;
+        padding: 14px 20px;
         text-decoration: none;
-        text-align: center;
+        color: #333;
+        transition: background 0.2s, color 0.2s;
+        border-left: 3px solid transparent;
     }
     
     .dashboard-aside-link div {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 4px;
+        gap: 14px;
+        width: 100%;
     }
     
     .dashboard-aside-link svg {
-        width: 24px !important;
-        height: 24px !important;
+        width: 22px !important;
+        height: 22px !important;
+        color: #555;
+        flex-shrink: 0;
     }
     
     .dashboard-aside-link span {
-        font-size: 0.65em;
-        line-height: 1.1;
-        word-wrap: break-word;
-        max-width: 60px;
+        font-size: 0.95em;
+        font-weight: 500;
+        color: #333;
     }
     
     .dashboard-aside-link:hover {
         background: #f5f5f5;
+        border-left-color: #039be5;
     }
     
-    /* Ensure end section is also in grid */
+    .dashboard-aside-link:hover svg {
+        color: #039be5;
+    }
+    
+    .dashboard-aside-link:hover span {
+        color: #039be5;
+    }
+    
+    /* Active state for current page */
+    .dashboard-aside-link.active {
+        background: #e3f2fd;
+        border-left-color: #039be5;
+    }
+    
+    .dashboard-aside-link.active svg,
+    .dashboard-aside-link.active span {
+        color: #039be5;
+    }
+    
+    /* Footer section */
     .dashboard-aside-end {
         display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-        padding: 5px;
+        flex-direction: column;
+        padding: 8px 0;
         margin-top: auto;
         border-top: 1px solid #e6e6e6;
-        gap: 5px;
+        background: #fafafa;
     }
     
     /* Adjust main content when sidebar is hidden */
     .view-wrapper {
         margin-left: 0 !important;
         padding-left: 15px;
-        padding-top: 50px;
+        padding-top: 55px;
     }
     
     .dashboard-container {
@@ -334,6 +354,7 @@
     background: #ffffff !important;
     box-shadow: 0 4px 20px rgba(3, 155, 229, 0.4) !important;
     border-radius: 8px !important;
+    border-left-color: #039be5 !important;
 }
 </style>
 
