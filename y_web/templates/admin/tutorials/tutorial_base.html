@@ -302,15 +302,25 @@
             if (state.currentHighlightedElement) {
                 state.currentHighlightedElement.style.position = '';
                 state.currentHighlightedElement.style.zIndex = '';
+                state.currentHighlightedElement.style.background = '';
+                state.currentHighlightedElement.style.borderRadius = '';
+                state.currentHighlightedElement.style.padding = '';
             }
             
-            // Highlight current element
+            // Highlight current element - elevate above backdrop with solid background
             state.currentHighlightedElement = element;
             const originalPosition = window.getComputedStyle(element).position;
             if (originalPosition === 'static') {
                 element.style.position = 'relative';
             }
             element.style.zIndex = '9998';
+            // Add white background so element appears above the dark backdrop
+            const computedBg = window.getComputedStyle(element).backgroundColor;
+            if (!computedBg || computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)') {
+                element.style.background = '#ffffff';
+                element.style.borderRadius = '8px';
+                element.style.padding = '12px';
+            }
             
             // Scroll and position
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -336,6 +346,9 @@
             if (state.currentHighlightedElement) {
                 state.currentHighlightedElement.style.position = '';
                 state.currentHighlightedElement.style.zIndex = '';
+                state.currentHighlightedElement.style.background = '';
+                state.currentHighlightedElement.style.borderRadius = '';
+                state.currentHighlightedElement.style.padding = '';
                 state.currentHighlightedElement = null;
             }
             
