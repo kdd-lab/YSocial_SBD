@@ -246,7 +246,8 @@
                         <div class="box-content">
                             <form action="/admin/create_agent" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Creating agent...');">
                                 <div class="box-lines">
-                                    <b id="section-simulation-config">Simulation Configuration</b>
+                                    <div id="section-simulation-config" class="tutorial-section">
+                                    <b>Simulation Configuration</b>
 
                                     <div class="box-line">
                                         <span class="left">Target Population</span>
@@ -260,8 +261,10 @@
                                         </div>
 
                                     </div>
+                                    </div><!-- End section-simulation-config -->
                                     <hr>
-                                    <b id="section-demographic-info">Demographic Information</b>
+                                    <div id="section-demographic-info" class="tutorial-section">
+                                    <b>Demographic Information</b>
                                     <div class="box-line">
                                         <span class="left">Agent Name</span>
                                         <span class="right" style="width: 70%;"><input type="text" name="name"
@@ -337,9 +340,11 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-demographic-info -->
                                     <hr>
 
-                                    <b id="section-thematic-characterization">Thematic Characterization</b>
+                                    <div id="section-thematic-characterization" class="tutorial-section">
+                                    <b>Thematic Characterization</b>
                                     <div class="box-line">
                                         <span class="left">Political Leaning</span>
                                         <div class="select">
@@ -351,9 +356,11 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-thematic-characterization -->
                                     <hr>
 
-                                    <b id="section-big-five">Big Five Personality profile</b>
+                                    <div id="section-big-five" class="tutorial-section">
+                                    <b>Big Five Personality profile</b>
                                     <div class="box-line">
                                         <span class="left">Openness to Experience</span>
                                         <div class="select">
@@ -404,9 +411,11 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-big-five -->
 
                                     <hr>
-                                    <b id="section-social-behavior">Expected Social Behavior</b>
+                                    <div id="section-social-behavior" class="tutorial-section">
+                                    <b>Expected Social Behavior</b>
                                     <div class="box-line">
                                         <span class="left">Toxicity Level</span>
                                         <div class="select">
@@ -430,9 +439,11 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-social-behavior -->
 
                                     <hr>
-                                    <b id="section-advanced-roleplay">Advanced Role-Playing</b>
+                                    <div id="section-advanced-roleplay" class="tutorial-section">
+                                    <b>Advanced Role-Playing</b>
                                     <div class="box-line">
                                         <span class="left">
                                     Specifying the agent pre-prompt overrides the other configuration variables.
@@ -443,9 +454,15 @@
                                         <span class="right" style="width: 70%;"><input type="text" name="alt_profile"
                                                                                        class="input" value=""></span>
                                     </div>
-
+                                    </div><!-- End section-advanced-roleplay -->
                                     <hr>
                                     <style>
+                                        .tutorial-section {
+                                            padding: 10px;
+                                            margin: -10px;
+                                            margin-bottom: 10px;
+                                            border-radius: 4px;
+                                        }
                                         .form-section-header-agent {
                                             font-size: 0.95em;
                                             font-weight: 600;

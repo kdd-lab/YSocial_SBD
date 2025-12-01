@@ -328,9 +328,16 @@
                                             color: #22c55e;
                                             font-weight: 500;
                                         }
+                                        .tutorial-section {
+                                            padding: 10px;
+                                            margin: -10px;
+                                            margin-bottom: 10px;
+                                            border-radius: 4px;
+                                        }
                                     </style>
 
-                                    <div id="section-basic-info" class="form-section-header">Basic Information</div>
+                                    <div id="section-basic-info" class="tutorial-section">
+                                    <div class="form-section-header">Basic Information</div>
                                     <div class="form-section-description">
                                         Define the population name, description, and size. These settings identify the population and determine the number of synthetic agents to generate.
                                     </div>
@@ -349,8 +356,10 @@
                                             <input id="n_agents" name="n_agents" type="number" value="100" min="1" class="input" required>
                                         </div>
                                     </div>
+                                    </div><!-- End section-basic-info -->
 
-                                    <div id="section-demographics" class="form-section-header">Demographics</div>
+                                    <div id="section-demographics" class="tutorial-section">
+                                    <div class="form-section-header">Demographics</div>
                                     <div class="form-section-description">
                                         Configure demographic attributes including age range, nationality, and language to define the population's basic characteristics.
                                     </div>
@@ -425,8 +434,10 @@
                                             <small id="gender_validation" style="color: #666; display: none;">Total must equal 100%</small>
                                         </span>
                                     </div>
+                                    </div><!-- End section-demographics -->
 
-                                    <div id="section-social-attributes" class="form-section-header">Social Attributes</div>
+                                    <div id="section-social-attributes" class="tutorial-section">
+                                    <div class="form-section-header">Social Attributes</div>
                                     <div class="form-section-description">
                                         Select diverse values for education, political leanings, and toxicity levels to create a varied and realistic population. Click to select multiple options.
                                     </div>
@@ -503,8 +514,10 @@
                                             <div id="toxicity_levels_validation" class="percentage-validation-compact" style="display: none; margin-top: 8px;"></div>
                                         </span>
                                     </div>
+                                    </div><!-- End section-social-attributes -->
 
-                                    <div id="section-profession-categories" class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleProfessionBackgrounds()">
+                                    <div id="section-profession-categories" class="tutorial-section">
+                                    <div class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleProfessionBackgrounds()">
                                         <span id="profession-backgrounds-toggle">▶</span> Profession Categories <span style="font-size: 0.85em; font-weight: normal; color: #999;">(Optional - Click to expand)</span>
                                     </div>
                                     <div class="form-section-description">
@@ -926,8 +939,10 @@
                                             updatePercentages('age_classes');
                                         });
                                     </script>
+                                    </div><!-- End section-profession-categories -->
 
-                                    <div id="section-activity-engagement" class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleActivityProfiles()">
+                                    <div id="section-activity-engagement" class="tutorial-section">
+                                    <div class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleActivityProfiles()">
                                         <span id="activity-profiles-toggle">▼</span> Activity & Engagement Configuration <span style="font-size: 0.85em; font-weight: normal; color: #999;">(Optional - Click to expand)</span>
                                     </div>
                                     <div class="form-section-description">
@@ -1469,6 +1484,7 @@
                                             validateFormFields();
                                         });
                                     </script>
+                                    </div><!-- End section-activity-engagement -->
 
                                 </div>
                                 <div class="button-wrap">

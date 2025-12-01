@@ -60,7 +60,8 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div id="section-simulation-params" class="form-section-header">Simulation Parameters</div>
+                                    <div id="section-simulation-params" class="tutorial-section">
+                                    <div class="form-section-header">Simulation Parameters</div>
                                     <div class="form-section-description">
                                         Configure the duration and behavioral settings for the simulation run.
                                     </div>
@@ -196,7 +197,9 @@
                                                                                        value="36"
                                                                                        required></span>
                                     </div>
-                                    <div id="section-actions-relevance" class="form-section-header">Agents' Actions Relevance</div>
+                                    </div><!-- End section-simulation-params -->
+                                    <div id="section-actions-relevance" class="tutorial-section">
+                                    <div class="form-section-header">Agents' Actions Relevance</div>
                                     <div class="form-section-description">
                                         All actions are scored from 0 to 10, where 0 means that the action is never performed. 
                                         Scores greater than 0 are relative to each other. For example, if "Post new content" has a score of 3
@@ -532,8 +535,10 @@
                                         <i class="mdi mdi-alert"></i> <strong>Notice:</strong> Image sharing/commenting is currently disabled. Please validate that the minicpm-v:latest model is available on your server to enable this feature.
                                     </div>
                                     {% endif %}
+                                    </div><!-- End section-actions-relevance -->
 
-                                    <div id="section-recsys" class="form-section-header">Recommendation Systems</div>
+                                    <div id="section-recsys" class="tutorial-section">
+                                    <div class="form-section-header">Recommendation Systems</div>
                                     <div class="form-section-description">
                                         Select the recommendation algorithms for content and friendship suggestions that will influence agent interactions.
                                     </div>
@@ -590,9 +595,17 @@
                                         details[open] summary::before {
                                             transform: rotate(90deg);
                                         }
+                                        .tutorial-section {
+                                            padding: 10px;
+                                            margin: -10px;
+                                            margin-bottom: 10px;
+                                            border-radius: 4px;
+                                        }
                                     </style>
+                                    </div><!-- End section-recsys -->
 
-                                    <div id="section-network" class="form-section-header">Social Network Structure <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div id="section-network" class="tutorial-section">
+                                    <div class="form-section-header">Social Network Structure <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
                                     <div class="form-section-description">
                                         Configure a starting social network among the agents. You can either generate a synthetic network or upload a custom network file.
                                         <strong>Note:</strong> These options are mutually exclusive - selecting one will disable the other.
@@ -700,8 +713,10 @@
                                             </div>
                                         </div>
                                     </details>
+                                    </div><!-- End section-network -->
 
-                                    <div id="section-activity-rates" class="form-section-header">Hourly Activity Rates <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div id="section-activity-rates" class="tutorial-section">
+                                    <div class="form-section-header">Hourly Activity Rates <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
                                     <div class="form-section-description">
                                         Configure hourly activity rates for the simulation. Default values are based on
                                         <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a>.
@@ -953,6 +968,7 @@
                                             </script>
                                         </div>
                                     </details>
+                                    </div><!-- End section-activity-rates -->
 
                                 </div>
                                 <div class="button-wrap">
