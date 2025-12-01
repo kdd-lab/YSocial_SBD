@@ -598,19 +598,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
             elif db_type == "postgresql":
                 from y_web.migrations.add_telemetry_columns import migrate_postgresql
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    # Parse connection string or use environment variables
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run telemetry columns migration: {e}")
 
@@ -625,19 +622,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
             elif db_type == "postgresql":
                 from y_web.migrations.add_log_metrics_tables import migrate_postgresql
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    # Parse connection string or use environment variables
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run log metrics tables migration: {e}")
 
@@ -656,19 +650,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     migrate_postgresql as migrate_log_sync_postgresql,
                 )
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    # Parse connection string or use environment variables
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_log_sync_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_log_sync_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run log sync settings migration: {e}")
 
@@ -687,19 +678,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     migrate_postgresql as migrate_exp_status_postgresql,
                 )
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    # Parse connection string or use environment variables
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_exp_status_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_exp_status_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run exp_status column migration: {e}")
 
@@ -718,19 +706,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     migrate_postgresql as migrate_schedule_postgresql,
                 )
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    # Parse connection string or use environment variables
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_schedule_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_schedule_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run experiment schedule tables migration: {e}")
 
@@ -749,18 +734,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     migrate_postgresql as migrate_watchdog_postgresql,
                 )
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_watchdog_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_watchdog_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run watchdog settings migration: {e}")
 
@@ -779,18 +762,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     migrate_postgresql as migrate_tutorial_postgresql,
                 )
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_tutorial_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_tutorial_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run tutorial_shown column migration: {e}")
 
@@ -809,18 +790,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     migrate_postgresql as migrate_exp_details_tutorial_postgresql,
                 )
 
-                # Get PostgreSQL connection details from app config
-                pg_config = app.config.get("SQLALCHEMY_BINDS", {}).get("db_admin", "")
-                if pg_config:
-                    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-                    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-                    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-                    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-                    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
-                    if pg_password:
-                        migrate_exp_details_tutorial_postgresql(
-                            pg_host, pg_port, pg_database, pg_user, pg_password
-                        )
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_exp_details_tutorial_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
         except Exception as e:
             print(f"Failed to run exp_details_tutorial_shown column migration: {e}")
 
