@@ -14,34 +14,82 @@
                     <li><b>Name</b> - Click to edit agent name inline</li>
                     <li><b>Age & Profession</b> - Sortable demographic info</li>
                     <li><b>Activity Level</b> - How active the agent is (1-5 stars)</li>
-                    <li><b>Toxicity</b> - Agent's toxicity level</li>
+                    <li><b>Activity Profile</b> - Hourly activity pattern</li>
                 </ul>
                 <p style="margin-top: 10px; font-size: 0.9em; color: #888;">Click column headers to sort, or search to filter agents.</p>`,
-            position: 'overlay'
+            position: 'bottom'
         },
         {
             id: 'create-agent',
             selector: '#box-create-agent',
             title: '➕ Create New Agent',
-            description: `<p>Create a new <b>synthetic agent</b> with customized characteristics:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Target Population</b> - Assign to a population</li>
-                    <li><b>Demographics</b> - Age, profession, education</li>
-                    <li><b>Personality</b> - Political leaning, toxicity</li>
-                    <li><b>Activity Level</b> - Posting frequency</li>
-                </ul>`,
+            description: `<p>Create a new <b>synthetic agent</b> with customized characteristics. The form is divided into several sections for different aspects of the agent's profile.</p>`,
             position: 'overlay'
         },
         {
-            id: 'agents-help',
-            selector: '#box-agents-help',
-            title: '📚 Quick Reference Guide',
-            description: `<p>Learn about <b>synthetic agents</b>:</p>
+            id: 'simulation-config',
+            selector: '#section-simulation-config',
+            title: '🎯 Simulation Configuration',
+            description: `<p>Assign the agent to a <b>target population</b>. This determines which simulation the agent will participate in.</p>`,
+            position: 'top'
+        },
+        {
+            id: 'demographic-info',
+            selector: '#section-demographic-info',
+            title: '👤 Demographic Information',
+            description: `<p>Configure <b>basic demographics</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Profiles</b> - Predefined characteristics</li>
-                    <li><b>Advanced Roleplay</b> - Custom pre-prompts</li>
+                    <li><b>Name</b> - Agent's display name</li>
+                    <li><b>Profile Picture</b> - Optional URL for avatar</li>
+                    <li><b>Age, Gender, Language</b> - Basic attributes</li>
+                    <li><b>Profession, Nationality</b> - Background info</li>
+                    <li><b>Education Level</b> - Educational background</li>
                 </ul>`,
-            position: 'left',
+            position: 'top'
+        },
+        {
+            id: 'thematic-characterization',
+            selector: '#section-thematic-characterization',
+            title: '🗳️ Thematic Characterization',
+            description: `<p>Define the agent's <b>political orientation</b>. This influences how the agent interacts with political content in the simulation.</p>`,
+            position: 'top'
+        },
+        {
+            id: 'big-five',
+            selector: '#section-big-five',
+            title: '🧠 Big Five Personality',
+            description: `<p>Configure the <b>Big Five personality traits</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Openness</b> - Inventive/curious vs. consistent/cautious</li>
+                    <li><b>Conscientiousness</b> - Efficient vs. extravagant</li>
+                    <li><b>Extraversion</b> - Outgoing vs. reserved</li>
+                    <li><b>Agreeableness</b> - Friendly vs. critical</li>
+                    <li><b>Neuroticism</b> - Sensitive vs. resilient</li>
+                </ul>`,
+            position: 'top'
+        },
+        {
+            id: 'social-behavior',
+            selector: '#section-social-behavior',
+            title: '⚠️ Expected Social Behavior',
+            description: `<p>Define <b>behavioral patterns</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li><b>Toxicity Level</b> - How aggressive or kind the agent is</li>
+                    <li><b>Expected Activity</b> - Posting frequency (Low to High)</li>
+                </ul>`,
+            position: 'top'
+        },
+        {
+            id: 'advanced-roleplay',
+            selector: '#section-advanced-roleplay',
+            title: '🎭 Advanced Role-Playing',
+            description: `<p>Override agent behavior with a <b>custom pre-prompt</b>:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>Specify alternative profile text</li>
+                    <li>Overrides all other configuration variables</li>
+                    <li>Use for highly customized agent behavior</li>
+                </ul>`,
+            position: 'top',
             isLast: true
         }
     ];

@@ -49,14 +49,6 @@
             position: 'overlay',
             tab: 'system-settings'
         },
-        'about-system': {
-            id: 'about-system',
-            selector: '#box-about-system',
-            title: 'ℹ️ About System Settings',
-            description: `<p>Quick reference for all <b>system configuration options</b> and their purposes.</p>`,
-            position: 'left',
-            tab: 'system-settings'
-        },
         
         // LLM Management tab
         'llm-server': {
@@ -171,7 +163,7 @@
         };
         
         for (const [tabName, tabElement] of Object.entries(tabContents)) {
-            if (tabElement && tabElement.style.display !== 'none') {
+            if (tabElement && tabElement.classList.contains('active')) {
                 return tabName;
             }
         }
@@ -217,20 +209,38 @@
         return steps;
     }
     
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(() => {
-            // Define the start function immediately
-            window.startMiscellaneaTutorial = function() {
-                // Rebuild steps based on current tab when starting
-                const currentSteps = buildStepsForCurrentTab();
-                if (currentSteps.length > 0) {
-                    const newTutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
-                    if (newTutorial) {
-                        newTutorial.start();
-                    }
+    // Define the start function
+    function initMiscellaneaTutorial() {
+        window.startMiscellaneaTutorial = function() {
+            // Rebuild steps based on current tab when starting
+            const currentSteps = buildStepsForCurrentTab();
+            if (currentSteps.length > 0) {
+                const newTutorial = window.PageTutorialEngine.init('miscellanea', currentSteps);
+                if (newTutorial) {
+                    newTutorial.start();
                 }
-            };
-        }, 500);
+            }
+        };
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize the tutorial function
+        setTimeout(initMiscellaneaTutorial, 500);
+        
+        // Add click listeners to tab buttons to reinitialize the tutorial button visibility
+        const tabButtons = document.querySelectorAll('.misc-tab');
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Reinitialize tutorial function after tab switch
+                setTimeout(initMiscellaneaTutorial, 100);
+                
+                // Show tutorial button if it exists
+                const tutorialBtn = document.getElementById('header-tutorial-btn');
+                if (tutorialBtn) {
+                    tutorialBtn.style.display = 'inline-block';
+                }
+            });
+        });
     });
 })();
 </script>

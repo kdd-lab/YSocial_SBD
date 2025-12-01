@@ -9,7 +9,7 @@
             <div class="dashboard-body">
                 <div class="columns">
                     <div class="column is-12">
-                        <div class="dashboard-box">
+                        <div class="dashboard-box" id="box-available-populations">
                             <h3 class="title is-5 is-thin">Available Populations</h3>
 
                             <div class="box-content">
@@ -239,7 +239,7 @@
                         {% endfor %}
 
                         <!--Dashboard box-->
-                        <div class="dashboard-box">
+                        <div class="dashboard-box" id="box-create-population">
                             <h3 class="title is-5 is-thin">Create Synthetic Population</h3>
                             <div class="box-content">
                                 <form action="/admin/create_population" id="popcreate_form" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Creating population...');">
@@ -330,7 +330,7 @@
                                         }
                                     </style>
 
-                                    <div class="form-section-header">Basic Information</div>
+                                    <div id="section-basic-info" class="form-section-header">Basic Information</div>
                                     <div class="form-section-description">
                                         Define the population name, description, and size. These settings identify the population and determine the number of synthetic agents to generate.
                                     </div>
@@ -350,7 +350,7 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-section-header">Demographics</div>
+                                    <div id="section-demographics" class="form-section-header">Demographics</div>
                                     <div class="form-section-description">
                                         Configure demographic attributes including age range, nationality, and language to define the population's basic characteristics.
                                     </div>
@@ -426,7 +426,7 @@
                                         </span>
                                     </div>
 
-                                    <div class="form-section-header">Social Attributes</div>
+                                    <div id="section-social-attributes" class="form-section-header">Social Attributes</div>
                                     <div class="form-section-description">
                                         Select diverse values for education, political leanings, and toxicity levels to create a varied and realistic population. Click to select multiple options.
                                     </div>
@@ -504,7 +504,7 @@
                                         </span>
                                     </div>
 
-                                    <div class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleProfessionBackgrounds()">
+                                    <div id="section-profession-categories" class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleProfessionBackgrounds()">
                                         <span id="profession-backgrounds-toggle">▶</span> Profession Categories <span style="font-size: 0.85em; font-weight: normal; color: #999;">(Optional - Click to expand)</span>
                                     </div>
                                     <div class="form-section-description">
@@ -927,7 +927,7 @@
                                         });
                                     </script>
 
-                                    <div class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleActivityProfiles()">
+                                    <div id="section-activity-engagement" class="form-section-header" style="cursor: pointer; user-select: none;" onclick="toggleActivityProfiles()">
                                         <span id="activity-profiles-toggle">▼</span> Activity & Engagement Configuration <span style="font-size: 0.85em; font-weight: normal; color: #999;">(Optional - Click to expand)</span>
                                     </div>
                                     <div class="form-section-description">
@@ -1577,7 +1577,7 @@
                             </div>
                         </div>
 
-                        <div class="sidebar-box">
+                        <div class="sidebar-box" id="box-load-population">
                             <h3>Load Population from file</h3>
                             <form action="/admin/upload_population" enctype="multipart/form-data" method="POST">
                                 <style>
@@ -1648,7 +1648,7 @@
                             </script>
                         </div>
 
-                        <div class="sidebar-box">
+                        <div class="sidebar-box" id="box-empty-population">
                             <h3>Create Empty Population</h3>
                             <form action="/admin/create_population_empty" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Creating empty population...');">
                                 <div class="box-line">
@@ -1667,7 +1667,7 @@
                             </form>
                         </div>
 
-                        <div class="sidebar-box">
+                        <div class="sidebar-box" id="box-merge-populations">
                             <h3>Merge Populations</h3>
                             <form action="/admin/merge_populations" method="POST" id="merge_populations_form">
                                 <p style="font-size: 0.85em; color: #6b7280; margin-bottom: 12px; line-height: 1.4;">
@@ -1940,4 +1940,5 @@
 
 
 
+{% include "admin/tutorials/populations_tutorial.html" %}
 {% include "admin/footer.html" %}
