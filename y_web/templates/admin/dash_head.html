@@ -171,6 +171,7 @@ function dismissBlogPost(postId) {
                         // Check for any available tutorial functions
                         const tutorialFunctions = [
                             'startExpDetailsTutorial',
+                            'startExperimentsTutorial',
                             'startDashboardTutorial',
                             'startAgentsTutorial',
                             'startUsersTutorial',
@@ -193,6 +194,8 @@ function dismissBlogPost(postId) {
                     // Call the appropriate tutorial function based on what's available
                     if (typeof window.startExpDetailsTutorial === 'function') {
                         window.startExpDetailsTutorial();
+                    } else if (typeof window.startExperimentsTutorial === 'function') {
+                        window.startExperimentsTutorial();
                     } else if (typeof window.startDashboardTutorial === 'function') {
                         window.startDashboardTutorial();
                     } else if (typeof window.startAgentsTutorial === 'function') {
