@@ -238,7 +238,7 @@
         display: flex;
         flex-direction: column;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-        padding-top: 60px; /* Space for hamburger button */
+        padding-top: 50px; /* Space for hamburger button */
     }
     
     .dashboard-aside.open {
@@ -250,32 +250,36 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 12px 20px;
+        padding: 8px 20px;
         border-bottom: 1px solid #e6e6e6;
         background: #fafafa;
     }
     
-    /* Sidebar body - vertical list with reduced spacing */
+    /* Sidebar body - vertical list with minimal spacing */
     .dashboard-aside-body {
         display: flex;
         flex-direction: column;
-        padding: 4px 0;
-        flex: 0; /* Don't expand - let content dictate height */
+        padding: 0;
+        flex: 1;
     }
     
     .dashboard-aside-body hr {
         width: calc(100% - 32px);
-        margin: 4px 16px;
+        margin: 2px 16px;
         border: none;
         border-top: 1px solid #e6e6e6;
     }
     
-    /* Standard mobile menu item - reduced padding */
+    .dashboard-aside-body hr:first-child {
+        display: none; /* Hide the first hr after logo */
+    }
+    
+    /* Standard mobile menu item - minimal padding */
     .dashboard-aside-link {
         display: flex;
         align-items: center;
         width: 100%;
-        padding: 12px 20px;
+        padding: 10px 20px;
         text-decoration: none;
         color: #333;
         transition: background 0.2s, color 0.2s;
@@ -326,11 +330,11 @@
         color: #039be5;
     }
     
-    /* Footer section - reduced spacing, no auto margin */
+    /* Footer section - minimal spacing, no margin push */
     .dashboard-aside-end {
         display: flex;
         flex-direction: column;
-        padding: 4px 0;
+        padding: 0;
         border-top: 1px solid #e6e6e6;
         background: #fafafa;
     }
