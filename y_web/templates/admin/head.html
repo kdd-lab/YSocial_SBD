@@ -238,7 +238,7 @@
         display: flex;
         flex-direction: column;
         box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-        padding-top: 50px; /* Space for hamburger button */
+        padding-top: 0; /* No padding - content starts immediately */
     }
     
     .dashboard-aside.open {
@@ -250,22 +250,23 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 8px 20px;
+        padding: 55px 20px 8px 20px; /* Top padding for hamburger clearance */
         border-bottom: 1px solid #e6e6e6;
         background: #fafafa;
+        margin: 0;
     }
     
-    /* Sidebar body - vertical list with minimal spacing */
+    /* Sidebar body - vertical list with no extra spacing */
     .dashboard-aside-body {
         display: flex;
         flex-direction: column;
         padding: 0;
-        flex: 1;
+        margin: 0;
     }
     
     .dashboard-aside-body hr {
         width: calc(100% - 32px);
-        margin: 2px 16px;
+        margin: 0 16px;
         border: none;
         border-top: 1px solid #e6e6e6;
     }
@@ -274,12 +275,12 @@
         display: none; /* Hide the first hr after logo */
     }
     
-    /* Standard mobile menu item - minimal padding */
+    /* Standard mobile menu item - compact padding */
     .dashboard-aside-link {
         display: flex;
         align-items: center;
         width: 100%;
-        padding: 10px 20px;
+        padding: 8px 20px;
         text-decoration: none;
         color: #333;
         transition: background 0.2s, color 0.2s;
@@ -289,19 +290,19 @@
     .dashboard-aside-link div {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
         width: 100%;
     }
     
     .dashboard-aside-link svg {
-        width: 22px !important;
-        height: 22px !important;
+        width: 20px !important;
+        height: 20px !important;
         color: #555;
         flex-shrink: 0;
     }
     
     .dashboard-aside-link span {
-        font-size: 0.95em;
+        font-size: 0.9em;
         font-weight: 500;
         color: #333;
     }
@@ -330,11 +331,12 @@
         color: #039be5;
     }
     
-    /* Footer section - minimal spacing, no margin push */
+    /* Footer section - no spacing, directly after body */
     .dashboard-aside-end {
         display: flex;
         flex-direction: column;
         padding: 0;
+        margin: 0;
         border-top: 1px solid #e6e6e6;
         background: #fafafa;
     }
