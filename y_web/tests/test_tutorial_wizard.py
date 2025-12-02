@@ -423,10 +423,10 @@ class TestExpDetailsTutorialRoutes:
         user = MagicMock()
         user.role = "user"
         user.exp_details_tutorial_shown = False
-        show_tutorial = (
-            not user.exp_details_tutorial_shown
-            and user.role in ["admin", "researcher"]
-        )
+        show_tutorial = not user.exp_details_tutorial_shown and user.role in [
+            "admin",
+            "researcher",
+        ]
         assert show_tutorial is False
 
 

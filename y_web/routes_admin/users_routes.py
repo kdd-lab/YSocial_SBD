@@ -47,7 +47,10 @@ def user_data():
     # Check if user is admin or researcher
     user = Admin_users.query.filter_by(username=current_user.username).first()
     if user.role not in ["admin", "researcher"]:
-        flash("Access denied. This page is only accessible to administrators and researchers.", "error")
+        flash(
+            "Access denied. This page is only accessible to administrators and researchers.",
+            "error",
+        )
         return redirect(url_for("admin.dashboard"))
 
     check_privileges(current_user.username)
