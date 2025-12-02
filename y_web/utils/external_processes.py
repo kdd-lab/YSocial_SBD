@@ -1009,8 +1009,6 @@ def _update_server_port_in_configs(exp, new_port):
     Returns:
         bool: True if all updates succeeded, False otherwise
     """
-    import re
-
     old_port = exp.port
 
     if old_port == new_port:
@@ -1026,11 +1024,9 @@ def _update_server_port_in_configs(exp, new_port):
 
     if "database_server.db" in exp.db_name:
         # Handle path separator differences - split on both / and \
-        import re
-
         path_part = exp.db_name.split("database_server.db")[0].rstrip("/\\")
-        # Normalize path separators
-        path_part = re.sub(r"[/\\]", os.sep, path_part)
+        # Normalize path separators (replace both / and \ with os.sep)
+        path_part = path_part.replace("/", os.sep).replace("\\", os.sep)
         exp_dir = os.path.join(writable_base, "y_web", path_part)
     else:
         uid = exp.db_name.removeprefix("experiments_")
