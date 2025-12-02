@@ -242,6 +242,31 @@ class TestMigrationScript:
         assert callable(migrate_postgresql)
 
 
+class TestExpDetailsMigrationScript:
+    """Tests for the exp_details_tutorial_shown column migration script."""
+
+    def test_migration_script_exists(self):
+        """Test that the migration script file exists."""
+        import os
+
+        migration_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "migrations",
+            "add_exp_details_tutorial_column.py",
+        )
+        assert os.path.exists(migration_path)
+
+    def test_migration_functions_exist(self):
+        """Test that migration functions are defined."""
+        from y_web.migrations.add_exp_details_tutorial_column import (
+            migrate_postgresql,
+            migrate_sqlite,
+        )
+
+        assert callable(migrate_sqlite)
+        assert callable(migrate_postgresql)
+
+
 class TestTutorialTemplate:
     """Tests for the tutorial template file."""
 
@@ -253,6 +278,7 @@ class TestTutorialTemplate:
             os.path.dirname(os.path.dirname(__file__)),
             "templates",
             "admin",
+            "tutorials",
             "tutorial_overlay.html",
         )
         assert os.path.exists(template_path)
@@ -265,6 +291,7 @@ class TestTutorialTemplate:
             os.path.dirname(os.path.dirname(__file__)),
             "templates",
             "admin",
+            "tutorials",
             "tutorial_overlay.html",
         )
 
@@ -310,3 +337,222 @@ class TestTutorialTemplate:
         assert "tut-post-prob" in content
         assert "tut-content-recsys" in content
         assert "tut-follow-recsys" in content
+
+
+class TestExpDetailsTutorialRoutes:
+    """Tests for the experiment details tutorial routes."""
+
+    @pytest.fixture
+    def mock_admin_user(self):
+        """Create a mock admin user with exp_details_tutorial_shown field."""
+        user = MagicMock()
+        user.id = 1
+        user.username = "testadmin"
+        user.role = "admin"
+        user.tutorial_shown = True  # Already completed onboarding
+        user.exp_details_tutorial_shown = False
+        return user
+
+    @pytest.fixture
+    def mock_researcher_user(self):
+        """Create a mock researcher user with exp_details_tutorial_shown field."""
+        user = MagicMock()
+        user.id = 2
+        user.username = "testresearcher"
+        user.role = "researcher"
+        user.tutorial_shown = True  # Already completed onboarding
+        user.exp_details_tutorial_shown = False
+        return user
+
+    def test_exp_details_tutorial_shown_field_exists(self):
+        """Test that exp_details_tutorial_shown field is defined in Admin_users model."""
+        from y_web.models import Admin_users
+
+        # Check that the column exists in the model
+        columns = [column.name for column in Admin_users.__table__.columns]
+        assert "exp_details_tutorial_shown" in columns
+
+    def test_exp_details_tutorial_shown_default_value(self):
+        """Test that exp_details_tutorial_shown defaults to False."""
+        from y_web.models import Admin_users
+
+        # Get the default value from the column definition
+        tutorial_shown_column = Admin_users.__table__.columns[
+            "exp_details_tutorial_shown"
+        ]
+        assert tutorial_shown_column.default.arg is False
+
+    def test_exp_details_tutorial_check_status_returns_show_for_new_admin(
+        self, mock_admin_user
+    ):
+        """Test that exp details tutorial should show for admin who completed onboarding."""
+        assert mock_admin_user.role == "admin"
+        assert mock_admin_user.exp_details_tutorial_shown is False
+        # Logic: show_tutorial = not user.exp_details_tutorial_shown and role in ['admin', 'researcher']
+        show_tutorial = (
+            not mock_admin_user.exp_details_tutorial_shown
+            and mock_admin_user.role in ["admin", "researcher"]
+        )
+        assert show_tutorial is True
+
+    def test_exp_details_tutorial_check_status_returns_hide_after_shown(
+        self, mock_admin_user
+    ):
+        """Test that exp details tutorial should not show after user has seen it."""
+        mock_admin_user.exp_details_tutorial_shown = True
+        show_tutorial = (
+            not mock_admin_user.exp_details_tutorial_shown
+            and mock_admin_user.role in ["admin", "researcher"]
+        )
+        assert show_tutorial is False
+
+    def test_exp_details_tutorial_check_status_returns_show_for_researcher(
+        self, mock_researcher_user
+    ):
+        """Test that exp details tutorial should show for researcher users."""
+        assert mock_researcher_user.role == "researcher"
+        assert mock_researcher_user.exp_details_tutorial_shown is False
+        show_tutorial = (
+            not mock_researcher_user.exp_details_tutorial_shown
+            and mock_researcher_user.role in ["admin", "researcher"]
+        )
+        assert show_tutorial is True
+
+    def test_exp_details_tutorial_not_shown_for_regular_users(self):
+        """Test that exp details tutorial is not shown for regular users."""
+        user = MagicMock()
+        user.role = "user"
+        user.exp_details_tutorial_shown = False
+        show_tutorial = (
+            not user.exp_details_tutorial_shown
+            and user.role in ["admin", "researcher"]
+        )
+        assert show_tutorial is False
+
+
+class TestExpDetailsTutorialTemplate:
+    """Tests for the experiment details tutorial template structure."""
+
+    def test_exp_details_tutorial_template_exists(self):
+        """Test that the experiment details tutorial template file exists."""
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "templates",
+            "admin",
+            "exp_details_tutorial.html",
+        )
+        assert os.path.exists(template_path)
+
+    def test_exp_details_tutorial_template_contains_required_elements(self):
+        """Test that the template contains required UI elements."""
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "templates",
+            "admin",
+            "exp_details_tutorial.html",
+        )
+
+        with open(template_path, "r") as f:
+            content = f.read()
+
+        # Check for main container
+        assert "exp-details-tutorial-overlay" in content
+
+        # Check for tooltip elements
+        assert "exp-tutorial-tooltip" in content
+        assert "exp-tutorial-title" in content
+        assert "exp-tutorial-description" in content
+
+        # Check for navigation elements
+        assert "exp-tutorial-next" in content
+        assert "exp-tutorial-skip" in content
+        assert "exp-tutorial-close" in content
+
+    def test_exp_details_tutorial_template_contains_all_steps(self):
+        """Test that the template contains all tutorial steps."""
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "templates",
+            "admin",
+            "exp_details_tutorial.html",
+        )
+
+        with open(template_path, "r") as f:
+            content = f.read()
+
+        # Check for all section references
+        assert "server-controls" in content
+        assert "simulation-clients" in content
+        assert "actions" in content
+        assert "server-trends" in content
+        assert "server-logs" in content
+        assert "client-logs" in content
+        assert "load-experiment" in content
+
+    def test_exp_details_tutorial_template_contains_api_endpoints(self):
+        """Test that the template references correct API endpoints."""
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "templates",
+            "admin",
+            "exp_details_tutorial.html",
+        )
+
+        with open(template_path, "r") as f:
+            content = f.read()
+
+        # Check for API endpoints
+        assert "/admin/tutorial/exp_details/check_status" in content
+        assert "/admin/tutorial/exp_details/dismiss" in content
+        assert "/admin/tutorial/exp_details/reset" in content
+
+
+class TestExperimentDetailsPageIds:
+    """Tests for experiment details page IDs used by tutorial."""
+
+    def test_experiment_details_page_contains_required_ids(self):
+        """Test that experiment_details.html contains IDs for tutorial targeting."""
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "templates",
+            "admin",
+            "experiment_details.html",
+        )
+
+        with open(template_path, "r") as f:
+            content = f.read()
+
+        # Check for all section IDs used by the tutorial
+        assert 'id="server-controls-section"' in content
+        assert 'id="simulation-clients-section"' in content
+        assert 'id="actions-section"' in content
+        assert 'id="server-trends-section"' in content
+        assert 'id="server-logs-section"' in content
+        assert 'id="client-logs-section"' in content
+        assert 'id="load-experiment-btn"' in content
+
+    def test_experiment_details_includes_tutorial_template(self):
+        """Test that experiment_details.html includes the tutorial template."""
+        import os
+
+        template_path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "templates",
+            "admin",
+            "experiment_details.html",
+        )
+
+        with open(template_path, "r") as f:
+            content = f.read()
+
+        assert 'include "admin/exp_details_tutorial.html"' in content

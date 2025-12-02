@@ -88,30 +88,33 @@
                                     <span class="right">{{ experiment.owner }}</span>
                                 </div>
                                 <hr>
-                                <b>Actions</b>
-                                <p style="font-size: 0.85em; color: #777; margin-bottom: 0.5em;">Manage experiment data and configuration.</p>
-                            </div>
+                                <div id="actions-section">
+                                    <b>Actions</b>
+                                    <p style="font-size: 0.85em; color: #777; margin-bottom: 0.5em;">Manage experiment data and configuration.</p>
+                            
                             {% if len(clients)>0 %}
                             <div class="box-line">
-                                    <span class="left">Edit LLM Prompts</span>
-                                    <span class="right">
-                                        <a class="link-tooltip" href="/admin/prompts/{{ experiment.idexp }}" title="Edit">
-                                            <i class="mdi mdi-credit-card" style="font-size: 24px;"></i></a>
-                                    </span>
-                                </div>
+                                <span class="left">Edit LLM Prompts</span>
+                                <span class="right">
+                                    <a class="link-tooltip" href="/admin/prompts/{{ experiment.idexp }}" title="Edit">
+                                        <i class="mdi mdi-credit-card" style="font-size: 24px;"></i></a>
+                                </span>
+                            </div>
                             {% endif %}
 
                             <div class="box-line">
-                                    <span class="left">Download Experiment</span>
-                                    <span class="right"><a class="link-tooltip" href="/admin/download_experiment/{{ experiment.idexp }}" title="Download"><i
-                                     class="mdi mdi-download" style="font-size: 24px;"></i></a></span>
-                                </div>
+                                <span class="left">Download Experiment</span>
+                                <span class="right"><a class="link-tooltip" href="/admin/download_experiment/{{ experiment.idexp }}" title="Download"><i
+                                 class="mdi mdi-download" style="font-size: 24px;"></i></a></span>
+                            </div>
                             <div class="box-line">
-                                    <span class="left">Delete Experiment</span>
-                                    <span class="right"> <a class="link-tooltip" href="/admin/delete_simulation/{{ experiment.idexp }}" 
-                                                            title="Delete"><i
-                                     class="mdi mdi-delete" style="font-size: 24px;"></i></a></span>
+                                <span class="left">Delete Experiment</span>
+                                <span class="right"> <a class="link-tooltip" href="/admin/delete_simulation/{{ experiment.idexp }}" 
+                                                        title="Delete"><i
+                                 class="mdi mdi-delete" style="font-size: 24px;"></i></a></span>
+                            </div>
                                 </div>
+                            </div>
 
                         </div>
                     </div>
@@ -126,7 +129,7 @@
                 <div class="column is-12-mobile is-4-tablet" style="display: flex; flex-direction: column;">
                     <!--Box-->
 
-                    <div class="dashboard-box">
+                    <div id="server-controls-section" class="dashboard-box">
                         <h3 class="title is-5 is-thin">Server & Analysis Controls</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Control panel for simulation server, web interface, and data analysis environment.
@@ -150,7 +153,7 @@
                                                 <i class="mdi mdi-stop active" style="font-size: 24px;"></i>
                                             </a>
                                             {% endif %}
-                                            <a class="link-tooltip" href="#" onclick="selectExperiment('{{ experiment.idexp }}'); return false;" title="Load Experiment">
+                                            <a id="load-experiment-btn" class="link-tooltip" href="#" onclick="selectExperiment('{{ experiment.idexp }}'); return false;" title="Load Experiment">
                                                 <i class="mdi mdi-select-all {% if experiment.status == 1 %}active{%endif%}" style="font-size: 24px;"></i>
                                             </a>
                                             {% if experiment.status == 1 %}
@@ -160,7 +163,7 @@
                                             {% endif %}
                                         </div>
                                         {% if notebooks %}
-                                        <div style="display: flex; gap: 3px; padding-left: 8px; border-left: 1px solid #ddd;">
+                                        <div id="jupyter-controls" style="display: flex; gap: 3px; padding-left: 8px; border-left: 1px solid #ddd;">
                                             {% if jupyter_instance.status!='stopped' %}
                                             <a class="link-tooltip" href="#" onclick="stopJupyter('{{ jupyter_instance.exp_id }}'); return false;" title="Stop JupyterLab">
                                                 <i class="mdi mdi-flask-empty-outline" style="font-size: 24px; color: #dc3545;"></i>
@@ -169,7 +172,7 @@
                                                 <i class="mdi mdi-open-in-new" style="font-size: 24px; color: #039be5;"></i>
                                             </a>
                                             {% else %}
-                                            <a class="link-tooltip" href="#" onclick="startJupyter('{{ experiment.idexp }}'); return false;" title="Start JupyterLab">
+                                            <a id="start-jupyter-btn" class="link-tooltip" href="#" onclick="startJupyter('{{ experiment.idexp }}'); return false;" title="Start JupyterLab">
                                                 <i class="mdi mdi-flask-outline" style="font-size: 24px; color: #039be5;"></i>
                                             </a>
                                             {% endif %}
@@ -238,7 +241,7 @@
                     </script>
                     {% endif %}
 
-                    <div class="dashboard-box" style="flex: 1 1 auto; display: flex; flex-direction: column;">
+                    <div id="simulation-clients-section" class="dashboard-box" style="flex: 1 1 auto; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Simulation Clients</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Manage clients running agent populations for this experiment.
@@ -399,7 +402,7 @@
             <!-- Server Trends Visualization Section -->
             <div class="columns">
                 <div class="column is-12">
-                    <div class="dashboard-box">
+                    <div id="server-trends-section" class="dashboard-box">
                         <div class="plot-section-header">
                             <h3 class="title is-5 is-thin">Server Trends Analysis</h3>
                             <div class="plot-section-controls">
@@ -878,7 +881,7 @@
             <!-- Server Logs Visualization Section -->
             <div class="columns">
                 <div class="column is-12">
-                    <div class="dashboard-box">
+                    <div id="server-logs-section" class="dashboard-box">
                         <div class="plot-section-header">
                             <h3 class="title is-5 is-thin">Server Logs Analysis</h3>
                             <div class="plot-section-controls">
@@ -1267,7 +1270,7 @@
             {% if len(clients) > 0 %}
             <div class="columns">
                 <div class="column is-12">
-                    <div class="dashboard-box">
+                    <div id="client-logs-section" class="dashboard-box">
                         <div class="plot-section-header">
                             <h3 class="title is-5 is-thin">Client Logs Analysis</h3>
                             <div class="plot-section-controls">
@@ -1844,5 +1847,7 @@
         </div>
     </div>
 </div>
+
+{% include "admin/tutorials/exp_details_tutorial.html" %}
 
 {% include "admin/footer.html" %}    

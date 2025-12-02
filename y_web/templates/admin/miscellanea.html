@@ -157,7 +157,7 @@
                 </style>
 
                 <div class="misc-grid">
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-political-leanings">
                         <h3>Political Leanings</h3>
 
                         <div class="box-content">
@@ -316,7 +316,7 @@
                         </div>
                     </div>
 
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-education-levels">
                         <h3>Education Levels</h3>
 
                         <div class="box-content">
@@ -475,7 +475,7 @@
                         </div>
                     </div>
 
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-professions">
                         <h3>Professions</h3>
 
                         <div class="box-content">
@@ -641,7 +641,7 @@
                         </div>
                     </div>
 
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-languages">
                         <h3>Languages</h3>
 
                         <div class="box-content">
@@ -794,7 +794,7 @@
                         </div>
                     </div>
 
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-nationalities">
                         <h3>Nationalities</h3>
 
                         <div class="box-content">
@@ -947,7 +947,7 @@
                         </div>
                     </div>
 
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-age-classes">
                         <h3>Age Classes</h3>
 
                         <div class="box-content">
@@ -1132,7 +1132,7 @@
                 </div>
 
                 <div class="misc-grid">
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-topics">
                         <h3>Topics</h3>
 
                         <div class="box-content">
@@ -1286,7 +1286,7 @@
                         </div>
                     </div>
 
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-toxicity-levels">
                         <h3>Toxicity Levels</h3>
 
                         <div class="box-content">
@@ -1444,7 +1444,7 @@
 
                 <!-- Activity Profiles in its own row spanning 2 columns -->
                 <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
-                    <div class="misc-compact-box" style="grid-column: span 2;">
+                    <div class="misc-compact-box" id="box-activity-profiles" style="grid-column: span 2;">
                         <h3>Activity Profiles</h3>
 
                         <div class="box-content">
@@ -1778,7 +1778,7 @@
                 <!-- Row 1: System Updates & Telemetry Settings -->
                 <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
                     <!-- System Updates -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-system-updates">
                         <h3>System Updates</h3>
                         <div class="help-block" style="margin-bottom: 15px;">
                             <p>Check for new YSocial releases and stay up to date.</p>
@@ -1824,7 +1824,7 @@
                     </div>
 
                     <!-- Telemetry Settings -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-telemetry-settings">
                         <h3>Telemetry Settings</h3>
                         <div class="help-block" style="margin-bottom: 15px;">
                             <p>Control anonymous usage data collection to help improve YSocial.</p>
@@ -1902,7 +1902,7 @@
                 <!-- Row 2: Automatic Log Synchronization, Process Watchdog, About System Settings -->
                 <div class="misc-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 20px;">
                     <!-- Automatic Log Synchronization -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-log-sync">
                         <h3>Automatic Log Synchronization</h3>
                         <div class="help-block" style="margin-bottom: 15px;">
                             <p>Periodic reading of logs from running experiments to keep plot data updated.</p>
@@ -2077,7 +2077,7 @@
                     </div>
 
                     <!-- Process Watchdog -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-watchdog">
                         <h3>Process Watchdog</h3>
                         <div class="help-block" style="margin-bottom: 15px;">
                             <p>Monitor and auto-restart hung server/client processes.</p>
@@ -2260,7 +2260,7 @@
                     </div>
 
                     <!-- About System Settings -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-about-system">
                         <h3>About System Settings</h3>
                         <div class="help-block">
                             <p><strong>Telemetry:</strong> Anonymous usage data helps improve YSocial. No personal data is collected.</p>
@@ -2285,7 +2285,7 @@
 
                 <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
                     <!-- LLM Server Status -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-llm-server">
                         <h3>Self-hosted LLM Server ({{ llm_backend['backend']|upper }})</h3>
                         <div class="box-content">
                             <div class="box-lines">
@@ -2326,7 +2326,7 @@
 
                     {% if llm_backend['backend'] == 'ollama' %}
                     <!-- Add LLM Model (Ollama only) -->
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-add-llm-model">
                         <h3>Add LLM Model</h3>
                          <div class="box-content">
                             <div class="box-lines">
@@ -2444,7 +2444,7 @@
                 {% if len(models) > 0 %}
                 <!-- Available LLMs Table (full width) -->
                 <div class="misc-grid" style="grid-template-columns: 1fr; margin-top: 20px;">
-                    <div class="misc-compact-box">
+                    <div class="misc-compact-box" id="box-available-llms">
                         <h3>Available LLMs</h3>
 
                         <div class="box-content">
@@ -2558,4 +2558,5 @@
 
 </div>
 
+{% include "admin/tutorials/miscellanea_tutorial.html" %}
 {% include "admin/footer.html" %}

@@ -1251,7 +1251,7 @@
                 <div class="column is-8">
                     <!--Dashboard box-->
 
-                    <div class="dashboard-box">
+                    <div id="box-new-experiment" class="dashboard-box">
                         <h3 class="title is-5 is-thin">New Experiment</h3>
                         <div class="box-content">
                             <form action="/admin/create_experiment" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Creating experiment...');">
@@ -1680,7 +1680,7 @@
             <div class="columns">
                 <!-- Experiment Schedule Column (is-8) -->
                 <div class="column is-8">
-                    <div class="dashboard-box">
+                    <div id="box-schedule" class="dashboard-box">
                         <h3 class="title is-5 is-thin" style="display: flex; align-items: center; justify-content: space-between;">
                             <span style="display: flex; align-items: center; gap: 10px;">
                                 <i class="mdi mdi-calendar-clock" style="font-size: 20px; color: #6c757d;"></i>
@@ -1752,7 +1752,7 @@
                 
                 <!-- Copy Experiment Column (is-4) -->
                 <div class="column is-4">
-                    <div class="sidebar-box">
+                    <div id="box-copy-experiment" class="sidebar-box">
                         <h3>Copy Experiment</h3>
                         <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
                             <div style="margin-bottom: 12px;">
@@ -1819,7 +1819,7 @@
                 
                 <!-- Upload Experiment Column (is-4) -->
                 <div class="column is-4">
-                    <div class="sidebar-box">
+                    <div id="box-upload-experiment" class="sidebar-box">
                         <h3>Upload Experiment</h3>
                         <form action="/admin/upload_experiment" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Uploading experiment...');">
                             <style>
@@ -1911,4 +1911,5 @@
 
 </div>
 
+{% include "admin/tutorials/experiments_tutorial.html" %}
 {% include "admin/footer.html" %}

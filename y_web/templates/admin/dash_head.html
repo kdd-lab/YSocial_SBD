@@ -157,13 +157,73 @@ function dismissBlogPost(postId) {
           </span>
                         </span>
         </label> -->
-        <div class="buttons">
+        <div class="buttons header-buttons">
+            <!-- Tutorial Replay Button - only shown on pages with tutorials -->
+            <button id="tutorial-replay-btn" class="button is-solid has-icon" onclick="replayPageTutorial()" title="Replay Tutorial" style="display: none;">
+                <i data-feather="help-circle"></i>
+                <span class="btn-text">Tutorial</span>
+            </button>
+            <script>
+                // Show tutorial button only if a tutorial exists for this page
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Wait a bit for tutorial scripts to register their functions
+                    setTimeout(function() {
+                        // Check for any available tutorial functions
+                        const tutorialFunctions = [
+                            'startExpDetailsTutorial',
+                            'startExperimentsTutorial',
+                            'startDashboardTutorial',
+                            'startAgentsTutorial',
+                            'startPopulationsTutorial',
+                            'startUsersTutorial',
+                            'startClientsTutorial',
+                            'startPagesTutorial',
+                            'startClientDetailsTutorial',
+                            'startUserDetailsTutorial',
+                            'startMiscellaneaTutorial'
+                        ];
+                        
+                        const hasTutorial = tutorialFunctions.some(fn => typeof window[fn] === 'function');
+                        
+                        if (hasTutorial) {
+                            document.getElementById('tutorial-replay-btn').style.display = 'inline-flex';
+                        }
+                    }, 1500);
+                });
+                
+                function replayPageTutorial() {
+                    // Call the appropriate tutorial function based on what's available
+                    if (typeof window.startExpDetailsTutorial === 'function') {
+                        window.startExpDetailsTutorial();
+                    } else if (typeof window.startExperimentsTutorial === 'function') {
+                        window.startExperimentsTutorial();
+                    } else if (typeof window.startDashboardTutorial === 'function') {
+                        window.startDashboardTutorial();
+                    } else if (typeof window.startAgentsTutorial === 'function') {
+                        window.startAgentsTutorial();
+                    } else if (typeof window.startPopulationsTutorial === 'function') {
+                        window.startPopulationsTutorial();
+                    } else if (typeof window.startUsersTutorial === 'function') {
+                        window.startUsersTutorial();
+                    } else if (typeof window.startClientsTutorial === 'function') {
+                        window.startClientsTutorial();
+                    } else if (typeof window.startPagesTutorial === 'function') {
+                        window.startPagesTutorial();
+                    } else if (typeof window.startClientDetailsTutorial === 'function') {
+                        window.startClientDetailsTutorial();
+                    } else if (typeof window.startUserDetailsTutorial === 'function') {
+                        window.startUserDetailsTutorial();
+                    } else if (typeof window.startMiscellaneaTutorial === 'function') {
+                        window.startMiscellaneaTutorial();
+                    }
+                }
+            </script>
             {% if active_experiments %}
                 {% if active_experiments|length == 1 %}
                     {# Single experiment - direct link #}
                     <a class="button is-solid live-button has-icon" href="/admin/join_experiment/{{ active_experiments[0].idexp }}">
                         <i data-feather="video"></i>
-                        <span>Join {{ active_experiments[0].exp_name }}</span>
+                        <span class="btn-text">Join {{ active_experiments[0].exp_name }}</span>
                     </a>
                 {% else %}
                     {# Multiple experiments - dropdown menu #}
@@ -171,7 +231,7 @@ function dismissBlogPost(postId) {
                         <div class="dropdown-trigger">
                             <button class="button is-solid live-button has-icon" aria-haspopup="true" aria-controls="join-simulation-menu">
                                 <i data-feather="video"></i>
-                                <span>Join Simulation</span>
+                                <span class="btn-text">Join Simulation</span>
                                 <i data-feather="chevron-down" style="margin-left: 0.5rem; width: 16px; height: 16px;"></i>
                             </button>
                         </div>
@@ -190,13 +250,62 @@ function dismissBlogPost(postId) {
                 {# No active experiments - disabled button #}
                 <button class="button is-solid live-button has-icon is-disabled" disabled title="No active experiments available">
                     <i data-feather="alert-circle"></i>
-                    <span>No Active Experiments</span>
+                    <span class="btn-text">No Active Experiments</span>
                 </button>
             {% endif %}
-            <a class="button is-solid has-icon" href="/logout" style="margin-left: 0.5rem;">
+            <a class="button is-solid has-icon" href="/logout">
                 <i data-feather="log-out"></i>
-                <span>Log Out</span>
+                <span class="btn-text">Log Out</span>
             </a>
         </div>
     </div>
 </div>
+
+<!-- Header Responsive Styles -->
+<style>
+/* Mobile header button styles */
+@media screen and (max-width: 768px) {
+    .dashboard-toolbar {
+        flex-wrap: wrap;
+        padding: 10px 15px;
+        margin-left: 50px; /* Space for hamburger menu */
+    }
+    
+    .dashboard-toolbar .actions {
+        width: 100%;
+    }
+    
+    .dashboard-toolbar .header-buttons {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        gap: 6px;
+        width: 100%;
+        justify-content: flex-end;
+        overflow-x: auto;
+    }
+    
+    .dashboard-toolbar .header-buttons .button {
+        padding: 6px 10px;
+        font-size: 0.8em;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .dashboard-toolbar .header-buttons .button svg {
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Hide button text on very small screens, show only icons */
+    @media screen and (max-width: 480px) {
+        .dashboard-toolbar .header-buttons .btn-text {
+            display: none;
+        }
+        
+        .dashboard-toolbar .header-buttons .button {
+            padding: 8px;
+        }
+    }
+}
+</style>
