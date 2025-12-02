@@ -154,17 +154,16 @@
     };
     
     function getActiveTab() {
-        // Check which tab content is visible
-        const tabContents = {
-            'system-settings': document.getElementById('tab-system-settings'),
-            'llm-management': document.getElementById('tab-llm-management'),
-            'demographics': document.getElementById('tab-demographics'),
-            'content-behavior': document.getElementById('tab-content-behavior')
-        };
-        
-        for (const [tabName, tabElement] of Object.entries(tabContents)) {
-            if (tabElement && tabElement.classList.contains('active')) {
-                return tabName;
+        // Check which tab content is visible by looking for the 'active' class
+        const tabContents = document.querySelectorAll('.misc-tab-content');
+        for (const tabElement of tabContents) {
+            if (tabElement.classList.contains('active')) {
+                const tabId = tabElement.id;
+                // Convert tab-system-settings to system-settings
+                if (tabId.startsWith('tab-')) {
+                    return tabId.substring(4);
+                }
+                return tabId;
             }
         }
         
@@ -194,7 +193,8 @@
             const step = allSteps[key];
             if (step.tab === activeTab) {
                 const element = document.querySelector(step.selector);
-                if (element) {
+                // Check if element exists AND is visible (in the active tab)
+                if (element && element.offsetParent !== null) {
                     steps.push({...step});
                 }
             }
@@ -224,21 +224,23 @@
     }
     
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize the tutorial function
+        // Initialize the tutorial function after a delay to ensure page is ready
         setTimeout(initMiscellaneaTutorial, 500);
         
-        // Add click listeners to tab buttons to reinitialize the tutorial button visibility
+        // Add click listeners to tab buttons to reinitialize the tutorial function
         const tabButtons = document.querySelectorAll('.misc-tab');
         tabButtons.forEach(btn => {
             btn.addEventListener('click', function() {
-                // Reinitialize tutorial function after tab switch
-                setTimeout(initMiscellaneaTutorial, 100);
-                
-                // Show tutorial button if it exists
-                const tutorialBtn = document.getElementById('header-tutorial-btn');
-                if (tutorialBtn) {
-                    tutorialBtn.style.display = 'inline-block';
-                }
+                // Wait for tab to switch, then reinitialize tutorial function
+                setTimeout(function() {
+                    initMiscellaneaTutorial();
+                    
+                    // Show tutorial button if it exists
+                    const tutorialBtn = document.getElementById('header-tutorial-btn');
+                    if (tutorialBtn) {
+                        tutorialBtn.style.display = 'inline-block';
+                    }
+                }, 200);
             });
         });
     });

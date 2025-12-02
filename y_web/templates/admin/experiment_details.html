@@ -91,8 +91,7 @@
                                 <div id="actions-section">
                                     <b>Actions</b>
                                     <p style="font-size: 0.85em; color: #777; margin-bottom: 0.5em;">Manage experiment data and configuration.</p>
-                                </div>
-                            </div>
+                            
                             {% if len(clients)>0 %}
                             <div class="box-line">
                                 <span class="left">Edit LLM Prompts</span>
@@ -113,6 +112,8 @@
                                 <span class="right"> <a class="link-tooltip" href="/admin/delete_simulation/{{ experiment.idexp }}" 
                                                         title="Delete"><i
                                  class="mdi mdi-delete" style="font-size: 24px;"></i></a></span>
+                            </div>
+                                </div>
                             </div>
 
                         </div>
@@ -162,7 +163,7 @@
                                             {% endif %}
                                         </div>
                                         {% if notebooks %}
-                                        <div style="display: flex; gap: 3px; padding-left: 8px; border-left: 1px solid #ddd;">
+                                        <div id="jupyter-controls" style="display: flex; gap: 3px; padding-left: 8px; border-left: 1px solid #ddd;">
                                             {% if jupyter_instance.status!='stopped' %}
                                             <a class="link-tooltip" href="#" onclick="stopJupyter('{{ jupyter_instance.exp_id }}'); return false;" title="Stop JupyterLab">
                                                 <i class="mdi mdi-flask-empty-outline" style="font-size: 24px; color: #dc3545;"></i>
@@ -171,7 +172,7 @@
                                                 <i class="mdi mdi-open-in-new" style="font-size: 24px; color: #039be5;"></i>
                                             </a>
                                             {% else %}
-                                            <a class="link-tooltip" href="#" onclick="startJupyter('{{ experiment.idexp }}'); return false;" title="Start JupyterLab">
+                                            <a id="start-jupyter-btn" class="link-tooltip" href="#" onclick="startJupyter('{{ experiment.idexp }}'); return false;" title="Start JupyterLab">
                                                 <i class="mdi mdi-flask-outline" style="font-size: 24px; color: #039be5;"></i>
                                             </a>
                                             {% endif %}

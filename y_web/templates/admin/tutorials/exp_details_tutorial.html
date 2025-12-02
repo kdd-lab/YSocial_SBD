@@ -251,6 +251,24 @@
                     <b>💡 Try it now!</b> Click the button to load this experiment's interface, then use the <i class="mdi mdi-login"></i> button to join.
                 </p>`,
             position: 'right',
+            forceVisible: true
+        },
+        {
+            id: 'jupyter-controls',
+            selector: '#jupyter-controls',
+            title: '🔬 JupyterLab Analysis',
+            description: `<p>The <b>JupyterLab</b> button launches an interactive analysis environment.</p>
+                <p style="margin-top: 10px;">With JupyterLab, you can:</p>
+                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
+                    <li>Run Python notebooks to analyze experiment data</li>
+                    <li>Create custom visualizations and reports</li>
+                    <li>Access the raw database and logs</li>
+                </ul>
+                <p style="margin-top: 12px; padding: 10px; background: #e3f2fd; border-radius: 6px; font-size: 0.9em;">
+                    <b>💡 Tip:</b> Click the flask icon to start the JupyterLab server when you need advanced data analysis.
+                </p>`,
+            position: 'right',
+            forceVisible: true,
             isLast: true
         }
     ];
@@ -317,8 +335,11 @@
         
         if (!element) {
             console.warn('Element not found for step:', step.id);
-            // Skip to next step if element not found
-            if (stepIndex < tutorialSteps.length - 1) {
+            // Skip to next step if element not found (unless forceVisible is set)
+            if (!step.forceVisible && stepIndex < tutorialSteps.length - 1) {
+                currentStep++;
+                showStep(currentStep);
+            } else if (stepIndex < tutorialSteps.length - 1) {
                 currentStep++;
                 showStep(currentStep);
             } else {
@@ -350,15 +371,25 @@
             currentHighlightedElement.style.position = '';
             currentHighlightedElement.style.zIndex = '';
             currentHighlightedElement.style.background = '';
+            currentHighlightedElement.style.borderRadius = '';
+            currentHighlightedElement.style.boxShadow = '';
         }
         
-        // Add high z-index to current element to bring it above the backdrop
+        // Add high z-index and white background to current element to bring it above the backdrop
         currentHighlightedElement = element;
         const originalPosition = window.getComputedStyle(element).position;
         if (originalPosition === 'static') {
             element.style.position = 'relative';
         }
         element.style.zIndex = '9998';
+        
+        // Add white background to ensure element is visible (not dimmed)
+        const computedBg = window.getComputedStyle(element).backgroundColor;
+        if (!computedBg || computedBg === 'transparent' || computedBg === 'rgba(0, 0, 0, 0)') {
+            element.style.background = '#fff';
+            element.style.borderRadius = '8px';
+            element.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.15)';
+        }
         
         // Scroll element into view first, then position elements after scroll completes
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -466,6 +497,9 @@
         if (currentHighlightedElement) {
             currentHighlightedElement.style.position = '';
             currentHighlightedElement.style.zIndex = '';
+            currentHighlightedElement.style.background = '';
+            currentHighlightedElement.style.borderRadius = '';
+            currentHighlightedElement.style.boxShadow = '';
             currentHighlightedElement = null;
         }
         
