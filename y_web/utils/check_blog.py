@@ -129,7 +129,7 @@ def update_blog_info_in_db():
                 is_new = False
                 latest_in_db.latest_check_on = check_time
                 db.session.commit()
-                print(f"No new blog post (latest: {blog_post.get('title')})")
+                print(f"No new blog post")
 
                 # Return the unread post if it exists
                 if not latest_in_db.is_read:
@@ -152,7 +152,7 @@ def update_blog_info_in_db():
                 )
                 db.session.add(new_post)
                 db.session.commit()
-                print(f"New blog post found: {blog_post.get('title')}")
+                print(f"New blog post found")
                 return True, {
                     "id": new_post.id,
                     "title": new_post.title,
