@@ -809,8 +809,12 @@ def create_app(db_type="sqlite", desktop_mode=False):
             print(f"Failed to create database tables: {e}")
 
         # Initialize database bindings for all active experiments
-        # NOTE: This must run AFTER all migrations to ensure the exp_status column exists
-        initialize_active_experiment_databases(app)
+        # NOTE: This must run AFTER all migrations (especially add_exp_status_column)
+        # to ensure the exp_status column exists in the exps table before querying
+        try:
+            initialize_active_experiment_databases(app)
+        except Exception as e:
+            print(f"Failed to initialize active experiment databases: {e}")
 
     # Check for updates at startup
     with app.app_context():
