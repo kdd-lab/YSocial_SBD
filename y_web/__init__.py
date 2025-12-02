@@ -518,9 +518,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 print(f"Error injecting blog post info: {e}")
         return dict(new_blog_post_available=False, blog_post=None)
 
-    # Initialize database bindings for all active experiments
-    initialize_active_experiment_databases(app)
-
     # Register your blueprints here as before
     from .auth import auth as auth_blueprint
 
@@ -810,6 +807,14 @@ def create_app(db_type="sqlite", desktop_mode=False):
             print("✓ Database tables verified/created")
         except Exception as e:
             print(f"Failed to create database tables: {e}")
+
+        # Initialize database bindings for all active experiments
+        # NOTE: This must run AFTER all migrations (especially add_exp_status_column)
+        # to ensure the exp_status column exists in the exps table before querying
+        try:
+            initialize_active_experiment_databases(app)
+        except Exception as e:
+            print(f"Failed to initialize active experiment databases: {e}")
 
     # Check for updates at startup
     with app.app_context():
