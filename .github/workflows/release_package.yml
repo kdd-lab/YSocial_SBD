@@ -1,8 +1,11 @@
 name: Package Full Release
 
+#on:
+#  release:
+#    types: [created]
+
 on:
-  release:
-    types: [created]
+  workflow_dispatch:
 
 jobs:
   package:
