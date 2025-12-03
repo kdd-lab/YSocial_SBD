@@ -13,11 +13,12 @@ This workflow:
 - Sets up Python 3.10
 - Caches pip dependencies for faster builds
 - Installs all project dependencies from `requirements.txt`
-- Runs the test suite using `run_tests.py`
+- Runs the test suite using `pytest` directly with coverage reporting
+- Uploads coverage reports to Codecov
 
-**Entry Point:** `python run_tests.py`
+**Entry Point:** `python -m pytest y_web/tests/ -v --tb=short --cov=y_web --cov-report=xml --cov-report=term-missing`
 
-The test runner executes all pytest tests defined in the `y_web/tests/` directory.
+The test runner executes all pytest tests defined in the `y_web/tests/` directory and generates coverage reports.
 
 ### 2. Format Code (`format-code.yml`)
 
@@ -40,6 +41,13 @@ This workflow:
 
 ### Run Tests
 ```bash
+# Run all tests with coverage
+python -m pytest y_web/tests/ -v --tb=short --cov=y_web --cov-report=term-missing
+
+# Run tests without coverage
+python -m pytest y_web/tests/ -v --tb=short
+
+# Legacy test runner (still available)
 python run_tests.py
 ```
 
