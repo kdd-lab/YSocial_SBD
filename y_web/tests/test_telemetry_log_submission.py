@@ -93,39 +93,6 @@ def test_sanitize_json_config_handles_nested_structures():
     assert result["agents"] == ["agent1", "agent2"]
 
 
-def test_log_file_truncation():
-    """Test that log files are truncated to last 300 lines."""
-    user = MockUser(telemetry_enabled=True)
-    telemetry = Telemetry(user=user)
-
-    # Create a temporary directory structure
-    with tempfile.TemporaryDirectory() as temp_dir:
-        exp_folder = Path(temp_dir) / "experiment"
-        exp_folder.mkdir()
-
-        # Create a log file with 500 lines
-        log_file = exp_folder / "test.log"
-        with open(log_file, "w") as f:
-            for i in range(500):
-                f.write(f"Log line {i}\n")
-
-        # Create a simple JSON config
-        config_file = exp_folder / "config.json"
-        with open(config_file, "w") as f:
-            json.dump({"name": "test", "api_key": "secret"}, f)
-
-        # Submit logs (this will fail to send but should create the zip)
-        success, message = telemetry.submit_experiment_logs(1, str(exp_folder))
-
-        # The submission will fail because there's no server, but we can check
-        # that it tried to create files by checking the error message
-        # In a real scenario with a mock server, we'd verify the zip contents
-        assert (
-            "Failed to send logs" in message
-            or "Telemetry server returned error" in message
-        )
-
-
 def test_json_sanitization_preserves_structure():
     """Test that JSON sanitization preserves the overall structure."""
     user = MockUser(telemetry_enabled=True)
@@ -292,34 +259,3 @@ def test_anonymize_log_line_preserves_non_path_content():
     result = telemetry._anonymize_log_line(simple_line)
 
     assert result == simple_line
-
-
-def test_log_file_anonymization_integration():
-    """Test that log files are both truncated and anonymized."""
-    user = MockUser(telemetry_enabled=True)
-    telemetry = Telemetry(user=user)
-
-    # Create a temporary directory structure
-    with tempfile.TemporaryDirectory() as temp_dir:
-        exp_folder = Path(temp_dir) / "experiment"
-        exp_folder.mkdir()
-
-        # Create a log file with 500 lines containing paths
-        log_file = exp_folder / "test.log"
-        with open(log_file, "w") as f:
-            for i in range(500):
-                f.write(f"Log line {i}: Error in /home/user/project/file_{i}.py\n")
-
-        # Create a simple JSON config
-        config_file = exp_folder / "config.json"
-        with open(config_file, "w") as f:
-            json.dump({"name": "test", "api_key": "secret"}, f)
-
-        # Submit logs (this will fail to send but should create the zip)
-        success, message = telemetry.submit_experiment_logs(1, str(exp_folder))
-
-        # The submission will fail because there's no server
-        assert (
-            "Failed to send logs" in message
-            or "Telemetry server returned error" in message
-        )

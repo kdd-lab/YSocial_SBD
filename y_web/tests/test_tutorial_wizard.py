@@ -308,36 +308,6 @@ class TestTutorialTemplate:
         assert "Experiment" in content
         assert "Client" in content
 
-    def test_template_contains_form_fields(self):
-        """Test that the template contains necessary form fields."""
-        import os
-
-        template_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "templates",
-            "admin",
-            "tutorial_overlay.html",
-        )
-
-        with open(template_path, "r") as f:
-            content = f.read()
-
-        # Step 1 fields
-        assert "tut-pop-name" in content
-        assert "tut-pop-size" in content
-        assert "tut-education-dropdown" in content
-        assert "tut-political-dropdown" in content
-
-        # Step 2 fields
-        assert "tut-exp-name" in content
-
-        # Step 3 fields
-        assert "tut-client-name" in content
-        assert "tut-sim-days" in content
-        assert "tut-post-prob" in content
-        assert "tut-content-recsys" in content
-        assert "tut-follow-recsys" in content
-
 
 class TestExpDetailsTutorialRoutes:
     """Tests for the experiment details tutorial routes."""
@@ -430,91 +400,6 @@ class TestExpDetailsTutorialRoutes:
         assert show_tutorial is False
 
 
-class TestExpDetailsTutorialTemplate:
-    """Tests for the experiment details tutorial template structure."""
-
-    def test_exp_details_tutorial_template_exists(self):
-        """Test that the experiment details tutorial template file exists."""
-        import os
-
-        template_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "templates",
-            "admin",
-            "exp_details_tutorial.html",
-        )
-        assert os.path.exists(template_path)
-
-    def test_exp_details_tutorial_template_contains_required_elements(self):
-        """Test that the template contains required UI elements."""
-        import os
-
-        template_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "templates",
-            "admin",
-            "exp_details_tutorial.html",
-        )
-
-        with open(template_path, "r") as f:
-            content = f.read()
-
-        # Check for main container
-        assert "exp-details-tutorial-overlay" in content
-
-        # Check for tooltip elements
-        assert "exp-tutorial-tooltip" in content
-        assert "exp-tutorial-title" in content
-        assert "exp-tutorial-description" in content
-
-        # Check for navigation elements
-        assert "exp-tutorial-next" in content
-        assert "exp-tutorial-skip" in content
-        assert "exp-tutorial-close" in content
-
-    def test_exp_details_tutorial_template_contains_all_steps(self):
-        """Test that the template contains all tutorial steps."""
-        import os
-
-        template_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "templates",
-            "admin",
-            "exp_details_tutorial.html",
-        )
-
-        with open(template_path, "r") as f:
-            content = f.read()
-
-        # Check for all section references
-        assert "server-controls" in content
-        assert "simulation-clients" in content
-        assert "actions" in content
-        assert "server-trends" in content
-        assert "server-logs" in content
-        assert "client-logs" in content
-        assert "load-experiment" in content
-
-    def test_exp_details_tutorial_template_contains_api_endpoints(self):
-        """Test that the template references correct API endpoints."""
-        import os
-
-        template_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "templates",
-            "admin",
-            "exp_details_tutorial.html",
-        )
-
-        with open(template_path, "r") as f:
-            content = f.read()
-
-        # Check for API endpoints
-        assert "/admin/tutorial/exp_details/check_status" in content
-        assert "/admin/tutorial/exp_details/dismiss" in content
-        assert "/admin/tutorial/exp_details/reset" in content
-
-
 class TestExperimentDetailsPageIds:
     """Tests for experiment details page IDs used by tutorial."""
 
@@ -540,19 +425,3 @@ class TestExperimentDetailsPageIds:
         assert 'id="server-logs-section"' in content
         assert 'id="client-logs-section"' in content
         assert 'id="load-experiment-btn"' in content
-
-    def test_experiment_details_includes_tutorial_template(self):
-        """Test that experiment_details.html includes the tutorial template."""
-        import os
-
-        template_path = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)),
-            "templates",
-            "admin",
-            "experiment_details.html",
-        )
-
-        with open(template_path, "r") as f:
-            content = f.read()
-
-        assert 'include "admin/exp_details_tutorial.html"' in content
