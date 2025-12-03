@@ -29,8 +29,7 @@
                     {% endfor %}
 
 
-
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-new-client">
                         <h3 class="title is-5 is-thin">New Client</h3>
                         <div class="box-content">
                             <form action="/admin/create_client" enctype="multipart/form-data"
@@ -61,20 +60,58 @@
                                             </select>
                                         </div>
                                     </div>
+                                    <div id="section-simulation-params" class="tutorial-section">
                                     <div class="form-section-header">Simulation Parameters</div>
                                     <div class="form-section-description">
                                         Configure the duration and behavioral settings for the simulation run.
                                     </div>
                                     <div class="box-line">
                                         <span class="left">Simulation Length (days)</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="days"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="30"
-                                                                                       required></span>
+                                        <span class="right" style="width: 70%; display: flex; align-items: center; gap: 10px;">
+                                            <input type="number"
+                                                   id="days_display"
+                                                   class="input"
+                                                   min="1"
+                                                   step="1"
+                                                   value="30"
+                                                   style="flex: 1;">
+                                            <input type="hidden" name="days" id="days_input" value="30">
+                                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9em; white-space: nowrap;">
+                                                <input type="checkbox" id="infinite_duration" name="infinite_duration" style="cursor: pointer;">
+                                                <span style="color: #039be5;">Run until stopped</span>
+                                            </label>
+                                        </span>
                                     </div>
+                                    <script>
+                                        // Sync display input with hidden input
+                                        document.getElementById('days_display').addEventListener('change', function() {
+                                            document.getElementById('days_input').value = this.value;
+                                        });
+                                        document.getElementById('days_display').addEventListener('input', function() {
+                                            document.getElementById('days_input').value = this.value;
+                                        });
+                                        
+                                        // Toggle between finite and infinite duration
+                                        document.getElementById('infinite_duration').addEventListener('change', function() {
+                                            const daysDisplay = document.getElementById('days_display');
+                                            const daysInput = document.getElementById('days_input');
+                                            const defaultDays = '30';
+                                            if (this.checked) {
+                                                // Store current value before switching to infinite
+                                                daysDisplay.dataset.previousValue = daysDisplay.value;
+                                                daysDisplay.value = '∞';
+                                                daysDisplay.disabled = true;
+                                                daysDisplay.style.opacity = '0.5';
+                                                daysInput.value = -1;
+                                            } else {
+                                                // Restore previous value or use default
+                                                daysDisplay.value = daysDisplay.dataset.previousValue || defaultDays;
+                                                daysDisplay.disabled = false;
+                                                daysDisplay.style.opacity = '1';
+                                                daysInput.value = daysDisplay.value;
+                                            }
+                                        });
+                                    </script>
                                     <div class="box-line">
                                         <span class="left">% New Agents (daily)</span>
                                         <span class="right" style="width: 70%;"><input type="number"
@@ -160,6 +197,8 @@
                                                                                        value="36"
                                                                                        required></span>
                                     </div>
+                                    </div><!-- End section-simulation-params -->
+                                    <div id="section-actions-relevance" class="tutorial-section">
                                     <div class="form-section-header">Agents' Actions Relevance</div>
                                     <div class="form-section-description">
                                         All actions are scored from 0 to 10, where 0 means that the action is never performed. 
@@ -496,7 +535,9 @@
                                         <i class="mdi mdi-alert"></i> <strong>Notice:</strong> Image sharing/commenting is currently disabled. Please validate that the minicpm-v:latest model is available on your server to enable this feature.
                                     </div>
                                     {% endif %}
+                                    </div><!-- End section-actions-relevance -->
 
+                                    <div id="section-recsys" class="tutorial-section">
                                     <div class="form-section-header">Recommendation Systems</div>
                                     <div class="form-section-description">
                                         Select the recommendation algorithms for content and friendship suggestions that will influence agent interactions.
@@ -554,8 +595,16 @@
                                         details[open] summary::before {
                                             transform: rotate(90deg);
                                         }
+                                        .tutorial-section {
+                                            padding: 10px;
+                                            margin: -10px;
+                                            margin-bottom: 10px;
+                                            border-radius: 4px;
+                                        }
                                     </style>
+                                    </div><!-- End section-recsys -->
 
+                                    <div id="section-network" class="tutorial-section">
                                     <div class="form-section-header">Social Network Structure <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
                                     <div class="form-section-description">
                                         Configure a starting social network among the agents. You can either generate a synthetic network or upload a custom network file.
@@ -664,7 +713,9 @@
                                             </div>
                                         </div>
                                     </details>
+                                    </div><!-- End section-network -->
 
+                                    <div id="section-activity-rates" class="tutorial-section">
                                     <div class="form-section-header">Hourly Activity Rates <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
                                     <div class="form-section-description">
                                         Configure hourly activity rates for the simulation. Default values are based on
@@ -917,6 +968,7 @@
                                             </script>
                                         </div>
                                     </details>
+                                    </div><!-- End section-activity-rates -->
 
                                 </div>
                                 <div class="button-wrap">
@@ -952,7 +1004,7 @@
                             <p>
                                 <b>Simulation Parameters</b><br>
                                 Configure duration, agent behavior, and network dynamics.<br><br>
-                                <em>Simulation Length:</em> Number of days to run<br>
+                                <em>Simulation Length:</em> Number of days to run. Check "Run until stopped" to create an infinite-duration client that runs until manually stopped.<br>
                                 <em>New Agents/Churn:</em> Daily agent creation and removal rates<br>
                                 <em>Thread Context:</em> How much conversation history agents see<br>
                                 <em>Timeline Ratio:</em> Balance between follower and general content<br>
@@ -960,6 +1012,10 @@
                                 <em>Probability Secondary Follow:</em> Probability that an agent is asked if he would like to follow the author of content he interacted with<br>
                                 <em>Agents' Memory (hours):</em> For how long an agent maintain his interest in a topic<br>
                                 <em>Content Visibility (hours)</em> For how long a content can be proposed by recommender systems
+                            </p>
+                            <p style="color: #f39c12; font-size: 0.9em; margin-top: 10px;">
+                                <i class="mdi mdi-alert" style="font-size: 14px;"></i>
+                                <strong>Note:</strong> Experiments with infinite-duration clients cannot be used in scheduled experiment groups.
                             </p>
                             <hr>
                             <p>
@@ -1288,4 +1344,5 @@ document.addEventListener('DOMContentLoaded', function() {
     updateNetworkInputStates();
 });
                                             </script>
+{% include "admin/tutorials/clients_tutorial.html" %}
 {% include "admin/footer.html" %}

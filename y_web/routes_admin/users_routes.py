@@ -7,12 +7,14 @@ creating new users, and updating user permissions and settings.
 
 import os
 import re
+import webbrowser
 
 from flask import (
     Blueprint,
     abort,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -42,10 +44,13 @@ def user_data():
     Returns:
         Rendered user data template with available models and ollama status
     """
-    # Check if user is admin (researchers should not access this page)
+    # Check if user is admin or researcher
     user = Admin_users.query.filter_by(username=current_user.username).first()
-    if user.role != "admin":
-        flash("Access denied. This page is only accessible to administrators.", "error")
+    if user.role not in ["admin", "researcher"]:
+        flash(
+            "Access denied. This page is only accessible to administrators and researchers.",
+            "error",
+        )
         return redirect(url_for("admin.dashboard"))
 
     check_privileges(current_user.username)
@@ -68,6 +73,7 @@ def user_data():
         llm_backend=llm_backend,
         experiments=experiments,
         all_users=all_users,
+        current_user_role=user.role,
     )
 
 
@@ -140,13 +146,42 @@ def update():
     """
     Update user information from form data.
 
+    Role change restrictions:
+    - Only admin users can change user roles
+    - Admin users cannot change the role of other admin users
+    - Admin users can change roles of researchers and regular users
+
     Returns:
         Redirect to users page
     """
     data = request.get_json()
     if "id" not in data:
         abort(400)
+
+    # Get current user's role
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
     user = Admin_users.query.get(data["id"])
+
+    # Handle role changes with restrictions
+    if "role" in data:
+        new_role = data["role"]
+
+        # Only admin can change roles
+        if current_admin_user.role != "admin":
+            # Non-admin users cannot change roles at all
+            del data["role"]
+        else:
+            # Admin users cannot change the role of other admin users
+            if user.role == "admin" and user.id != current_admin_user.id:
+                # Cannot change another admin's role
+                del data["role"]
+            # Prevent demoting yourself from admin
+            elif user.id == current_admin_user.id and new_role != "admin":
+                del data["role"]
+
     for field in ["username", "password", "email", "last_seen", "role"]:
         if field in data:
             setattr(user, field, data[field])
@@ -192,6 +227,17 @@ def user_details(uid):
     llm_backend = llm_backend_status()
     models = get_llm_models(llm_backend["url"]) if llm_backend["url"] else []
 
+    # Get watchdog interval for admin users
+    watchdog_interval = 15  # Default
+    if current_admin_user.role == "admin":
+        try:
+            from y_web.utils.process_watchdog import get_watchdog
+
+            watchdog = get_watchdog()
+            watchdog_interval = watchdog.run_interval_minutes
+        except Exception:
+            pass
+
     return render_template(
         "admin/user_details.html",
         user=user,
@@ -201,6 +247,8 @@ def user_details(uid):
         none=None,
         llm_backend=llm_backend,
         models=models,
+        current_user_role=current_admin_user.role,
+        watchdog_interval=watchdog_interval,
     )
 
 
@@ -210,10 +258,19 @@ def add_user():
     """
     Create a new admin user from form data.
 
+    Role restrictions:
+    - Admin users can create users with any role (admin, researcher, user)
+    - Researcher users can only create users with 'user' role
+
     Returns:
         Redirect to users page
     """
     check_privileges(current_user.username)
+
+    # Get current user's role
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
 
     username = request.form.get("username")
     email = request.form.get("email")
@@ -221,6 +278,14 @@ def add_user():
     role = request.form.get("role")
     llm = request.form.get("llm")
     profile_pic = request.form.get("profile_pic")
+
+    # Enforce role restrictions: researchers can only create 'user' role
+    if current_admin_user.role != "admin" and role in ["admin", "researcher"]:
+        flash(
+            "You do not have permission to create admin or researcher users. Only 'user' role is allowed.",
+            "error",
+        )
+        return redirect(url_for("users.user_data"))
 
     user = Admin_users(
         username=username,
@@ -638,10 +703,20 @@ def bulk_create_users():
     Expected format: username,email,role per line (password will be auto-generated)
     or with password: username,email,role,password
 
+    Role restrictions:
+    - Admin users can create users with any role (admin, researcher, user)
+    - Researcher users can only create users with 'user' role
+
     Returns:
         Redirect to users page with status message
     """
     check_privileges(current_user.username)
+
+    # Get current user's role
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+    is_admin = current_admin_user.role == "admin"
 
     users_data = request.form.get("users_data", "").strip()
     role_filter = request.form.get("role", "user")  # Default role for bulk creation
@@ -678,6 +753,13 @@ def bulk_create_users():
         if role not in ["admin", "researcher", "user"]:
             errors.append(
                 f"Line {i}: Invalid role '{role}' (must be admin, researcher, or user)"
+            )
+            continue
+
+        # Enforce role restrictions: researchers can only create 'user' role
+        if not is_admin and role in ["admin", "researcher"]:
+            errors.append(
+                f"Line {i}: You do not have permission to create '{role}' users. Only 'user' role is allowed."
             )
             continue
 
@@ -844,3 +926,379 @@ def bulk_assign_users():
         flash(f"Error during bulk assignment: {str(e)}", "error")
 
     return redirect(url_for("users.user_data"))
+
+
+@users.route("/admin/update_telemetry_preference", methods=["POST"])
+@login_required
+def update_telemetry_preference():
+    """
+    Update user's telemetry preference (admin only).
+
+    Returns:
+        Redirect to user details page
+    """
+    user_id = request.form.get("user_id")
+
+    # Validate user_id
+    try:
+        user_id_int = int(user_id)
+    except (ValueError, TypeError):
+        flash("Invalid user ID.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        flash(
+            "Access denied. Only administrators can modify telemetry settings.", "error"
+        )
+        return redirect(url_for("admin.dashboard"))
+
+    # Only allow admins to update their own telemetry settings
+    if current_admin_user.id != user_id_int:
+        flash("You can only modify your own telemetry settings.", "error")
+        return redirect(url_for("users.user_details", uid=user_id_int))
+
+    # Get telemetry preference from form
+    telemetry_enabled = request.form.get("telemetry_enabled") == "1"
+
+    # Update user's telemetry preference
+    user = Admin_users.query.filter_by(id=user_id_int).first()
+    if not user:
+        flash("User not found.", "error")
+        return redirect(url_for("users.user_data"))
+
+    user.telemetry_enabled = telemetry_enabled
+    db.session.commit()
+
+    flash(
+        f"Telemetry {'enabled' if telemetry_enabled else 'disabled'} successfully.",
+        "success",
+    )
+    return redirect(url_for("users.user_details", uid=user_id_int))
+
+
+@users.route("/admin/update_telemetry_preference_ajax", methods=["POST"])
+@login_required
+def update_telemetry_preference_ajax():
+    """
+    Update user's telemetry preference via AJAX (admin only).
+
+    Returns:
+        JSON response with success status
+    """
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        return jsonify({"success": False, "message": "Access denied"}), 403
+
+    data = request.get_json()
+    if data is None:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+
+    telemetry_enabled = data.get("telemetry_enabled", False)
+
+    # Update current admin user's telemetry preference
+    current_admin_user.telemetry_enabled = telemetry_enabled
+    db.session.commit()
+
+    return jsonify({"success": True, "enabled": telemetry_enabled})
+
+
+@users.route("/admin/check_for_updates", methods=["POST"])
+@login_required
+def check_for_updates_route():
+    """
+    Manually trigger a check for YSocial updates (admin only).
+
+    Returns:
+        Redirect to user details page with status message
+    """
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        flash("Access denied. Only administrators can check for updates.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    try:
+        from y_web.utils.check_release import update_release_info_in_db
+
+        has_update, release_info = update_release_info_in_db()
+
+        if has_update:
+            flash(
+                f"New version available: {release_info.get('release_name')} (v{release_info.get('latest_version')})",
+                "success",
+            )
+        else:
+            flash("Your YSocial installation is up to date.", "info")
+    except Exception as e:
+        flash(f"Error checking for updates: {str(e)}", "error")
+
+    # Redirect back to the user details page
+    return redirect(url_for("users.user_details", uid=current_admin_user.id))
+
+
+@users.route("/admin/mark_blog_post_read/<int:post_id>", methods=["POST"])
+@login_required
+def mark_blog_post_read(post_id):
+    """
+    Mark a blog post as read.
+
+    This endpoint is called when a user dismisses a blog post banner
+    or clicks on the blog post link.
+
+    Args:
+        post_id: ID of the blog post to mark as read
+
+    Returns:
+        JSON response indicating success or error
+    """
+    from flask import jsonify
+
+    from y_web.models import BlogPost
+
+    # Check if user is admin/researcher using existing check_privileges helper
+    privilege_check = check_privileges(current_user.username)
+    if privilege_check:
+        print(
+            f"Access denied for user {current_user.username} marking blog post {post_id} as read"
+        )
+        return jsonify({"error": "Access denied"}), 403
+
+    try:
+        blog_post = BlogPost.query.get(post_id)
+        if not blog_post:
+            print(f"Blog post {post_id} not found")
+            return jsonify({"error": "Blog post not found"}), 404
+
+        print(f"Marking blog post {post_id} as read by {current_user.username}")
+        print(f"Current is_read value: {blog_post.is_read}")
+        # SQLAlchemy will handle boolean to integer conversion for SQLite
+        blog_post.is_read = True
+        db.session.commit()
+        # Verify the change
+        db.session.refresh(blog_post)
+        print(
+            f"Blog post {post_id} successfully marked as read. New value: {blog_post.is_read}"
+        )
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        print(f"Error marking blog post {post_id} as read: {e}")
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@users.route("/admin/open_external_url", methods=["POST"])
+@login_required
+def open_external_url():
+    """
+    Open an external URL in the system's default browser.
+
+    This endpoint is used to open external links (like release pages and blog posts)
+    in the system browser when running as a PyInstaller app. This is necessary because
+    in desktop mode with PyWebView, window.open() and target="_blank" don't work properly.
+
+    Returns:
+        JSON response indicating success or error
+    """
+    # Check if user is admin/researcher using existing check_privileges helper
+    privilege_check = check_privileges(current_user.username)
+    if privilege_check:
+        print(f"Access denied for user {current_user.username} opening external URL")
+        return jsonify({"error": "Access denied"}), 403
+
+    try:
+        url = request.json.get("url")
+        if not url:
+            return jsonify({"error": "URL is required"}), 400
+
+        # Basic URL validation - ensure it starts with http:// or https://
+        if not url.startswith(("http://", "https://")):
+            return jsonify({"error": "Invalid URL format"}), 400
+
+        print(f"Opening external URL in system browser: {url}")
+        # Open the URL in the system's default browser
+        # This works reliably in PyInstaller mode on all platforms
+        webbrowser.open(url)
+
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        print(f"Error opening external URL: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@users.route("/admin/watchdog_status", methods=["GET"])
+@login_required
+def watchdog_status():
+    """
+    Get the current watchdog status (admin only).
+
+    Returns:
+        JSON response with watchdog status
+    """
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+
+    try:
+        from y_web.utils.process_watchdog import get_watchdog_status
+
+        status = get_watchdog_status()
+        return jsonify(status), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@users.route("/admin/watchdog_run_now", methods=["POST"])
+@login_required
+def watchdog_run_now():
+    """
+    Trigger an immediate watchdog run (admin only).
+
+    Returns:
+        JSON response with the results of the watchdog run
+    """
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        return jsonify({"error": "Access denied"}), 403
+
+    try:
+        from y_web.utils.process_watchdog import run_watchdog_once
+
+        results = run_watchdog_once()
+        flash(
+            f"Watchdog check complete: {results['processes_checked']} checked, "
+            f"{results['processes_restarted']} restarted",
+            "success",
+        )
+        return jsonify(results), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@users.route("/admin/watchdog_set_interval", methods=["POST"])
+@login_required
+def watchdog_set_interval():
+    """
+    Set the watchdog run interval (admin only).
+
+    Supports both form-based (with user_id for redirect) and AJAX calls.
+
+    Returns:
+        Redirect to user details page or JSON response for AJAX calls
+    """
+    user_id = request.form.get("user_id")
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or not user_id
+
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        if is_ajax:
+            return jsonify({"success": False, "message": "Access denied"}), 403
+        flash(
+            "Access denied. Only administrators can modify watchdog settings.", "error"
+        )
+        return redirect(url_for("admin.dashboard"))
+
+    # Get interval from form
+    try:
+        from y_web.utils.process_watchdog import MAX_RUN_INTERVAL_MINUTES
+
+        interval_minutes = int(request.form.get("watchdog_interval", 15))
+        if interval_minutes < 1:
+            interval_minutes = 1
+        elif interval_minutes > MAX_RUN_INTERVAL_MINUTES:
+            interval_minutes = MAX_RUN_INTERVAL_MINUTES
+    except (ValueError, TypeError):
+        interval_minutes = 15
+
+    try:
+        from y_web.utils.process_watchdog import set_watchdog_interval
+
+        set_watchdog_interval(interval_minutes)
+
+        if is_ajax:
+            return jsonify({"success": True, "interval_minutes": interval_minutes}), 200
+
+        flash(f"Watchdog interval set to {interval_minutes} minutes.", "success")
+    except Exception as e:
+        if is_ajax:
+            return jsonify({"success": False, "message": str(e)}), 500
+        flash(f"Error setting watchdog interval: {str(e)}", "error")
+
+    # Validate user_id for redirect
+    try:
+        user_id_int = int(user_id)
+    except (ValueError, TypeError):
+        flash("Invalid user ID.", "error")
+        return redirect(url_for("admin.dashboard"))
+
+    return redirect(url_for("users.user_details", uid=user_id_int))
+
+
+@users.route("/admin/watchdog_toggle", methods=["POST"])
+@login_required
+def watchdog_toggle():
+    """
+    Enable or disable the watchdog scheduler (admin only).
+
+    Expects JSON body with:
+    - enabled: boolean
+
+    Returns:
+        JSON response with success status
+    """
+    # Check if user is admin
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+
+    if not current_admin_user or current_admin_user.role != "admin":
+        return jsonify({"success": False, "message": "Access denied"}), 403
+
+    try:
+        data = request.get_json()
+        enabled = data.get("enabled", True) if data else True
+
+        from y_web.utils.process_watchdog import get_watchdog
+
+        watchdog = get_watchdog()
+
+        if enabled:
+            watchdog.start_scheduler()
+        else:
+            watchdog.stop_scheduler()
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "enabled": watchdog.is_running,
+                    "message": f"Watchdog {'enabled' if enabled else 'disabled'}",
+                }
+            ),
+            200,
+        )
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500

@@ -18,7 +18,7 @@
                     </div>
                     {% endfor %}
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-agents-table">
                         <h3 class="title is-5 is-thin">Available Agents</h3>
 
                         <div class="box-content">
@@ -241,11 +241,12 @@
                 <!--Dashboard column-->
                 <div class="column is-8">
                     <!--Dashboard box-->
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-create-agent">
                         <h3 class="title is-5 is-thin">Create Agent</h3>
                         <div class="box-content">
                             <form action="/admin/create_agent" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Creating agent...');">
                                 <div class="box-lines">
+                                    <div id="section-simulation-config" class="tutorial-section">
                                     <b>Simulation Configuration</b>
 
                                     <div class="box-line">
@@ -260,7 +261,9 @@
                                         </div>
 
                                     </div>
+                                    </div><!-- End section-simulation-config -->
                                     <hr>
+                                    <div id="section-demographic-info" class="tutorial-section">
                                     <b>Demographic Information</b>
                                     <div class="box-line">
                                         <span class="left">Agent Name</span>
@@ -337,8 +340,10 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-demographic-info -->
                                     <hr>
 
+                                    <div id="section-thematic-characterization" class="tutorial-section">
                                     <b>Thematic Characterization</b>
                                     <div class="box-line">
                                         <span class="left">Political Leaning</span>
@@ -351,8 +356,10 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-thematic-characterization -->
                                     <hr>
 
+                                    <div id="section-big-five" class="tutorial-section">
                                     <b>Big Five Personality profile</b>
                                     <div class="box-line">
                                         <span class="left">Openness to Experience</span>
@@ -404,8 +411,10 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-big-five -->
 
                                     <hr>
+                                    <div id="section-social-behavior" class="tutorial-section">
                                     <b>Expected Social Behavior</b>
                                     <div class="box-line">
                                         <span class="left">Toxicity Level</span>
@@ -430,8 +439,10 @@
                                             </select>
                                         </div>
                                     </div>
+                                    </div><!-- End section-social-behavior -->
 
                                     <hr>
+                                    <div id="section-advanced-roleplay" class="tutorial-section">
                                     <b>Advanced Role-Playing</b>
                                     <div class="box-line">
                                         <span class="left">
@@ -443,9 +454,15 @@
                                         <span class="right" style="width: 70%;"><input type="text" name="alt_profile"
                                                                                        class="input" value=""></span>
                                     </div>
-
+                                    </div><!-- End section-advanced-roleplay -->
                                     <hr>
                                     <style>
+                                        .tutorial-section {
+                                            padding: 10px;
+                                            margin: -10px;
+                                            margin-bottom: 10px;
+                                            border-radius: 4px;
+                                        }
                                         .form-section-header-agent {
                                             font-size: 0.95em;
                                             font-weight: 600;
@@ -528,7 +545,7 @@
                 <!--Dashboard column-->
                 <div class="column is-4">
                     <!--Box-->
-                    <div class="dashboard-box is-compact">
+                    <div class="dashboard-box is-compact" id="box-agents-help">
                         <h3 class="title is-5 is-thin">Quick Reference Guide</h3>
                         <div class="help-block">
 
@@ -555,5 +572,5 @@
 </div>
 
 
-
+{% include "admin/tutorials/agents_tutorial.html" %}
 {% include "admin/footer.html" %}

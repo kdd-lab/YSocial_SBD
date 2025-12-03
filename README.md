@@ -1,7 +1,10 @@
 ![img_1.png](docs/Ysocial.png)
 # Y Social Digital Twin
-[![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![SBD++](https://img.shields.io/badge/Available%20on-SoBigData%2B%2B-green)](https://sobigdata.eu/)[![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![CI - Run Tests](https://github.com/YSocialTwin/YSocial/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/YSocialTwin/YSocial/actions/workflows/ci-tests.yml)
+
+
 
 Welcome to **Y Social**, an **LLM-powered Social Media Twin** designed for **social simulations** in a **zero-code** environment.
 
@@ -10,7 +13,9 @@ Interact with AI-driven agents, analyze social dynamics, and explore the impact 
 
 As a plus, YSocial allows you to analyze simulation data with an embedded **Jupyter Lab** environment powered by **[ySights](https://ysocialtwin.github.io/ysights)** - a custom library for designed to support in-depth insights.
 
-For more information, visit the [project website](https://ysocialtwin.github.io/) or read our [research paper](https://arxiv.org/abs/2408.00818).
+For more information, visit the [project website](https://y-not.social/) or read our [research paper](https://arxiv.org/abs/2408.00818).
+
+![Logo](./images/header.png)
 
 
 ---
@@ -98,47 +103,28 @@ The **Y Social** supports a wide range of simulation configurations and automate
 
 ## 🏁 Getting Started
 
-**Y Social** has been tested on **GNU/Linux** and **MacOS**. 
-In case of malfunctioning/installation issues Windows users are advised to use **Docker**.
+**Y Social** has been tested on **GNU/Linux**, **MacOS** and **Windows**. 
 
-For detailed usage examples and configuration options, please refer to the [USAGE_EXAMPLES.md](USAGE_EXAMPLES.md) file.
+[![os](./images/os_support.png)](https://y-not.social/download)
 
 ### 🎯 **Quick Start - Standalone Executable** *(Recommended for non-developers)*
 
 If you prefer a click-and-run experience without setting up Python, download our pre-built executables:
 
-1. **Download** the appropriate package for your OS from the [Releases](https://github.com/YSocialTwin/YSocial/releases) page:
-   - `YSocial-linux.tar.gz` for Linux
-   - `YSocial-macos.tar.gz` for macOS  
-   - `YSocial-windows.zip` for Windows
+1. **Download** the appropriate package for your OS from the official [download](https://y-not.social/download) page:
 
-2. **Extract** the archive and run the executable:
-   - **Linux/macOS**: `./YSocial`
+2. **Install** the application and run the executable:
+   - **Linux:** `./YSocial`
+   - **MacOS**: Install the `.dmg` file, then double-click to run.
    - **Windows**: Double-click `YSocial.exe`
 
-3. The application will **automatically open** in a **native desktop window** (default behavior)
+3. The application will **automatically open** 
 
 4. **Login** with default credentials:
-   - **Email:** `admin@ysocial.com`
-   - **Password:** `test`
+   - **Email:** `admin@y-not.social`
+   - **Password:** `admin`
 
 📘 The executables include all dependencies and support command-line options (run with `--help` for details).
-
-#### 🖥️ **Desktop vs Browser Mode**
-
-**Desktop mode is now the default!** The app launches in a native window with integrated controls.
-
-To use traditional browser mode instead:
-
-```bash
-# Linux/macOS
-./YSocial --browser
-
-# Windows  
-YSocial.exe --browser
-```
-
-Desktop mode uses PyWebview to provide a native window experience with integrated controls and better desktop integration.
 
 ---
 
@@ -187,8 +173,8 @@ Assuming you have [Anaconda](https://www.anaconda.com/) installed, you can creat
 💡 **YSocial** will launch in a **native desktop window by default** when using the launcher. Use `--browser` flag to open in a web browser instead.
 To access the **admin panel**, use the default credentials:
 
-- **Email:** `admin@ysocial.com`
-- **Password:** `test`
+- **Email:** `admin@y-not.social`
+- **Password:** `admin`
 
 🔴 **Note 2:** Ensure to run the application in a dedicated conda/miniconda/pipenv environment to avoid dependency conflicts. Homebrew installations of Python may lead to execution issues.
 
@@ -244,7 +230,7 @@ YSocial includes integrated **Jupyter Lab** support with the **ySights** library
 
 #### What is ySights?
 
-[ySights](https://ysocialtwin.github.io/ysights/) is a Python library specifically designed for analyzing YSocial simulation data. It provides:
+[ySights](https://y-not.social/ysights/) is a Python library specifically designed for analyzing YSocial simulation data. It provides:
 
 - **YDataHandler**: Main interface to query simulation databases
 - **Agent Analysis**: Filter and analyze agent properties (demographics, interests, behavior)
@@ -279,7 +265,7 @@ Each experiment gets its own isolated Jupyter Lab instance with:
 - Sample notebook (`start_here.ipynb`) with common analysis patterns
 - Full access to ySights library for data exploration
 
-📚 **See the [ySights documentation](https://ysocialtwin.github.io/ysights/) for detailed tutorials and API reference**
+📚 **See the [ySights documentation](https://y-not.social/ysights/) for detailed tutorials and API reference**
 
 ---
 
@@ -327,7 +313,7 @@ docker-compose up --gpus all
 ---
 
 ## 📄 Further Information
-- **Project Website:** [YSocialTwin.github.io](https://ysocialtwin.github.io/)
+- **Project Website:** [y-not.social](https://ysocialtwin.github.io/)
 - **Research Paper:** [Y Social: A Digital Twin for Social Simulations](https://arxiv.org/abs/2408.00818)
 
 ---
