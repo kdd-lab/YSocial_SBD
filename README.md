@@ -1,9 +1,10 @@
 ![img_1.png](docs/Ysocial.png)
 # Y Social Digital Twin
-[![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![SBD++](https://img.shields.io/badge/Available%20on-SoBigData%2B%2B-green)](https://sobigdata.eu/)[![License](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![CI - Run Tests](https://github.com/YSocialTwin/YSocial/actions/workflows/ci-tests.yml/badge.svg)](https://github.com/YSocialTwin/YSocial/actions/workflows/ci-tests.yml)
-[![codecov](https://codecov.io/gh/YSocialTwin/YSocial/graph/badge.svg)](https://codecov.io/gh/YSocialTwin/YSocial)
+
+
 
 Welcome to **Y Social**, an **LLM-powered Social Media Twin** designed for **social simulations** in a **zero-code** environment.
 
