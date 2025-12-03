@@ -9,6 +9,7 @@ client execution control (start/pause/resume/terminate).
 import json
 import os
 import shutil
+import traceback
 
 import faker
 import networkx as nx
@@ -18,7 +19,6 @@ from flask import (
     redirect,
     render_template,
     request,
-    send_file,
 )
 from flask_login import current_user, login_required
 
@@ -49,7 +49,9 @@ from y_web.utils import (
     start_client,
     terminate_client,
 )
+from y_web.utils.desktop_file_handler import send_file_desktop
 from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama_status
+from y_web.utils.path_utils import get_resource_path
 
 clientsr = Blueprint("clientsr", __name__)
 
@@ -60,29 +62,36 @@ def reset_client(uid):
     """Handle reset client operation."""
     check_privileges(current_user.username)
 
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
     # delete experiment json files
     client = Client.query.filter_by(id=uid).first()
     exp = Exps.query.filter_by(idexp=client.id_exp).first()
     population = Population.query.filter_by(id=client.population_id).first()
-    path = f"y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}{population.name}.json"
+    path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}{population.name}.json"
     if os.path.exists(path):
         os.remove(path)
 
-    path = f"y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}prompts.json"
+    path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}prompts.json"
     if os.path.exists(path):
         os.remove(path)
 
     # copy the original prompts.json file
-    BASE = os.path.dirname(os.path.abspath(__file__)).split("y_web")[0]
     if exp.platform_type == "microblogging":
+        prompts_src = get_resource_path(os.path.join("data_schema", "prompts.json"))
         shutil.copy(
-            f"{BASE}data_schema{os.sep}prompts.json",
-            f"y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+            prompts_src,
+            f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}prompts.json",
         )
     elif exp.platform_type == "forum":
+        prompts_src = get_resource_path(
+            os.path.join("data_schema", "prompts_forum.json")
+        )
         shutil.copy(
-            f"{BASE}data_schema{os.sep}prompts_forum.json",
-            f"y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+            prompts_src,
+            f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}{os.sep}prompts.json",
         )
     else:
         raise Exception(f"unsupported platform: {exp.platform_type}")
@@ -121,6 +130,16 @@ def extend_simulation(id_client):
     client = db.session.query(Client).filter_by(id=id_client).first()
     client.days = int(client.days) + int(days)
     db.session.commit()
+
+    # Check if the experiment was completed, and reset to stopped if so
+    exp = Exps.query.filter_by(idexp=client.id_exp).first()
+    if exp and exp.exp_status == "completed":
+        exp.exp_status = "stopped"
+        db.session.commit()
+        flash(
+            f"Experiment '{exp.exp_name}' moved from completed to stopped (client duration extended).",
+            "info",
+        )
 
     return redirect(request.referrer)
 
@@ -329,6 +348,11 @@ def create_client():
     # Validate numeric fields
     try:
         days = int(days)
+        # days = -1 means infinite/run-until-stopped
+        if days != -1 and days < 1:
+            errors.append(
+                "Days must be at least 1, or use -1 for infinite duration (run until stopped)"
+            )
     except (ValueError, TypeError):
         errors.append("Days must be a valid integer")
     try:
@@ -476,6 +500,11 @@ def create_client():
     db.session.add(client)
     db.session.commit()
 
+    # If experiment was completed, reset status to stopped since a new client was added
+    if exp.exp_status == "completed":
+        exp.exp_status = "stopped"
+        db.session.commit()
+
     # Get LLM URL from environment (set by y_social.py)
     import os
 
@@ -539,7 +568,6 @@ def create_client():
     config = {
         "servers": {
             "llm": llm,
-            #    "llm_url": llm_url,
             "llm_api_key": llm_api_key,
             "llm_max_tokens": int(llm_max_tokens),
             "llm_temperature": float(llm_temperature),
@@ -674,40 +702,57 @@ def create_client():
     else:
         uid = exp.db_name.removeprefix("experiments_")
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__)).split("y_web")[0]
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
 
     with open(
-        f"{BASE_DIR}y_web{os.sep}experiments{os.sep}{uid}{os.sep}client_{name}-{population.name}.json",
+        f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}client_{name}-{population.name}.json",
         "w",
     ) as f:
         json.dump(config, f, indent=4)
 
-    data_base_path = f"{BASE_DIR}y_web{os.sep}experiments{os.sep}{uid}{os.sep}"
+    data_base_path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}"
     # copy prompts.json into the experiment folder
 
     if exp.platform_type == "microblogging":
+        prompts_src = get_resource_path(os.path.join("data_schema", "prompts.json"))
         shutil.copyfile(
-            f"{BASE_DIR}data_schema{os.sep}prompts.json".replace("/y_web/utils", ""),
+            prompts_src,
             f"{data_base_path}prompts.json",
         )
 
     elif exp.platform_type == "forum":
+        prompts_src = get_resource_path(
+            os.path.join("data_schema", "prompts_forum.json")
+        )
         shutil.copyfile(
-            f"{BASE_DIR}data_schema{os.sep}prompts_forum.json".replace(
-                "/y_web/utils", ""
-            ),
+            prompts_src,
             f"{data_base_path}prompts.json",
         )
     else:
         raise Exception(f"unsupported platform: {exp.platform_type}")
 
     # Create agent population file
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__)).split("routes_admin")[0]
+    writable_base = get_writable_path()
 
     if "database_server.db" in exp.db_name:
-        filename = f"{BASE_DIR}{os.sep}{exp.db_name.split('database_server.db')[0]}{population.name.replace(' ', '')}.json"
+        # exp.db_name is like "experiments/uid/database_server.db"
+        filename = os.path.join(
+            writable_base,
+            "y_web",
+            exp.db_name.split("database_server.db")[0],
+            f"{population.name.replace(' ', '')}.json",
+        )
     else:
-        filename = f"{BASE_DIR}experiments{os.sep}{exp.db_name.replace('experiments_', '')}{os.sep}{population.name.replace(' ', '')}.json"
+        # Legacy format
+        filename = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp.db_name.replace("experiments_", ""),
+            f"{population.name.replace(' ', '')}.json",
+        )
 
     agents = Agent_Population.query.filter_by(population_id=population.id).all()
     # get the agent details
@@ -737,6 +782,13 @@ def create_client():
 
         ints = [interests, len(interests)]
 
+        activity_profile_obj = (
+            db.session.query(ActivityProfile).filter_by(id=a.activity_profile).first()
+        )
+        activity_profile_name = (
+            activity_profile_obj.name if activity_profile_obj else "Always On"
+        )
+
         res["agents"].append(
             {
                 "name": a.name,
@@ -764,10 +816,7 @@ def create_client():
                 "prompts": custom_prompt if custom_prompt else None,
                 "daily_activity_level": a.daily_activity_level,
                 "profession": a.profession,
-                "activity_profile": db.session.query(ActivityProfile)
-                .filter_by(id=a.activity_profile)
-                .first()
-                .name,
+                "activity_profile": activity_profile_name,
             }
         )
 
@@ -785,6 +834,13 @@ def create_client():
         )
         page_topics = [t[1].name for t in page_topics]
         page_topics = list(set(page_topics) & set(topics))
+
+        activity_profile_obj = (
+            db.session.query(ActivityProfile).filter_by(id=p.activity_profile).first()
+        )
+        activity_profile_name = (
+            activity_profile_obj.name if activity_profile_obj else "Always On"
+        )
 
         res["agents"].append(
             {
@@ -811,10 +867,7 @@ def create_client():
                 "toxicity": "none",
                 "is_page": 1,
                 "feed_url": p.feed,
-                "activity_profile": db.session.query(ActivityProfile)
-                .filter_by(id=p.activity_profile)
-                .first()
-                .name,
+                "activity_profile": activity_profile_name,
             }
         )
 
@@ -832,7 +885,9 @@ def create_client():
         # get agent ids for all agents in populations
         agent_ids = [Agent.query.filter_by(id=a.agent_id).first().name for a in agents]
 
-        BASE = os.path.dirname(os.path.abspath(__file__))
+        from y_web.utils.path_utils import get_writable_path
+
+        BASE = get_writable_path()
         dbtypte = get_db_type()
 
         if dbtypte == "sqlite":
@@ -840,9 +895,7 @@ def create_client():
         else:
             exp_folder = exp.db_name.removeprefix("experiments_")
 
-        network_path = f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_network.csv".replace(
-            f"routes_admin{os.sep}", ""
-        )
+        network_path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_network.csv"
 
         if network_file and network_file.filename:
             # Handle uploaded network file
@@ -951,6 +1004,41 @@ def create_client():
                 client.network_type = network_model
                 db.session.commit()
 
+    from y_web.telemetry import Telemetry
+
+    telemetry = Telemetry(user=current_user)
+    telemetry.log_event(
+        data={
+            "action": "create_client",
+            "data": {
+                "llm_agents_enabled": llm_agents_enabled,
+                "days": days,
+                "percentage_new_agents_iteration": percentage_new_agents_iteration,
+                "percentage_removed_agents_iteration": percentage_removed_agents_iteration,
+                "max_length_thread_reading": max_length_thread_reading,
+                "reading_from_follower_ratio": reading_from_follower_ratio,
+                "probability_of_daily_follow": probability_of_daily_follow,
+                "attention_window": attention_window,
+                "visibility_rounds": visibility_rounds,
+                "actions": {
+                    "post": post,
+                    "share": share,
+                    "image": image,
+                    "comment": comment,
+                    "read": read,
+                    "news": news,
+                    "search": search,
+                    "vote": vote,
+                    "share_link": share_link,
+                },
+                "llm": user_type,
+                "probability_of_secondary_follow": probability_of_secondary_follow,
+                "crecsys": crecsys,
+                "frecsys": frecsys,
+            },
+        }
+    )
+
     # load experiment_details page
     from .experiments_routes import experiment_details
 
@@ -985,11 +1073,11 @@ def delete_client(uid):
     db.session.delete(client)
     db.session.commit()
 
+    from y_web.utils.path_utils import get_writable_path
+
     # remove the db file on the client
-    BASE_PATH = os.path.dirname(os.path.abspath(__file__)).split("y_web")[0]
-    path = (
-        f"{BASE_PATH}external{os.sep}YClient{os.sep}experiments{os.sep}{client.name}.db"
-    )
+    BASE_PATH = get_writable_path()
+    path = f"{BASE_PATH}{os.sep}external{os.sep}YClient{os.sep}experiments{os.sep}{client.name}.db"
     if os.path.exists(path):
         os.remove(path)
     else:
@@ -1025,7 +1113,9 @@ def client_details(uid):
     )
 
     # get the client configuration file
-    BASE = os.path.dirname(os.path.abspath(__file__))
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
 
     dbtypte = get_db_type()
 
@@ -1034,9 +1124,7 @@ def client_details(uid):
     else:
         exp_folder = experiment.db_name.removeprefix("experiments_")
 
-    path = f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json".replace(
-        f"routes_admin{os.sep}", ""
-    )
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
 
     if os.path.exists(path):
         with open(path, "r") as f:
@@ -1045,9 +1133,7 @@ def client_details(uid):
         config = None
 
     # open the agent population file to get the number of agents
-    path_agents = f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{population.name}.json".replace(
-        f"routes_admin{os.sep}", ""
-    )
+    path_agents = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{population.name}.json"
 
     if os.path.exists(path_agents):
         with open(path_agents, "r") as f:
@@ -1097,22 +1183,48 @@ def client_details(uid):
 
 @clientsr.route("/admin/progress/<int:client_id>")
 def get_progress(client_id):
-    """Return the current progress as JSON."""
+    """Return the current progress as JSON.
+
+    For finite clients: returns progress percentage (0-100)
+    For infinite clients (expected_duration_rounds = -1): returns elapsed time info
+    """
     # get client_execution
     client_execution = Client_Execution.query.filter_by(client_id=client_id).first()
 
     if client_execution is None:
-        return json.dumps({"progress": 0})
-    progress = (
-        int(
+        return json.dumps({"progress": 0, "infinite": False})
+
+    # Check if this is an infinite client (expected_duration_rounds = -1)
+    if client_execution.expected_duration_rounds == -1:
+        # Return elapsed time info for infinite clients
+        elapsed_hours = client_execution.elapsed_time
+        elapsed_days = elapsed_hours // 24
+        remaining_hours = elapsed_hours % 24
+        return json.dumps(
+            {
+                "progress": -1,
+                "infinite": True,
+                "elapsed_time": client_execution.elapsed_time,
+                "elapsed_days": elapsed_days,
+                "elapsed_hours": remaining_hours,
+                "last_active_day": client_execution.last_active_day,
+                "last_active_hour": client_execution.last_active_hour,
+            }
+        )
+
+    # Calculate progress and cap at 100%
+    if client_execution.expected_duration_rounds > 0:
+        progress = int(
             100
             * float(client_execution.elapsed_time)
             / float(client_execution.expected_duration_rounds)
         )
-        if client_execution.expected_duration_rounds > 0
-        else 0
-    )
-    return json.dumps({"progress": progress})
+        # Cap progress at 100% to prevent overflow
+        progress = min(100, max(0, progress))
+    else:
+        progress = 0
+
+    return json.dumps({"progress": progress, "infinite": False})
 
 
 @clientsr.route("/admin/set_network/<int:uid>", methods=["POST"])
@@ -1147,7 +1259,9 @@ def set_network(uid):
     # get the client experiment
     exp = Exps.query.filter_by(idexp=client.id_exp).first()
     # get the experiment folder
-    BASE = os.path.dirname(os.path.abspath(__file__))
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
 
     dbtypte = get_db_type()
 
@@ -1156,9 +1270,7 @@ def set_network(uid):
     else:
         exp_folder = exp.db_name.removeprefix("experiments_")
 
-    path = f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_network.csv".replace(
-        f"routes_admin{os.sep}", ""
-    )
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_network.csv"
 
     # since the network is undirected and Y assume directed relations we need to write the edges in both directions
     with open(path, "w") as f:
@@ -1185,7 +1297,9 @@ def upload_network(uid):
     # get the client experiment
     exp = Exps.query.filter_by(idexp=client.id_exp).first()
     # get the experiment folder
-    BASE = os.path.dirname(os.path.abspath(__file__)).split("routes_admin")[0][:-1]
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
 
     dbtypte = get_db_type()
 
@@ -1196,14 +1310,10 @@ def upload_network(uid):
 
     network = request.files["network_file"]
     network.save(
-        f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_network_temp.csv"
+        f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_network_temp.csv"
     )
 
-    path = (
-        f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}".replace(
-            f"routes_admin{os.sep}", ""
-        )
-    )
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}"
 
     try:
         with open(f"{path}_network.csv", "w") as o:
@@ -1304,10 +1414,11 @@ def download_agent_list(uid):
 
     # get the experiment
     exp = Exps.query.filter_by(idexp=client.id_exp).first()
+
+    from y_web.utils.path_utils import get_writable_path
+
     # get the experiment folder
-    BASE = os.path.dirname(os.path.abspath(__file__)).replace(
-        f"{os.sep}routes_admin", ""
-    )
+    BASE = get_writable_path()
 
     dbtypte = get_db_type()
 
@@ -1317,7 +1428,7 @@ def download_agent_list(uid):
         exp_folder = exp.db_name.removeprefix("experiments_")
 
     with open(
-        f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_agent_list.csv",
+        f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_agent_list.csv",
         "w",
     ) as f:
         for a in agents:
@@ -1325,8 +1436,8 @@ def download_agent_list(uid):
             f.write(f"{agent.name}\n")
         f.flush()
 
-    return send_file(
-        f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_agent_list.csv",
+    return send_file_desktop(
+        f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{client.name}_agent_list.csv",
         as_attachment=True,
     )
 
@@ -1347,12 +1458,12 @@ def update_agents_activity(uid):
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
     population = Population.query.filter_by(id=client.population_id).first()
 
-    BASE = os.path.dirname(os.path.abspath(__file__))
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
     exp_folder = experiment.db_name.split(os.sep)[1]
 
-    path = f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json".replace(
-        f"routes_admin{os.sep}", ""
-    )
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
 
     if os.path.exists(path):
         with open(path, "r") as f:
@@ -1377,12 +1488,12 @@ def reset_agents_activity(uid):
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
     population = Population.query.filter_by(id=client.population_id).first()
 
-    BASE = os.path.dirname(os.path.abspath(__file__))
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
     exp_folder = experiment.db_name.split(os.sep)[1]
 
-    path = f"{BASE}{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json".replace(
-        f"routes_admin{os.path.sep}", ""
-    )
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
 
     if os.path.exists(path):
         with open(path, "r") as f:

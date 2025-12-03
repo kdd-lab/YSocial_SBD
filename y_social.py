@@ -11,13 +11,17 @@ def start_app(
     port=8080,
     llm_backend=None,
     notebook=False,
+    desktop_mode=False,
 ):
     import sys
 
     import nltk
     import requests
 
-    nltk.download("vader_lexicon")
+    # Download NLTK data only when not running from PyInstaller bundle
+    # In PyInstaller mode, NLTK data is bundled and the runtime hook sets up the path
+    if not getattr(sys, "frozen", False):
+        nltk.download("vader_lexicon")
 
     # Parse and validate LLM backend
     llm_url = None
@@ -73,7 +77,7 @@ def start_app(
         os.environ.pop("LLM_BACKEND", None)
         os.environ.pop("LLM_URL", None)
 
-    app = create_app(db_type=db_type)
+    app = create_app(db_type=db_type, desktop_mode=desktop_mode)
 
     with app.app_context():
         from y_web.models import Exps
@@ -85,7 +89,10 @@ def start_app(
 
     app.config["ENABLE_NOTEBOOK"] = notebook
 
-    app.run(debug=debug, host=host, port=port)
+    if db_type.lower() == "sqlite":
+        app.run(debug=debug, host=host, port=port, threaded=False)
+    else:
+        app.run(debug=debug, host=host, port=port)
 
 
 if __name__ == "__main__":
@@ -119,6 +126,16 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    try:
+        from y_web.pyinstaller_utils.installation_id import (
+            get_or_create_installation_id,
+        )
+
+        # This will create the ID on first run or load existing one
+        installation_info = get_or_create_installation_id()
+    except Exception as e:
+        print(f"Warning: Could not initialize installation ID: {e}")
 
     start_app(
         db_type=args.db,

@@ -9,7 +9,7 @@ pages with populations.
 import json
 import os
 
-from flask import Blueprint, flash, redirect, render_template, request, send_file
+from flask import Blueprint, flash, redirect, render_template, request
 from flask_login import current_user, login_required
 
 from y_web import db
@@ -28,6 +28,7 @@ from y_web.utils import (
     get_llm_models,
     get_ollama_models,
 )
+from y_web.utils.desktop_file_handler import send_file_desktop
 from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama_status
 
 pages = Blueprint("pages", __name__)
@@ -93,6 +94,20 @@ def create_page():
 
     db.session.add(page)
     db.session.commit()
+
+    from y_web.telemetry import Telemetry
+
+    telemetry = Telemetry(user=current_user)
+    telemetry.log_event(
+        {
+            "action": "create_page",
+            "data": {
+                "page_name": name,
+                "feed": feed,
+                "logo": logo,
+            },
+        }
+    )
 
     return page_data()
 
@@ -312,35 +327,58 @@ def upload_page_collection():
 
     collection = request.files["collection"]
 
-    BASE = os.path.dirname(os.path.abspath(__file__)).split("routes_admin")[0]
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
+
+    # Ensure temp_data directory exists
+    temp_data_dir = os.path.join(BASE, f"experiments{os.sep}temp_data")
+    os.makedirs(temp_data_dir, exist_ok=True)
+
     if collection:
-        collection.save(
-            f"{BASE}experiments{os.sep}temp_data{os.sep}{collection.filename}"
-        )
-        pages = json.load(
-            open(f"{BASE}experiments{os.sep}temp_data{os.sep}{collection.filename}")
-        )
-        for page in pages:
-            # check if the page already exists
-            p = Page.query.filter_by(name=page["name"], feed=page["feed"]).first()
-            if p:
+        collection.save(os.path.join(temp_data_dir, collection.filename))
+        pages_data = json.load(open(os.path.join(temp_data_dir, collection.filename)))
+        for page_data in pages_data:
+            # check if the page already exists (by name and feed)
+            existing_page = Page.query.filter_by(
+                name=page_data["name"], feed=page_data["feed"]
+            ).first()
+            if existing_page:
                 continue
 
+            # Handle name duplicates by adding incremental suffix
+            base_name = page_data["name"]
+            page_name = base_name
+            suffix = 0
+            while Page.query.filter_by(name=page_name).first():
+                suffix += 1
+                page_name = f"{base_name}_{suffix}"
+
+            # Resolve activity_profile by name if provided
+            activity_profile_id = None
+            if page_data.get("activity_profile"):
+                activity_profile_obj = ActivityProfile.query.filter_by(
+                    name=page_data["activity_profile"]
+                ).first()
+                if activity_profile_obj:
+                    activity_profile_id = activity_profile_obj.id
+
             page = Page(
-                name=page["name"],
-                descr=page["descr"],
-                page_type=page["page_type"],
-                feed=page["feed"],
-                keywords=page["keywords"],
-                logo=page["logo"],
-                pg_type=page["pg_type"],
-                leaning=page["leaning"],
+                name=page_name,
+                descr=page_data["descr"],
+                page_type=page_data["page_type"],
+                feed=page_data["feed"],
+                keywords=page_data["keywords"],
+                logo=page_data["logo"],
+                pg_type=page_data["pg_type"],
+                leaning=page_data["leaning"],
+                activity_profile=activity_profile_id,
             )
             db.session.add(page)
             db.session.commit()
 
     # delete the file
-    os.remove(f"{BASE}experiments{os.sep}temp_data{os.sep}{collection.filename}")
+    os.remove(os.path.join(temp_data_dir, collection.filename))
 
     return redirect(request.referrer)
 
@@ -360,6 +398,13 @@ def download_pages():
 
     data = []
     for page in pages:
+        # Get activity profile name if set
+        activity_profile_name = None
+        if page.activity_profile:
+            activity_profile_obj = ActivityProfile.query.get(page.activity_profile)
+            if activity_profile_obj:
+                activity_profile_name = activity_profile_obj.name
+
         data.append(
             {
                 "name": page.name,
@@ -370,13 +415,21 @@ def download_pages():
                 "logo": page.logo,
                 "pg_type": page.pg_type,
                 "leaning": page.leaning,
+                "activity_profile": activity_profile_name,
             }
         )
 
-    BASE = os.path.dirname(os.path.abspath(__file__)).split("routes_admin")[0]
-    with open(f"{BASE}experiments{os.sep}temp_data{os.sep}pages.json", "w") as f:
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
+
+    # Ensure temp_data directory exists
+    temp_data_dir = os.path.join(BASE, f"experiments{os.sep}temp_data")
+    os.makedirs(temp_data_dir, exist_ok=True)
+
+    with open(os.path.join(temp_data_dir, "pages.json"), "w") as f:
         json.dump(data, f)
 
-    return send_file(
-        f"{BASE}experiments{os.sep}temp_data{os.sep}pages.json", as_attachment=True
+    return send_file_desktop(
+        os.path.join(temp_data_dir, "pages.json"), as_attachment=True
     )

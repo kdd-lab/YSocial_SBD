@@ -28,7 +28,7 @@
                     {% endfor %}
 
                     <!--Dashboard box-->
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-client-overview">
                         <h3 class="title is-5 is-thin">Client Overview</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Information about this simulation client, including assigned population and content sources.
@@ -79,7 +79,7 @@
                         </div>
                     </div>
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-simulation-params">
                         <h3 class="title is-5 is-thin">Simulation Parameters</h3>
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Configuration settings controlling simulation behavior and dynamics.
@@ -144,7 +144,7 @@
                          </div>
                     </div>
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-actions-likelihood">
                         <h3 class="title is-5 is-thin">Global Actions Likelihood</h3>
                         <div class="box-content">
                             <div class="box-lines">
@@ -184,7 +184,7 @@
                         </div>
                     </div>
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-llm-config">
                           <h3 class="title is-5 is-thin">LLM</h3>
                         <div class="box-content">
                             <div class="box-lines">
@@ -245,7 +245,7 @@
                 <div class="column is-8">
                     <!--Box-->
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-agent-config">
                         <div class="box-content">
                             <div class="box-lines">
                                 <h3 class="title is-5 is-thin">Client Recommenders & Large Language Models</h3>
@@ -392,7 +392,7 @@
                     </div>
 
 
-                     <div class="dashboard-box">
+                     <div class="dashboard-box" id="box-social-network">
                         <div class="box-content">
                             <div class="box-lines">
                                 <h3 class="title is-5 is-thin">Social Network Structure</h3>
@@ -520,7 +520,7 @@
                     </div>
 
                     <!-- Hourly Activity Rates Box -->
-                    <div class="dashboard-box" style="padding: 16px; margin-top: 20px;">
+                    <div class="dashboard-box" id="box-hourly-activity" style="padding: 16px; margin-top: 20px;">
                         <h3 class="title is-5 is-thin">Hourly Activity Rates</h3>
                         <small style="font-size: 0.8em; color: #6b7280;">Default values from <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a></small>
                         
@@ -690,4 +690,5 @@
 
 </div>
 
+{% include "admin/tutorials/client_details_tutorial.html" %}
 {% include "admin/footer.html" %}

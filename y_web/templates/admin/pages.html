@@ -73,7 +73,7 @@
                     </div>
                     {% endfor %}
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-available-pages">
                         <h3 class="title is-5 is-thin">Available Pages</h3>
 
                         <div class="box-content">
@@ -271,10 +271,10 @@
                 <div class="column is-8">
                     <!--Dashboard box-->
 
-                    <div class="dashboard-box">
+                    <div class="dashboard-box" id="box-create-page">
                         <h3 class="title is-5 is-thin">Create Page</h3>
                         <div class="box-content">
-                            <form action="/admin/create_page" enctype="multipart/form-data" method="POST">
+                            <form action="/admin/create_page" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Creating page...');">
                                 <div class="box-lines">
 
                                     <div class="box-line">
@@ -474,5 +474,5 @@
 </div>
 
 
-
+{% include "admin/tutorials/pages_tutorial.html" %}
 {% include "admin/footer.html" %}

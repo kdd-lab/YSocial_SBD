@@ -7,16 +7,20 @@
 -- Admin users
 -- -----------------------------
 CREATE TABLE admin_users (
-    id              SERIAL PRIMARY KEY,
-    username        TEXT,
-    email           TEXT,
-    password        TEXT,
-    last_seen       TEXT,
-    role            TEXT,
-    llm             TEXT DEFAULT '',
-    profile_pic     TEXT DEFAULT '',
-    perspective_api TEXT DEFAULT NULL,
-    llm_url         TEXT DEFAULT ''
+    id                    SERIAL PRIMARY KEY,
+    username              TEXT,
+    email                 TEXT,
+    password              TEXT,
+    last_seen             TEXT,
+    role                  TEXT,
+    llm                   TEXT DEFAULT '',
+    profile_pic           TEXT DEFAULT '',
+    perspective_api       TEXT DEFAULT NULL,
+    llm_url               TEXT DEFAULT '',
+    telemetry_enabled     BOOLEAN DEFAULT TRUE,
+    telemetry_notice_shown BOOLEAN DEFAULT FALSE,
+    tutorial_shown        BOOLEAN DEFAULT FALSE,
+    exp_details_tutorial_shown BOOLEAN DEFAULT FALSE
 );
 
 -- -----------------------------
@@ -35,7 +39,8 @@ CREATE TABLE exps (
     platform_type      TEXT DEFAULT 'microblogging',
     annotations        TEXT DEFAULT '' NOT NULL,
     server_pid         INTEGER DEFAULT NULL,
-    llm_agents_enabled INTEGER DEFAULT 1 NOT NULL
+    llm_agents_enabled INTEGER DEFAULT 1 NOT NULL,
+    exp_status         VARCHAR(20) DEFAULT 'stopped' NOT NULL
 );
 
 CREATE TABLE exp_stats (
@@ -46,6 +51,38 @@ CREATE TABLE exp_stats (
     posts     INTEGER DEFAULT 0 NOT NULL,
     reactions INTEGER DEFAULT 0 NOT NULL,
     mentions  INTEGER DEFAULT 0 NOT NULL
+);
+
+-- -----------------------------
+-- Experiment Scheduling
+-- -----------------------------
+CREATE TABLE experiment_schedule_groups (
+    id           SERIAL PRIMARY KEY,
+    name         VARCHAR(100) NOT NULL,
+    order_index  INTEGER NOT NULL DEFAULT 0,
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_completed INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE experiment_schedule_items (
+    id            SERIAL PRIMARY KEY,
+    group_id      INTEGER NOT NULL REFERENCES experiment_schedule_groups(id) ON DELETE CASCADE,
+    experiment_id INTEGER NOT NULL REFERENCES exps(idexp) ON DELETE CASCADE,
+    order_index   INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE experiment_schedule_status (
+    id               SERIAL PRIMARY KEY,
+    is_running       INTEGER NOT NULL DEFAULT 0,
+    current_group_id INTEGER DEFAULT NULL,
+    started_at       TIMESTAMP DEFAULT NULL
+);
+
+CREATE TABLE experiment_schedule_logs (
+    id         SERIAL PRIMARY KEY,
+    message    TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    log_type   VARCHAR(20) NOT NULL DEFAULT 'info'
 );
 
 -- -----------------------------
@@ -307,6 +344,32 @@ CREATE TABLE jupyter_instances (
     notebook_dir VARCHAR(300) NOT NULL,
     process      INTEGER,
     status       VARCHAR(10) NOT NULL DEFAULT 'active'
+);
+
+-- -----------------------------
+-- Release Information
+-- -----------------------------
+CREATE TABLE release_info (
+    id                  SERIAL PRIMARY KEY,
+    latest_version_tag  TEXT,
+    release_name        TEXT,
+    published_at        TEXT,
+    download_url        TEXT,
+    size                TEXT,
+    sha256              TEXT,
+    latest_check_on     TEXT
+);
+
+-- -----------------------------
+-- Blog Posts
+-- -----------------------------
+CREATE TABLE blog_posts (
+    id                  SERIAL PRIMARY KEY,
+    title               TEXT,
+    published_at        TEXT,
+    link                TEXT,
+    is_read             BOOLEAN DEFAULT FALSE,
+    latest_check_on     TEXT
 );
 
 -- ================================================
@@ -598,3 +661,70 @@ INSERT INTO activity_profiles (name, hours) VALUES
 ('Community Builder', '8,9,10,11,18,19,20,21'),
 ('Storyteller', '10,11,12,13,19,20,21'),
 ('Casual Poster', '8,13,19');
+
+-- -----------------------------
+-- Log File Offsets for Incremental Reading
+-- -----------------------------
+CREATE TABLE log_file_offsets (
+    id            SERIAL PRIMARY KEY,
+    exp_id        INTEGER NOT NULL REFERENCES exps(idexp) ON DELETE CASCADE,
+    log_file_type VARCHAR(50) NOT NULL,  -- 'server' or 'client'
+    client_id     INTEGER REFERENCES client(id) ON DELETE CASCADE,  -- NULL for server logs
+    file_path     VARCHAR(500) NOT NULL,
+    last_offset   BIGINT NOT NULL DEFAULT 0,
+    last_updated  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_log_file_offset_lookup ON log_file_offsets(exp_id, log_file_type, client_id);
+
+-- -----------------------------
+-- Server Log Metrics (Aggregated)
+-- -----------------------------
+CREATE TABLE server_log_metrics (
+    id                SERIAL PRIMARY KEY,
+    exp_id            INTEGER NOT NULL REFERENCES exps(idexp) ON DELETE CASCADE,
+    aggregation_level VARCHAR(10) NOT NULL,  -- 'daily' or 'hourly'
+    day               INTEGER NOT NULL,
+    hour              INTEGER,  -- NULL for daily aggregation
+    path              VARCHAR(200) NOT NULL,
+    call_count        INTEGER NOT NULL DEFAULT 0,
+    total_duration    DOUBLE PRECISION NOT NULL DEFAULT 0.0,
+    min_time          TIMESTAMP,
+    max_time          TIMESTAMP
+);
+CREATE INDEX idx_server_log_metrics_lookup ON server_log_metrics(exp_id, aggregation_level, day, hour, path);
+
+-- -----------------------------
+-- Client Log Metrics (Aggregated)
+-- -----------------------------
+CREATE TABLE client_log_metrics (
+    id                   SERIAL PRIMARY KEY,
+    exp_id               INTEGER NOT NULL REFERENCES exps(idexp) ON DELETE CASCADE,
+    client_id            INTEGER NOT NULL REFERENCES client(id) ON DELETE CASCADE,
+    aggregation_level    VARCHAR(10) NOT NULL,  -- 'daily' or 'hourly'
+    day                  INTEGER NOT NULL,
+    hour                 INTEGER,  -- NULL for daily aggregation
+    method_name          VARCHAR(200) NOT NULL,
+    call_count           INTEGER NOT NULL DEFAULT 0,
+    total_execution_time DOUBLE PRECISION NOT NULL DEFAULT 0.0
+);
+CREATE INDEX idx_client_log_metrics_lookup ON client_log_metrics(exp_id, client_id, aggregation_level, day, hour, method_name);
+
+-- -----------------------------
+-- Log Sync Settings
+-- -----------------------------
+CREATE TABLE log_sync_settings (
+    id                    SERIAL PRIMARY KEY,
+    enabled               BOOLEAN NOT NULL DEFAULT TRUE,
+    sync_interval_minutes INTEGER NOT NULL DEFAULT 10,
+    last_sync             TIMESTAMP DEFAULT NULL
+);
+
+-- -----------------------------
+-- Watchdog Settings
+-- -----------------------------
+CREATE TABLE watchdog_settings (
+    id                   SERIAL PRIMARY KEY,
+    enabled              BOOLEAN NOT NULL DEFAULT TRUE,
+    run_interval_minutes INTEGER NOT NULL DEFAULT 15,
+    last_run             TIMESTAMP DEFAULT NULL
+);
