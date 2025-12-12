@@ -8,6 +8,7 @@ client execution control (start/pause/resume/terminate).
 
 import json
 import os
+import random
 import shutil
 import traceback
 
@@ -52,7 +53,6 @@ from y_web.utils import (
 from y_web.utils.desktop_file_handler import send_file_desktop
 from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama_status
 from y_web.utils.path_utils import get_resource_path
-import random
 
 clientsr = Blueprint("clientsr", __name__)
 
@@ -819,7 +819,9 @@ def create_client():
                 "daily_activity_level": a.daily_activity_level,
                 "profession": a.profession,
                 "activity_profile": activity_profile_name,
-                "opinions": {i: random.random() for i in ints[0]}  # @todo: check initial opinions
+                "opinions": {
+                    i: random.random() for i in ints[0]
+                },  # @todo: check initial opinions
             }
         )
 
