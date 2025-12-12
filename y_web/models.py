@@ -340,6 +340,26 @@ class Post_Toxicity(db.Model):
     flirtation = db.Column(db.REAL, default=0)
 
 
+class Agent_Opinion(db.Model):
+    """
+    Agent opinion tracking for interactions.
+
+    Stores opinions that agents form about topics, posts, and other agents
+    during their interactions in the simulation. The opinion is stored as
+    a float value representing the agent's sentiment or stance.
+    """
+
+    __bind_key__ = "db_exp"
+    __tablename__ = "agent_opinion"
+    id = db.Column(db.Integer, primary_key=True)
+    agent_id = db.Column(db.Integer, nullable=False)
+    tid = db.Column(db.Integer, nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey("interests.iid"), nullable=False)
+    id_interacted_with = db.Column(db.Integer, nullable=False)
+    id_post = db.Column(db.Integer, db.ForeignKey("post.id"), nullable=False)
+    opinion = db.Column(db.REAL, nullable=False)
+
+
 ############################################################################################################
 
 

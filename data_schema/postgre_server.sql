@@ -212,6 +212,16 @@ CREATE TABLE reactions (
     round   INTEGER REFERENCES rounds(id) ON DELETE CASCADE
 );
 
+CREATE TABLE agent_opinion (
+    id                  SERIAL PRIMARY KEY,
+    agent_id            INTEGER NOT NULL,
+    tid                 INTEGER NOT NULL,
+    topic_id            INTEGER NOT NULL REFERENCES interests(iid) ON DELETE CASCADE,
+    id_interacted_with  INTEGER NOT NULL,
+    id_post             INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
+    opinion             REAL NOT NULL
+);
+
 -- -----------------------------
 -- Indexes (aligned with SQLite structure)
 -- -----------------------------
@@ -284,6 +294,11 @@ CREATE INDEX idx_post_toxicity_post_id ON post_toxicity(post_id);
 CREATE INDEX idx_reactions_post_id ON reactions(post_id);
 CREATE INDEX idx_reactions_user_id ON reactions(user_id);
 CREATE INDEX idx_reactions_round ON reactions(round);
+
+-- Indexes for agent_opinion
+CREATE INDEX idx_agent_opinion_agent_id ON agent_opinion(agent_id);
+CREATE INDEX idx_agent_opinion_topic_id ON agent_opinion(topic_id);
+CREATE INDEX idx_agent_opinion_id_post ON agent_opinion(id_post);
 
 -- ================================================
 -- DATA INSERTIONS
