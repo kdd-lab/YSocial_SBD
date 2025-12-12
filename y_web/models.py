@@ -347,6 +347,15 @@ class Agent_Opinion(db.Model):
     Stores opinions that agents form about topics, posts, and other agents
     during their interactions in the simulation. The opinion is stored as
     a float value representing the agent's sentiment or stance.
+
+    Fields:
+        id: Primary key
+        agent_id: ID of the agent forming the opinion
+        tid: Transaction/interaction ID for this opinion event
+        topic_id: ID of the topic being discussed (FK to interests)
+        id_interacted_with: ID of the user/agent being interacted with
+        id_post: ID of the post that triggered this opinion (FK to post)
+        opinion: Numerical opinion value (float) indicating sentiment/stance
     """
 
     __bind_key__ = "db_exp"

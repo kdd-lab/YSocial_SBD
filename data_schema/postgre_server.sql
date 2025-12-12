@@ -212,14 +212,16 @@ CREATE TABLE reactions (
     round   INTEGER REFERENCES rounds(id) ON DELETE CASCADE
 );
 
+-- Agent opinion tracking table
+-- Stores opinions formed by agents about topics, posts, and other agents during simulation interactions
 CREATE TABLE agent_opinion (
     id                  SERIAL PRIMARY KEY,
-    agent_id            INTEGER NOT NULL,
-    tid                 INTEGER NOT NULL,
-    topic_id            INTEGER NOT NULL REFERENCES interests(iid) ON DELETE CASCADE,
-    id_interacted_with  INTEGER NOT NULL,
-    id_post             INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
-    opinion             REAL NOT NULL
+    agent_id            INTEGER NOT NULL,                                               -- ID of the agent forming the opinion
+    tid                 INTEGER NOT NULL,                                               -- Transaction/interaction ID for this opinion event
+    topic_id            INTEGER NOT NULL REFERENCES interests(iid) ON DELETE CASCADE,   -- Topic being discussed
+    id_interacted_with  INTEGER NOT NULL,                                               -- ID of the user/agent being interacted with
+    id_post             INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,         -- Post that triggered this opinion
+    opinion             REAL NOT NULL                                                   -- Numerical opinion value (sentiment/stance)
 );
 
 -- -----------------------------
