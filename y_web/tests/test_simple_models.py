@@ -241,3 +241,104 @@ def test_activity_profile_model():
     # Cleanup
     os.close(db_fd)
     os.unlink(db_path)
+
+
+def test_agent_opinion_model():
+    """Test AgentOpinion model functionality"""
+    app = Flask(__name__)
+    db_fd, db_path = tempfile.mkstemp()
+
+    app.config.update(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SQLALCHEMY_TRACK_MODIFICATIONS": False,
+        }
+    )
+
+    db = SQLAlchemy(app)
+
+    # Define test models
+    class TestInterest(db.Model):
+        __tablename__ = "test_interests"
+        iid = db.Column(db.Integer, primary_key=True)
+        interest = db.Column(db.String(50))
+
+    class TestPost(db.Model):
+        __tablename__ = "test_posts"
+        id = db.Column(db.Integer, primary_key=True)
+        content = db.Column(db.String(500), nullable=False)
+
+    class TestAgentOpinion(db.Model):
+        __tablename__ = "test_agent_opinion"
+        id = db.Column(db.Integer, primary_key=True)
+        agent_id = db.Column(db.Integer, nullable=False)
+        tid = db.Column(db.Integer, nullable=False)
+        topic_id = db.Column(
+            db.Integer, db.ForeignKey("test_interests.iid"), nullable=False
+        )
+        id_interacted_with = db.Column(db.Integer, nullable=False)
+        id_post = db.Column(db.Integer, db.ForeignKey("test_posts.id"), nullable=False)
+        opinion = db.Column(db.Float, nullable=False)
+
+    with app.app_context():
+        db.create_all()
+
+        # Create test data
+        interest = TestInterest(interest="politics")
+        db.session.add(interest)
+        db.session.commit()
+
+        post = TestPost(content="Test post content")
+        db.session.add(post)
+        db.session.commit()
+
+        # Create an agent opinion
+        opinion = TestAgentOpinion(
+            agent_id=1,
+            tid=100,
+            topic_id=interest.iid,
+            id_interacted_with=2,
+            id_post=post.id,
+            opinion=0.75,
+        )
+        db.session.add(opinion)
+        db.session.commit()
+
+        # Test retrieving the opinion
+        retrieved_opinion = TestAgentOpinion.query.first()
+        assert retrieved_opinion is not None
+        assert retrieved_opinion.agent_id == 1
+        assert retrieved_opinion.tid == 100
+        assert retrieved_opinion.topic_id == interest.iid
+        assert retrieved_opinion.id_interacted_with == 2
+        assert retrieved_opinion.id_post == post.id
+        assert retrieved_opinion.opinion == 0.75
+
+        # Test querying by agent_id
+        agent_opinions = TestAgentOpinion.query.filter_by(agent_id=1).all()
+        assert len(agent_opinions) == 1
+
+        # Create another opinion for the same agent
+        opinion2 = TestAgentOpinion(
+            agent_id=1,
+            tid=101,
+            topic_id=interest.iid,
+            id_interacted_with=3,
+            id_post=post.id,
+            opinion=-0.5,
+        )
+        db.session.add(opinion2)
+        db.session.commit()
+
+        # Test querying multiple opinions
+        agent_opinions = TestAgentOpinion.query.filter_by(agent_id=1).all()
+        assert len(agent_opinions) == 2
+
+        # Test negative opinion value
+        negative_opinion = TestAgentOpinion.query.filter_by(tid=101).first()
+        assert negative_opinion.opinion == -0.5
+
+    # Cleanup
+    os.close(db_fd)
+    os.unlink(db_path)

@@ -8,6 +8,7 @@ client execution control (start/pause/resume/terminate).
 
 import json
 import os
+import random
 import shutil
 import traceback
 
@@ -789,6 +790,7 @@ def create_client():
             activity_profile_obj.name if activity_profile_obj else "Always On"
         )
 
+        print(ints)
         res["agents"].append(
             {
                 "name": a.name,
@@ -817,6 +819,9 @@ def create_client():
                 "daily_activity_level": a.daily_activity_level,
                 "profession": a.profession,
                 "activity_profile": activity_profile_name,
+                "opinions": {
+                    i: random.random() for i in ints[0]
+                },  # @todo: check initial opinions
             }
         )
 
