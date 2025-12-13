@@ -684,17 +684,15 @@
                 select.name = `dist_topic_${topic.id}_segment_${segmentIndex}`;
                 select.setAttribute('data-segment-name', segment);
                 
-                // Add default option
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = 'Select distribution...';
-                select.appendChild(defaultOption);
-                
-                // Add distribution options
+                // Add distribution options with Uniform as default
                 distributions.forEach(dist => {
                     const option = document.createElement('option');
                     option.value = dist;
                     option.textContent = dist;
+                    // Set Uniform as the default selected option
+                    if (dist === 'Uniform') {
+                        option.selected = true;
+                    }
                     select.appendChild(option);
                 });
                 
