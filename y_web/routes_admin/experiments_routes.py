@@ -1177,6 +1177,7 @@ def create_experiment():
 
     # Get LLM agents setting (convert to integer for database compatibility)
     llm_agents_enabled = 1 if request.form.get("llm_agents_enabled") == "true" else 0
+    opinions_enabled = request.form.get("opinion_annotation") == "true"
 
     # Get annotation settings
     toxicity_annotation = request.form.get("toxicity_annotation") == "true"
@@ -1323,6 +1324,7 @@ def create_experiment():
         ),
         "sentiment_annotation": sentiment_annotation,
         "emotion_annotation": emotion_annotation,
+        "opinions_enabled": opinions_enabled,
         "database_uri": db_uri,
         "topics": [t.strip() for t in topics if t.strip()],
     }
@@ -1342,6 +1344,8 @@ def create_experiment():
         annotations += "sentiment,"
     if emotion_annotation:
         annotations += "emotion,"
+    if opinions_enabled:
+        annotations += "opinions,"
     # remove trailing comma
     annotations = annotations.rstrip(",")
 

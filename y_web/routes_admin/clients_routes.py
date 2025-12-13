@@ -10,6 +10,7 @@ import json
 import os
 import random
 import shutil
+import sys
 import traceback
 
 import faker
@@ -315,6 +316,12 @@ def create_client():
     llm_agents_enabled = (
         exp.llm_agents_enabled if (exp and hasattr(exp, "llm_agents_enabled")) else True
     )
+
+    annotations = {an: None for an in exp.annotations.split(",")}
+    if "opinions" in annotations:
+        opinions_enabled = True
+    else:
+        opinions_enabled = False
 
     # Get LLM parameters from form, or use defaults if LLM agents are disabled
     if llm_agents_enabled:
@@ -790,7 +797,6 @@ def create_client():
             activity_profile_obj.name if activity_profile_obj else "Always On"
         )
 
-        print(ints)
         res["agents"].append(
             {
                 "name": a.name,
@@ -821,7 +827,7 @@ def create_client():
                 "activity_profile": activity_profile_name,
                 "opinions": {
                     i: random.random() for i in ints[0]
-                },  # @todo: check initial opinions
+                } if opinions_enabled else None,  # @todo: check initial opinions
             }
         )
 
