@@ -1,0 +1,776 @@
+{% include "admin/head.html" %}
+
+<style>
+    /* Compact tag-based styling inspired by profession categories */
+    .dimension-tag {
+        display: inline-block;
+        background-color: #22c55e;
+        color: white;
+        padding: 6px 12px;
+        margin: 4px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid #22c55e;
+        user-select: none;
+    }
+    
+    .dimension-tag.inactive {
+        background-color: #e5e7eb;
+        color: #6b7280;
+        border-color: #d1d5db;
+    }
+    
+    .dimension-tag:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .dimension-tag.selected {
+        background-color: #039be5;
+        border-color: #039be5;
+    }
+    
+    .dimension-tag .remove-btn {
+        margin-left: 6px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    
+    .dimensions-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        min-height: 50px;
+    }
+    
+    #topics-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 12px;
+        max-width: 100%;
+    }
+    
+    @media (min-width: 1400px) {
+        #topics-container {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    
+    @media (min-width: 1000px) and (max-width: 1399px) {
+        #topics-container {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    
+    @media (min-width: 768px) and (max-width: 999px) {
+        #topics-container {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 767px) {
+        #topics-container {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .topic-config-box {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 12px;
+        background-color: white;
+    }
+    
+    .topic-config-box h5 {
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: #039be5;
+        font-size: 0.95em;
+    }
+    
+    .segment-config {
+        display: flex;
+        align-items: center;
+        margin: 6px 0;
+        gap: 10px;
+    }
+    
+    .segment-label {
+        flex: 1;
+        font-weight: 500;
+        font-size: 0.9em;
+        min-width: 120px;
+    }
+    
+    .segment-select {
+        flex: 2;
+    }
+    
+    /* Update Rule Button Styling */
+    .update-rule-button {
+        flex: 1;
+        min-width: 250px;
+        padding: 14px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        background-color: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+        font-size: 0.9em;
+        color: #374151;
+    }
+    
+    .update-rule-button:hover:not(.disabled) {
+        border-color: #039be5;
+        box-shadow: 0 2px 8px rgba(3, 155, 229, 0.15);
+        transform: translateY(-1px);
+    }
+    
+    .update-rule-button.selected {
+        border-color: #039be5;
+        background-color: #e0f2fe;
+        box-shadow: 0 0 0 3px rgba(3, 155, 229, 0.1);
+    }
+    
+    .update-rule-button.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background-color: #f9fafb;
+    }
+    
+    .segment-select select {
+        width: 100%;
+        font-size: 0.9em;
+        padding: 6px;
+    }
+    
+    /* Distribution Preview Styling */
+    .dist-preview {
+        text-align: center;
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s;
+    }
+    
+    .dist-preview:hover {
+        border-color: #039be5;
+        box-shadow: 0 2px 4px rgba(3, 155, 229, 0.1);
+    }
+    
+    .dist-name {
+        margin-top: 6px;
+        font-size: 0.8em;
+        color: #374151;
+        font-weight: 500;
+    }
+    
+    .form-section-header {
+        font-weight: 600;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+    
+    .form-section-description {
+        font-size: 0.85em;
+        color: #6b7280;
+        margin-bottom: 12px;
+    }
+    
+    .empty-state {
+        color: #999;
+        text-align: center;
+        padding: 12px;
+        font-size: 0.9em;
+    }
+</style>
+
+<div class="view-wrapper is-dashboard">
+    <!--Dashboard container-->
+    <div id="creator-dashboard" class="dashboard-container">
+        <!--Toolbar-->
+        {% include "admin/dash_head.html" %}
+
+        <div class="dashboard-body">
+
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        <a href="/admin/experiments">Experiments</a> > Simulation: <a href="/admin/experiment_details/{{ experiment.idexp }}">{{ experiment.exp_name }} </a> > Opinion Configuration
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <!--Dashboard column-->
+                <div class="column is-12">
+                    <!--Dashboard box-->
+
+                    {% for message in get_flashed_messages() %}
+                    <div class="alert alert-warning">
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+
+                    <div class="dashboard-box" id="box-opinion-config">
+                        <h3 class="title is-5 is-thin">Opinion Distribution Configuration</h3>
+                        <p style="margin-bottom: 15px; color: #666; font-size: 0.9em;">
+                            Configure how opinions are distributed across different population segments for each simulation topic.
+                        </p>
+                        
+                        <form id="opinion-form" action="/admin/set_opinion_distributions" method="POST">
+                            <input type="hidden" name="idexp" value="{{ experiment.idexp }}">
+                            <input type="hidden" name="segmentation" id="segmentation-input" value="">
+
+                            <!-- Segmentation Selection -->
+                            <div class="box-content" style="margin-bottom: 20px;">
+                                <div class="form-section-header">1. Select Population Segmentation Dimensions (Optional)</div>
+                                <div class="form-section-description">
+                                    Click on dimensions to add or remove them from segmentation. Active dimensions are shown in blue. Without selection, a global "All Population" segment is used.
+                                </div>
+                                
+                                <div class="dimensions-container" id="dimensions-container">
+                                    {% for dim in segmentation_options %}
+                                    <span class="dimension-tag inactive" data-id="{{ dim.id }}" data-name="{{ dim.name }}">
+                                        {{ dim.name }}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Topic Configuration -->
+                            <div class="box-content" id="topic-configuration">
+                                <div class="form-section-header">2. Configure Opinion Distributions for Each Topic</div>
+                                <div class="form-section-description">
+                                    For each topic, select the opinion distribution for every population segment.
+                                </div>
+                                
+                                <!-- Distribution Visualizations -->
+                                <div style="margin: 20px 0; padding: 15px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                    <div style="font-weight: 600; margin-bottom: 12px; font-size: 0.9em; color: #374151;">Available Distributions:</div>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                                        <!-- Uniform Distribution -->
+                                        <div class="dist-preview">
+                                            <div style="height: 100px;">
+                                                <canvas id="dist-uniform"></canvas>
+                                            </div>
+                                            <div class="dist-name">Uniform</div>
+                                        </div>
+                                        
+                                        <!-- Normal Distribution -->
+                                        <div class="dist-preview">
+                                            <div style="height: 100px;">
+                                                <canvas id="dist-normal"></canvas>
+                                            </div>
+                                            <div class="dist-name">Normal (μ=0.5, σ=0.2)</div>
+                                        </div>
+                                        
+                                        <!-- Bimodal Distribution -->
+                                        <div class="dist-preview">
+                                            <div style="height: 100px;">
+                                                <canvas id="dist-bimodal"></canvas>
+                                            </div>
+                                            <div class="dist-name">Bimodal (peaks at 0.2 and 0.8)</div>
+                                        </div>
+                                        
+                                        <!-- Left-skewed Distribution -->
+                                        <div class="dist-preview">
+                                            <div style="height: 100px;">
+                                                <canvas id="dist-left"></canvas>
+                                            </div>
+                                            <div class="dist-name">Left-skewed (μ=0.3)</div>
+                                        </div>
+                                        
+                                        <!-- Right-skewed Distribution -->
+                                        <div class="dist-preview">
+                                            <div style="height: 100px;">
+                                                <canvas id="dist-right"></canvas>
+                                            </div>
+                                            <div class="dist-name">Right-skewed (μ=0.7)</div>
+                                        </div>
+                                        
+                                        <!-- Polarized Distribution -->
+                                        <div class="dist-preview">
+                                            <div style="height: 100px;">
+                                                <canvas id="dist-polarized"></canvas>
+                                            </div>
+                                            <div class="dist-name">Polarized (0 or 1)</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div id="topics-container">
+                                    {% for topic in topics %}
+                                    <div class="topic-config-box" data-topic-id="{{ topic.id }}">
+                                        <h5>{{ topic.name }}</h5>
+                                        <div class="segments-container" id="segments-topic-{{ topic.id }}">
+                                            <!-- Segments will be dynamically added here -->
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Opinion Update Rule Configuration -->
+                            <div class="box-content" id="update-rule-configuration" style="margin-top: 20px;">
+                                <div class="form-section-header">3. Select Opinion Update Rule</div>
+                                <div class="form-section-description">
+                                    Choose how agent opinions are updated during the simulation.
+                                </div>
+                                
+                                <input type="hidden" name="update_rule" id="update_rule_input" value="bounded_confidence">
+                                
+                                <div style="margin-bottom: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                                    <button type="button" class="update-rule-button selected" data-rule="bounded_confidence" onclick="selectUpdateRule(this, 'bounded_confidence')">
+                                        <div style="font-weight: 600; margin-bottom: 4px;">Bounded Confidence</div>
+                                        <div style="font-size: 0.8em; opacity: 0.9;">Agents update opinions based on similarity with others</div>
+                                    </button>
+                                    
+                                    <button type="button" class="update-rule-button{% if not llm_agents_enabled %} disabled{% endif %}" data-rule="llm_evaluation" onclick="selectUpdateRule(this, 'llm_evaluation')" {% if not llm_agents_enabled %}disabled{% endif %}>
+                                        <div style="font-weight: 600; margin-bottom: 4px;">LLM Evaluation</div>
+                                        <div style="font-size: 0.8em; opacity: 0.9;">Agents use LLM to evaluate and update opinions</div>
+                                        {% if not llm_agents_enabled %}<div style="font-size: 0.75em; color: #f59e0b; margin-top: 4px;">⚠ Requires LLM agents enabled</div>{% endif %}
+                                    </button>
+                                </div>
+                                
+                                <!-- Bounded Confidence Parameters -->
+                                <div id="bounded-confidence-params" style="display: block; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                    <div style="font-weight: 600; margin-bottom: 10px; font-size: 0.9em;">Bounded Confidence Parameters</div>
+                                    
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Epsilon (Confidence Bound)</label>
+                                            <input type="number" class="input" name="bc_epsilon" value="0.25" min="0" max="1" step="0.01" style="font-size: 0.9em; padding: 6px;">
+                                            <small style="color: #6b7280; font-size: 0.8em;">Range: 0-1, Default: 0.25</small>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Mu (Averaging Weight)</label>
+                                            <input type="number" class="input" name="bc_mu" value="0.5" min="0" max="1" step="0.01" style="font-size: 0.9em; padding: 6px;">
+                                            <small style="color: #6b7280; font-size: 0.8em;">Range: 0-1, Default: 0.5</small>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Theta (Backfire Strength)</label>
+                                            <input type="number" class="input" name="bc_theta" value="0" min="0" max="1" step="0.01" style="font-size: 0.9em; padding: 6px;">
+                                            <small style="color: #6b7280; font-size: 0.8em;">Range: 0-1, Default: 0</small>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Cold Start Strategy</label>
+                                            <select class="input" name="bc_cold_start" style="font-size: 0.9em; padding: 6px;">
+                                                <option value="neutral">Neutral (0.5)</option>
+                                                <option value="inherited">Inherited</option>
+                                                <option value="weighted">Weighted on Profile Similarity</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- LLM Evaluation Parameters -->
+                                <div id="llm-evaluation-params" style="display: none; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                    <div style="font-weight: 600; margin-bottom: 10px; font-size: 0.9em;">LLM Evaluation Parameters</div>
+                                    
+                                    <div>
+                                        <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Cold Start Strategy</label>
+                                        <select class="input" name="llm_cold_start" style="font-size: 0.9em; padding: 6px; max-width: 300px;">
+                                            <option value="neutral">Neutral (0.5)</option>
+                                            <option value="inherited">Inherited</option>
+                                            <option value="weighted">Weighted on Profile Similarity</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="box-content" style="margin-top: 20px; display: flex; gap: 10px;">
+                                <button type="submit" class="button is-solid accent-button" id="submit-btn">
+                                    Save Configuration
+                                </button>
+                                <button type="button" class="button is-solid grey-button" id="close-btn" data-redirect-url="/admin/experiment_details/{{ experiment.idexp }}">
+                                    Close
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='assets/vendor/js/chart.min.js') }}"></script>
+<script>
+    const topics = {{ topics | tojson }};
+    const distributions = {{ distributions | tojson }};
+    const segmentationOptions = {{ segmentation_options | tojson }};
+    const segmentValues = {{ segment_values | tojson }};
+    
+    let selectedDimensions = [];
+    
+    // Initialize distribution preview charts
+    function initializeDistributionCharts() {
+        // Base chart configuration for all distributions
+        function createChartConfig(independentScale = true) {
+            return {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                },
+                scales: {
+                    y: {
+                        display: false,
+                        beginAtZero: true
+                        // No max specified - let each chart scale independently
+                    },
+                    x: {
+                        display: true,
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 9 }
+                        }
+                    }
+                }
+            };
+        }
+        
+        // Use 5 bars for each distribution
+        const xLabels = ['0.0', '0.25', '0.5', '0.75', '1.0'];
+        const xValues = [0.0, 0.25, 0.5, 0.75, 1.0];
+        
+        // Uniform Distribution - constant value
+        const uniformData = [1.0, 1.0, 1.0, 1.0, 1.0];
+        new Chart("dist-uniform", {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: uniformData,
+                    backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                    borderColor: 'rgba(168, 85, 247, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: createChartConfig()
+        });
+        
+        // Normal Distribution (μ=0.5, σ=0.2) - bell curve centered at 0.5
+        const normalData = xValues.map(x => {
+            const mu = 0.5, sigma = 0.2;
+            const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
+            return coef * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
+        });
+        new Chart("dist-normal", {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: normalData,
+                    backgroundColor: 'rgba(236, 72, 153, 0.7)',
+                    borderColor: 'rgba(236, 72, 153, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: createChartConfig()
+        });
+        
+        // Bimodal Distribution - two peaks at 0.25 and 0.75
+        const bimodalData = xValues.map(x => {
+            const sigma = 0.15;
+            const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
+            const peak1 = coef * Math.exp(-Math.pow(x - 0.2, 2) / (2 * sigma * sigma));
+            const peak2 = coef * Math.exp(-Math.pow(x - 0.8, 2) / (2 * sigma * sigma));
+            return (peak1 + peak2) / 2;
+        });
+        new Chart("dist-bimodal", {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: bimodalData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: createChartConfig()
+        });
+        
+        // Left-skewed Distribution - higher values on the left
+        const leftSkewedData = xValues.map(x => {
+            if (x === 0) return 0;
+            if (x === 1) return 0;
+            const alpha = 2, beta = 5;
+            return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
+        });
+        new Chart("dist-left", {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: leftSkewedData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: createChartConfig()
+        });
+        
+        // Right-skewed Distribution - higher values on the right
+        const rightSkewedData = xValues.map(x => {
+            if (x === 0) return 0;
+            if (x === 1) return 0;
+            const alpha = 5, beta = 2;
+            return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
+        });
+        new Chart("dist-right", {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: rightSkewedData,
+                    backgroundColor: 'rgba(251, 146, 60, 0.7)',
+                    borderColor: 'rgba(251, 146, 60, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: createChartConfig()
+        });
+        
+        // Polarized Distribution - high values at extremes only
+        const polarizedData = xValues.map(x => {
+            if (x === 0.0) return 5.0;
+            if (x === 1.0) return 5.0;
+            return 0.1;
+        });
+        new Chart("dist-polarized", {
+            type: 'bar',
+            data: {
+                labels: xLabels,
+                datasets: [{
+                    data: polarizedData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: createChartConfig()
+        });
+    }
+    
+    function toggleDimension(tag) {
+        const id = tag.getAttribute('data-id');
+        const name = tag.getAttribute('data-name');
+        
+        if (tag.classList.contains('inactive')) {
+            // Activate dimension
+            tag.classList.remove('inactive');
+            tag.classList.add('selected');
+            selectedDimensions.push(id);
+        } else {
+            // Deactivate dimension
+            tag.classList.remove('selected');
+            tag.classList.add('inactive');
+            selectedDimensions = selectedDimensions.filter(d => d !== id);
+        }
+        
+        // Update form
+        updateSegmentation();
+    }
+    
+    function updateSegmentation() {
+        // Update hidden input
+        document.getElementById('segmentation-input').value = selectedDimensions.join(',');
+        
+        // Always generate segment configurations (even if no dimensions selected)
+        generateSegmentConfigurations();
+    }
+    
+    function selectUpdateRule(button, ruleValue) {
+        // Don't allow selecting disabled rules
+        if (button.classList.contains('disabled')) {
+            return;
+        }
+        
+        // Update button states
+        document.querySelectorAll('.update-rule-button').forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        button.classList.add('selected');
+        
+        // Update hidden input
+        document.getElementById('update_rule_input').value = ruleValue;
+        
+        // Toggle parameter sections
+        const bcParams = document.getElementById('bounded-confidence-params');
+        const llmParams = document.getElementById('llm-evaluation-params');
+        
+        if (ruleValue === 'bounded_confidence') {
+            bcParams.style.display = 'block';
+            llmParams.style.display = 'none';
+        } else if (ruleValue === 'llm_evaluation') {
+            bcParams.style.display = 'none';
+            llmParams.style.display = 'block';
+        }
+    }
+    
+    function toggleUpdateRuleOptions() {
+        // Legacy function for compatibility - can be removed
+        const selectedRule = document.getElementById('update_rule_input').value;
+        const bcParams = document.getElementById('bounded-confidence-params');
+        const llmParams = document.getElementById('llm-evaluation-params');
+        
+        if (selectedRule === 'bounded_confidence') {
+            bcParams.style.display = 'block';
+            llmParams.style.display = 'none';
+        } else if (selectedRule === 'llm_evaluation') {
+            bcParams.style.display = 'none';
+            llmParams.style.display = 'block';
+        }
+    }
+    
+    function generateSegmentConfigurations() {
+        // Generate segments based on selected dimensions using actual values from population
+        const segments = generateSegments(selectedDimensions);
+        console.log('Generated segments:', segments);
+        
+        // Update each topic's segment configuration
+        topics.forEach(topic => {
+            console.log('Processing topic:', topic);
+            // topic.id is a number, so we can safely use it directly
+            const containerId = 'segments-topic-' + topic.id;
+            console.log('Looking for container:', containerId);
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Container not found:', containerId);
+                return;
+            }
+            console.log('Container found:', container);
+            
+            // Clear container using DOM methods
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            
+            segments.forEach((segment, segmentIndex) => {
+                console.log('Creating segment config for:', segment);
+                const segmentDiv = document.createElement('div');
+                segmentDiv.className = 'segment-config';
+                
+                const label = document.createElement('div');
+                label.className = 'segment-label';
+                label.textContent = segment;
+                
+                const selectWrapper = document.createElement('div');
+                selectWrapper.className = 'segment-select';
+                
+                const select = document.createElement('select');
+                select.className = 'input';
+                // Use index-based naming to avoid collisions
+                select.name = `dist_topic_${topic.id}_segment_${segmentIndex}`;
+                select.setAttribute('data-segment-name', segment);
+                
+                // Add distribution options with Uniform as default
+                distributions.forEach(dist => {
+                    const option = document.createElement('option');
+                    option.value = dist;
+                    option.textContent = dist;
+                    // Set Uniform as the default selected option
+                    if (dist === 'Uniform') {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+                
+                selectWrapper.appendChild(select);
+                
+                segmentDiv.appendChild(label);
+                segmentDiv.appendChild(selectWrapper);
+                container.appendChild(segmentDiv);
+            });
+            console.log('Finished processing topic:', topic.name);
+        });
+    }
+    
+    function generateSegments(dimensions) {
+        // Use actual segment values from the population data
+        
+        // If no dimensions selected, return a default segment for "All Population"
+        if (dimensions.length === 0) {
+            return ['All Population'];
+        }
+        
+        // Generate combinations using actual values from the population
+        let segments = [''];
+        
+        dimensions.forEach(dim => {
+            const values = segmentValues[dim] || [];
+            if (values.length === 0) {
+                // If no values for this dimension, skip it
+                return;
+            }
+            
+            const newSegments = [];
+            
+            segments.forEach(segment => {
+                values.forEach(value => {
+                    newSegments.push(segment ? `${segment} - ${value}` : value);
+                });
+            });
+            
+            segments = newSegments;
+        });
+        
+        return segments;
+    }
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize distribution preview charts
+        initializeDistributionCharts();
+        
+        // Debug: Log the data received from backend
+        console.log('Topics:', topics);
+        console.log('Segment Values:', segmentValues);
+        console.log('Distributions:', distributions);
+        
+        // Set up event listeners for dimension tags
+        const dimensionTags = document.querySelectorAll('.dimension-tag');
+        dimensionTags.forEach(tag => {
+            tag.addEventListener('click', function() {
+                toggleDimension(this);
+            });
+        });
+        
+        // Set up close button event listener
+        const closeBtn = document.getElementById('close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                const redirectUrl = this.getAttribute('data-redirect-url');
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                }
+            });
+        }
+        
+        // Initialize with default "All Population" segment for each topic
+        console.log('Initializing segment configurations...');
+        generateSegmentConfigurations();
+    });
+</script>
+
+{% include "admin/footer.html" %}

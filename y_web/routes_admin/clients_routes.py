@@ -21,12 +21,14 @@ from flask import (
     redirect,
     render_template,
     request,
+    url_for,
 )
 from flask_login import current_user, login_required
 
 from y_web import db
 from y_web.models import (
     ActivityProfile,
+    AgeClass,
     Agent,
     Agent_Population,
     Agent_Profile,
@@ -1050,6 +1052,10 @@ def create_client():
         }
     )
 
+    # Check if opinions annotation is present and redirect to opinion configuration
+    if opinions_enabled:
+        return redirect(url_for('clientsr.opinion_configuration', idexp=exp_id, client_id=client.id))
+    
     # load experiment_details page
     from .experiments_routes import experiment_details
 
@@ -1608,3 +1614,180 @@ def update_llm(uid):
 
     db.session.commit()
     return redirect(request.referrer)
+
+
+@clientsr.route("/admin/opinion_configuration/<int:idexp>")
+@login_required
+def opinion_configuration(idexp):
+    """Display opinion configuration page for experiments with opinions annotation."""
+    check_privileges(current_user.username)
+
+    # Get client_id from query parameters
+    client_id = request.args.get('client_id', type=int)
+    if not client_id:
+        flash("Client ID is required.", "error")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
+    # Get experiment details
+    exp = Exps.query.filter_by(idexp=idexp).first()
+    if not exp:
+        flash("Experiment not found.", "error")
+        return redirect(url_for('experiments.settings'))
+
+    # Get client details
+    client = Client.query.filter_by(id=client_id).first()
+    if not client or client.id_exp != idexp:
+        flash("Client not found or does not belong to this experiment.", "error")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
+    # Verify that opinions annotation is present
+    annotations = {an.strip(): None for an in exp.annotations.split(",")} if exp.annotations and exp.annotations.strip() else {}
+    if "opinions" not in annotations:
+        flash("This experiment does not have opinions annotation.", "warning")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
+    # Get experiment topics
+    topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
+    topics_ids = [t.topic_id for t in topics]
+    topics = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics = [{"id": t.id, "name": t.name} for t in topics]
+
+    # Get population and load population JSON file to get actual segment values
+    population = Population.query.filter_by(id=client.population_id).first()
+    if not population:
+        flash("Population not found.", "error")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
+    # Load population JSON file to get actual segment values
+    from y_web.utils.path_utils import get_writable_path
+    from y_web.utils import get_db_type
+    
+    writable_base = get_writable_path()
+    dbtype = get_db_type()
+    
+    if dbtype == "sqlite":
+        exp_folder = exp.db_name.split(os.sep)[1]
+    else:
+        exp_folder = exp.db_name.removeprefix("experiments_")
+    
+    population_file = os.path.join(
+        writable_base,
+        "y_web",
+        "experiments",
+        exp_folder,
+        f"{population.name.replace(' ', '')}.json"
+    )
+    
+    # Load age classes from database to map individual ages to age groups
+    age_classes = AgeClass.query.all()
+    age_class_map = {}
+    for ac in age_classes:
+        age_class_map[ac.name] = (ac.age_start, ac.age_end)
+    
+    # Read population data to get actual segment values
+    segment_values = {
+        "age": set(),
+        "political_leaning": set(),
+        "gender": set(),
+        "education_level": set()
+    }
+    
+    try:
+        if os.path.exists(population_file):
+            with open(population_file, 'r') as f:
+                pop_data = json.load(f)
+                for agent in pop_data.get("agents", []):
+                    if not agent.get("is_page", 0):  # Exclude pages
+                        age = agent.get("age")
+                        if age:
+                            # Map individual age to age class
+                            age_class_found = False
+                            for class_name, (start, end) in age_class_map.items():
+                                if start <= age <= end:
+                                    segment_values["age"].add(class_name)
+                                    age_class_found = True
+                                    break
+                            if not age_class_found:
+                                # If no age class found, use the raw age
+                                segment_values["age"].add(f"{age}")
+                        
+                        leaning = agent.get("leaning")
+                        if leaning:
+                            segment_values["political_leaning"].add(str(leaning))
+                        
+                        gender = agent.get("gender")
+                        if gender:
+                            segment_values["gender"].add(str(gender))
+                        
+                        education = agent.get("education_level")
+                        if education:
+                            segment_values["education_level"].add(str(education))
+            print(f"Successfully loaded population file: {population_file}")
+        else:
+            print(f"Population file does not exist: {population_file}")
+            flash("Warning: Population file not found. Segment values may be limited.", "warning")
+    except Exception as e:
+        print(f"Error reading population file: {e}")
+        flash(f"Warning: Error reading population file. Segment values may be limited.", "warning")
+    
+    # Convert sets to sorted lists
+    segment_values = {k: sorted(list(v)) for k, v in segment_values.items()}
+    print(f"Extracted segment values: {segment_values}")
+
+    # Define available distribution types
+    distributions = [
+        "Uniform",
+        "Normal (μ=0.5, σ=0.2)",
+        "Bimodal (peaks at 0.2 and 0.8)",
+        "Left-skewed (μ=0.3)",
+        "Right-skewed (μ=0.7)",
+        "Polarized (0 or 1)",
+    ]
+
+    # Define available segmentation dimensions
+    segmentation_options = [
+        {"id": "age", "name": "Age Classes"},
+        {"id": "political_leaning", "name": "Political Leaning"},
+        {"id": "gender", "name": "Gender"},
+        {"id": "education_level", "name": "Education Level"},
+    ]
+
+    return render_template(
+        "admin/opinion_configuration.html",
+        experiment=exp,
+        client=client,
+        topics=topics,
+        distributions=distributions,
+        segmentation_options=segmentation_options,
+        segment_values=segment_values,
+        llm_agents_enabled=exp.llm_agents_enabled if hasattr(exp, "llm_agents_enabled") else False,
+    )
+
+
+@clientsr.route("/admin/set_opinion_distributions", methods=["POST"])
+@login_required
+def set_opinion_distributions():
+    """Handle opinion distribution configuration submission (data gathering only)."""
+    check_privileges(current_user.username)
+
+    # Get experiment ID from form
+    idexp = request.form.get("idexp")
+    
+    if not idexp:
+        flash("Experiment ID is missing.", "error")
+        return redirect(url_for('experiments.settings'))
+
+    # Get the selected segmentation dimensions
+    segmentation = request.form.get("segmentation")  # Comma-separated list
+    
+    # Get all form data as JSON for debugging/future use
+    form_data = dict(request.form)
+    
+    # Log the configuration (for now, just flash a message)
+    flash(f"Opinion distribution configuration received: {len(form_data)} fields", "success")
+    
+    # For now, just acknowledge receipt without saving
+    # In the future, this would save to database or configuration files
+    
+    # Return success response (no actual saving yet as per requirements)
+    return redirect(url_for('experiments.experiment_details', uid=idexp))
