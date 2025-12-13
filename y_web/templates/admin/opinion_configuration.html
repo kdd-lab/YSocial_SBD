@@ -1,79 +1,111 @@
 {% include "admin/head.html" %}
 
 <style>
-    .segmentation-selector {
-        border: 2px dashed #ccc;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 30px;
-        background-color: #f9f9f9;
-        min-height: 100px;
-    }
-    
-    .segmentation-tag {
+    /* Compact tag-based styling inspired by profession categories */
+    .dimension-tag {
         display: inline-block;
-        background-color: #039be5;
+        background-color: #22c55e;
         color: white;
-        padding: 8px 15px;
-        margin: 5px;
-        border-radius: 20px;
-        cursor: move;
+        padding: 6px 12px;
+        margin: 4px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid #22c55e;
         user-select: none;
     }
     
-    .segmentation-tag.available {
-        background-color: #e0e0e0;
-        color: #333;
-        cursor: pointer;
+    .dimension-tag.inactive {
+        background-color: #e5e7eb;
+        color: #6b7280;
+        border-color: #d1d5db;
     }
     
-    .segmentation-tag.available:hover {
-        background-color: #bdbdbd;
+    .dimension-tag:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     
-    .segmentation-tag .remove-btn {
-        margin-left: 8px;
+    .dimension-tag.selected {
+        background-color: #039be5;
+        border-color: #039be5;
+    }
+    
+    .dimension-tag .remove-btn {
+        margin-left: 6px;
         cursor: pointer;
         font-weight: bold;
     }
     
+    .dimensions-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+        min-height: 50px;
+    }
+    
     .topic-config-box {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 12px;
         background-color: white;
+    }
+    
+    .topic-config-box h5 {
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: #039be5;
+        font-size: 0.95em;
     }
     
     .segment-config {
         display: flex;
         align-items: center;
-        margin: 10px 0;
-        gap: 15px;
+        margin: 6px 0;
+        gap: 10px;
     }
     
     .segment-label {
         flex: 1;
         font-weight: 500;
+        font-size: 0.9em;
+        min-width: 120px;
     }
     
     .segment-select {
         flex: 2;
     }
     
-    .available-dimensions {
-        margin-bottom: 20px;
+    .segment-select select {
+        width: 100%;
+        font-size: 0.9em;
+        padding: 6px;
     }
     
-    .selected-dimensions {
-        min-height: 60px;
-        margin-top: 10px;
+    .form-section-header {
+        font-weight: 600;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+        color: #374151;
+    }
+    
+    .form-section-description {
+        font-size: 0.85em;
+        color: #6b7280;
+        margin-bottom: 12px;
     }
     
     .empty-state {
         color: #999;
         text-align: center;
-        padding: 20px;
+        padding: 12px;
+        font-size: 0.9em;
     }
 </style>
 
@@ -107,7 +139,7 @@
 
                     <div class="dashboard-box" id="box-opinion-config">
                         <h3 class="title is-5 is-thin">Opinion Distribution Configuration</h3>
-                        <p style="margin-bottom: 20px; color: #666;">
+                        <p style="margin-bottom: 15px; color: #666; font-size: 0.9em;">
                             Configure how opinions are distributed across different population segments for each simulation topic.
                         </p>
                         
@@ -116,42 +148,32 @@
                             <input type="hidden" name="segmentation" id="segmentation-input" value="">
 
                             <!-- Segmentation Selection -->
-                            <div class="box-content" style="margin-bottom: 30px;">
-                                <h4 class="title is-6" style="margin-bottom: 15px;">1. Select Population Segmentation Dimensions</h4>
-                                <p style="color: #666; margin-bottom: 15px; font-size: 0.9em;">
-                                    Click on dimensions below to add them to your segmentation. The population will be divided based on the selected dimensions.
-                                </p>
-                                
-                                <div class="available-dimensions">
-                                    <strong>Available Dimensions:</strong>
-                                    <div id="available-tags" style="margin-top: 10px;">
-                                        {% for dim in segmentation_options %}
-                                        <span class="segmentation-tag available" data-id="{{ dim.id }}" data-name="{{ dim.name }}">
-                                            {{ dim.name }}
-                                        </span>
-                                        {% endfor %}
-                                    </div>
+                            <div class="box-content" style="margin-bottom: 20px;">
+                                <div class="form-section-header">1. Select Population Segmentation Dimensions (Optional)</div>
+                                <div class="form-section-description">
+                                    Click on dimensions to add or remove them from segmentation. Active dimensions are shown in blue. Without selection, a global "All Population" segment is used.
                                 </div>
                                 
-                                <div class="selected-dimensions">
-                                    <strong>Selected Dimensions:</strong>
-                                    <div class="segmentation-selector" id="selected-dimensions">
-                                        <div class="empty-state" id="empty-state">Click dimensions above to add them to segmentation</div>
-                                    </div>
+                                <div class="dimensions-container" id="dimensions-container">
+                                    {% for dim in segmentation_options %}
+                                    <span class="dimension-tag inactive" data-id="{{ dim.id }}" data-name="{{ dim.name }}">
+                                        {{ dim.name }}
+                                    </span>
+                                    {% endfor %}
                                 </div>
                             </div>
 
                             <!-- Topic Configuration -->
                             <div class="box-content" id="topic-configuration">
-                                <h4 class="title is-6" style="margin-bottom: 15px;">2. Configure Opinion Distributions for Each Topic</h4>
-                                <p style="color: #666; margin-bottom: 20px; font-size: 0.9em;">
+                                <div class="form-section-header">2. Configure Opinion Distributions for Each Topic</div>
+                                <div class="form-section-description">
                                     For each topic, select the opinion distribution for every population segment.
-                                </p>
+                                </div>
                                 
                                 <div id="topics-container">
                                     {% for topic in topics %}
                                     <div class="topic-config-box" data-topic-id="{{ topic.id }}">
-                                        <h5 style="margin-bottom: 15px; font-weight: 600; color: #039be5;">{{ topic.name }}</h5>
+                                        <h5>{{ topic.name }}</h5>
                                         <div class="segments-container" id="segments-topic-{{ topic.id }}">
                                             <!-- Segments will be dynamically added here -->
                                         </div>
@@ -161,8 +183,8 @@
                             </div>
 
                             <!-- Action Buttons -->
-                            <div class="box-content" style="margin-top: 30px; display: flex; gap: 15px;">
-                                <button type="submit" class="button is-solid accent-button" id="submit-btn" disabled>
+                            <div class="box-content" style="margin-top: 20px; display: flex; gap: 10px;">
+                                <button type="submit" class="button is-solid accent-button" id="submit-btn">
                                     Save Configuration
                                 </button>
                                 <button type="button" class="button is-solid grey-button" id="close-btn" data-redirect-url="/admin/experiment_details/{{ experiment.idexp }}">
@@ -185,75 +207,20 @@
     
     let selectedDimensions = [];
     
-    function addDimension(id, name) {
-        // Check if already selected
-        if (selectedDimensions.includes(id)) {
-            return;
-        }
+    function toggleDimension(tag) {
+        const id = tag.getAttribute('data-id');
+        const name = tag.getAttribute('data-name');
         
-        // Add to selected array
-        selectedDimensions.push(id);
-        
-        // Hide from available (use CSS.escape for safety)
-        const escapedId = CSS.escape(id);
-        const availableTag = document.querySelector(`#available-tags .segmentation-tag[data-id="${escapedId}"]`);
-        if (availableTag) {
-            availableTag.style.display = 'none';
-        }
-        
-        // Add to selected container
-        const selectedContainer = document.getElementById('selected-dimensions');
-        const emptyState = document.getElementById('empty-state');
-        
-        if (emptyState) {
-            emptyState.style.display = 'none';
-        }
-        
-        const tag = document.createElement('span');
-        tag.className = 'segmentation-tag';
-        tag.setAttribute('data-id', id);
-        
-        // Create text content safely
-        tag.textContent = name + ' ';
-        
-        // Create remove button safely
-        const removeBtn = document.createElement('span');
-        removeBtn.className = 'remove-btn';
-        removeBtn.textContent = '×';
-        removeBtn.addEventListener('click', function() {
-            removeDimension(id);
-        });
-        
-        tag.appendChild(removeBtn);
-        selectedContainer.appendChild(tag);
-        
-        // Update form
-        updateSegmentation();
-    }
-    
-    function removeDimension(id) {
-        // Remove from selected array
-        selectedDimensions = selectedDimensions.filter(d => d !== id);
-        
-        // Show in available (use CSS.escape for safety)
-        const escapedId = CSS.escape(id);
-        const availableTag = document.querySelector(`#available-tags .segmentation-tag[data-id="${escapedId}"]`);
-        if (availableTag) {
-            availableTag.style.display = 'inline-block';
-        }
-        
-        // Remove from selected container
-        const selectedTag = document.querySelector(`#selected-dimensions .segmentation-tag[data-id="${escapedId}"]`);
-        if (selectedTag) {
-            selectedTag.remove();
-        }
-        
-        // Show empty state if no dimensions selected
-        if (selectedDimensions.length === 0) {
-            const emptyState = document.getElementById('empty-state');
-            if (emptyState) {
-                emptyState.style.display = 'block';
-            }
+        if (tag.classList.contains('inactive')) {
+            // Activate dimension
+            tag.classList.remove('inactive');
+            tag.classList.add('selected');
+            selectedDimensions.push(id);
+        } else {
+            // Deactivate dimension
+            tag.classList.remove('selected');
+            tag.classList.add('inactive');
+            selectedDimensions = selectedDimensions.filter(d => d !== id);
         }
         
         // Update form
@@ -266,9 +233,6 @@
         
         // Always generate segment configurations (even if no dimensions selected)
         generateSegmentConfigurations();
-        
-        // Enable submit button
-        document.getElementById('submit-btn').disabled = false;
     }
     
     function generateSegmentConfigurations() {
@@ -375,13 +339,11 @@
         console.log('Segment Values:', segmentValues);
         console.log('Distributions:', distributions);
         
-        // Set up event listeners for available dimension tags
-        const availableTags = document.querySelectorAll('#available-tags .segmentation-tag.available');
-        availableTags.forEach(tag => {
+        // Set up event listeners for dimension tags
+        const dimensionTags = document.querySelectorAll('.dimension-tag');
+        dimensionTags.forEach(tag => {
             tag.addEventListener('click', function() {
-                const id = this.getAttribute('data-id');
-                const name = this.getAttribute('data-name');
-                addDimension(id, name);
+                toggleDimension(this);
             });
         });
         
@@ -400,6 +362,5 @@
         console.log('Initializing segment configurations...');
         generateSegmentConfigurations();
     });
-</script>
 
 {% include "admin/footer.html" %}

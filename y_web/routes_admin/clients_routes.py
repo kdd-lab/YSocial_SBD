@@ -1677,6 +1677,12 @@ def opinion_configuration(idexp):
         f"{population.name.replace(' ', '')}.json"
     )
     
+    # Load age classes from database to map individual ages to age groups
+    age_classes = AgeClass.query.all()
+    age_class_map = {}
+    for ac in age_classes:
+        age_class_map[ac.name] = (ac.age_start, ac.age_end)
+    
     # Read population data to get actual segment values
     segment_values = {
         "age": set(),
@@ -1693,7 +1699,16 @@ def opinion_configuration(idexp):
                     if not agent.get("is_page", 0):  # Exclude pages
                         age = agent.get("age")
                         if age:
-                            segment_values["age"].add(str(age))
+                            # Map individual age to age class
+                            age_class_found = False
+                            for class_name, (start, end) in age_class_map.items():
+                                if start <= age <= end:
+                                    segment_values["age"].add(class_name)
+                                    age_class_found = True
+                                    break
+                            if not age_class_found:
+                                # If no age class found, use the raw age
+                                segment_values["age"].add(f"{age}")
                         
                         leaning = agent.get("leaning")
                         if leaning:
