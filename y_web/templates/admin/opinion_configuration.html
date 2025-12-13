@@ -144,12 +144,33 @@
         cursor: not-allowed;
         background-color: #f9fafb;
     }
-    }
     
     .segment-select select {
         width: 100%;
         font-size: 0.9em;
         padding: 6px;
+    }
+    
+    /* Distribution Preview Styling */
+    .dist-preview {
+        text-align: center;
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s;
+    }
+    
+    .dist-preview:hover {
+        border-color: #039be5;
+        box-shadow: 0 2px 4px rgba(3, 155, 229, 0.1);
+    }
+    
+    .dist-name {
+        margin-top: 6px;
+        font-size: 0.8em;
+        color: #374151;
+        font-weight: 500;
     }
     
     .form-section-header {
@@ -232,6 +253,48 @@
                                 <div class="form-section-header">2. Configure Opinion Distributions for Each Topic</div>
                                 <div class="form-section-description">
                                     For each topic, select the opinion distribution for every population segment.
+                                </div>
+                                
+                                <!-- Distribution Visualizations -->
+                                <div style="margin: 20px 0; padding: 15px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                    <div style="font-weight: 600; margin-bottom: 12px; font-size: 0.9em; color: #374151;">Available Distributions:</div>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                                        <!-- Uniform Distribution -->
+                                        <div class="dist-preview">
+                                            <canvas id="dist-uniform" style="width: 100%; height: 120px;"></canvas>
+                                            <div class="dist-name">Uniform</div>
+                                        </div>
+                                        
+                                        <!-- Normal Distribution -->
+                                        <div class="dist-preview">
+                                            <canvas id="dist-normal" style="width: 100%; height: 120px;"></canvas>
+                                            <div class="dist-name">Normal (μ=0.5, σ=0.2)</div>
+                                        </div>
+                                        
+                                        <!-- Bimodal Distribution -->
+                                        <div class="dist-preview">
+                                            <canvas id="dist-bimodal" style="width: 100%; height: 120px;"></canvas>
+                                            <div class="dist-name">Bimodal (peaks at 0.2 and 0.8)</div>
+                                        </div>
+                                        
+                                        <!-- Left-skewed Distribution -->
+                                        <div class="dist-preview">
+                                            <canvas id="dist-left" style="width: 100%; height: 120px;"></canvas>
+                                            <div class="dist-name">Left-skewed (μ=0.3)</div>
+                                        </div>
+                                        
+                                        <!-- Right-skewed Distribution -->
+                                        <div class="dist-preview">
+                                            <canvas id="dist-right" style="width: 100%; height: 120px;"></canvas>
+                                            <div class="dist-name">Right-skewed (μ=0.7)</div>
+                                        </div>
+                                        
+                                        <!-- Polarized Distribution -->
+                                        <div class="dist-preview">
+                                            <canvas id="dist-polarized" style="width: 100%; height: 120px;"></canvas>
+                                            <div class="dist-name">Polarized (0 or 1)</div>
+                                        </div>
+                                    </div>
                                 </div>
                                 
                                 <div id="topics-container">
@@ -334,6 +397,7 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='assets/vendor/js/chart.min.js') }}"></script>
 <script>
     const topics = {{ topics | tojson }};
     const distributions = {{ distributions | tojson }};
@@ -341,6 +405,139 @@
     const segmentValues = {{ segment_values | tojson }};
     
     let selectedDimensions = [];
+    
+    // Initialize distribution preview charts
+    function initializeDistributionCharts() {
+        const chartConfig = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                y: {
+                    display: false,
+                    beginAtZero: true
+                },
+                x: {
+                    display: false
+                }
+            }
+        };
+        
+        // Uniform Distribution
+        new Chart("dist-uniform", {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => i),
+                datasets: [{
+                    data: Array(20).fill(1),
+                    backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                    borderColor: 'rgba(168, 85, 247, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: chartConfig
+        });
+        
+        // Normal Distribution (μ=0.5, σ=0.2)
+        const normalData = Array.from({length: 20}, (_, i) => {
+            const x = i / 19;
+            const mu = 0.5, sigma = 0.2;
+            return Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
+        });
+        new Chart("dist-normal", {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => i),
+                datasets: [{
+                    data: normalData,
+                    backgroundColor: 'rgba(236, 72, 153, 0.7)',
+                    borderColor: 'rgba(236, 72, 153, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: chartConfig
+        });
+        
+        // Bimodal Distribution
+        const bimodalData = Array.from({length: 20}, (_, i) => {
+            const x = i / 19;
+            const peak1 = Math.exp(-Math.pow(x - 0.2, 2) / 0.02);
+            const peak2 = Math.exp(-Math.pow(x - 0.8, 2) / 0.02);
+            return peak1 + peak2;
+        });
+        new Chart("dist-bimodal", {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => i),
+                datasets: [{
+                    data: bimodalData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: chartConfig
+        });
+        
+        // Left-skewed Distribution
+        const leftSkewedData = Array.from({length: 20}, (_, i) => {
+            const x = i / 19;
+            return Math.pow(x, 0.5) * Math.exp(-3 * Math.pow(x - 0.3, 2));
+        });
+        new Chart("dist-left", {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => i),
+                datasets: [{
+                    data: leftSkewedData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: chartConfig
+        });
+        
+        // Right-skewed Distribution
+        const rightSkewedData = Array.from({length: 20}, (_, i) => {
+            const x = i / 19;
+            return Math.pow(1 - x, 0.5) * Math.exp(-3 * Math.pow(x - 0.7, 2));
+        });
+        new Chart("dist-right", {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => i),
+                datasets: [{
+                    data: rightSkewedData,
+                    backgroundColor: 'rgba(251, 146, 60, 0.7)',
+                    borderColor: 'rgba(251, 146, 60, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: chartConfig
+        });
+        
+        // Polarized Distribution
+        const polarizedData = Array(20).fill(0);
+        polarizedData[0] = 1;
+        polarizedData[19] = 1;
+        new Chart("dist-polarized", {
+            type: 'bar',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => i),
+                datasets: [{
+                    data: polarizedData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: chartConfig
+        });
+    }
     
     function toggleDimension(tag) {
         const id = tag.getAttribute('data-id');
@@ -512,6 +709,9 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize distribution preview charts
+        initializeDistributionCharts();
+        
         // Debug: Log the data received from backend
         console.log('Topics:', topics);
         console.log('Segment Values:', segmentValues);
