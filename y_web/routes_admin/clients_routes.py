@@ -1706,11 +1706,17 @@ def opinion_configuration(idexp):
                         education = agent.get("education_level")
                         if education:
                             segment_values["education_level"].add(str(education))
+            print(f"Successfully loaded population file: {population_file}")
+        else:
+            print(f"Population file does not exist: {population_file}")
+            flash("Warning: Population file not found. Segment values may be limited.", "warning")
     except Exception as e:
         print(f"Error reading population file: {e}")
+        flash(f"Warning: Error reading population file. Segment values may be limited.", "warning")
     
     # Convert sets to sorted lists
     segment_values = {k: sorted(list(v)) for k, v in segment_values.items()}
+    print(f"Extracted segment values: {segment_values}")
 
     # Define available distribution types
     distributions = [
