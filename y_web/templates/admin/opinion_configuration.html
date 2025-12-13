@@ -420,175 +420,155 @@
     
     // Initialize distribution preview charts
     function initializeDistributionCharts() {
-        const chartConfig = {
-            responsive: true,
-            maintainAspectRatio: true,
-            aspectRatio: 2.5,
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: false }
-            },
-            scales: {
-                y: {
-                    display: false,
-                    beginAtZero: true,
-                    max: 1.2
+        // Base chart configuration for all distributions
+        function createChartConfig(independentScale = true) {
+            return {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
                 },
-                x: {
-                    display: true,
-                    grid: { display: false },
-                    ticks: {
-                        callback: function(value, index) {
-                            if (index === 0) return '0';
-                            if (index === 50) return '0.5';
-                            if (index === 100) return '1';
-                            return '';
-                        },
-                        font: { size: 9 }
+                scales: {
+                    y: {
+                        display: false,
+                        beginAtZero: true
+                        // No max specified - let each chart scale independently
+                    },
+                    x: {
+                        display: true,
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 9 }
+                        }
                     }
                 }
-            }
-        };
+            };
+        }
         
-        // Generate smooth x values from 0 to 1
-        const numPoints = 101;
-        const xValues = Array.from({length: numPoints}, (_, i) => i / (numPoints - 1));
-        const xLabels = xValues.map(x => x.toFixed(2));
+        // Use 5 bars for each distribution
+        const xLabels = ['0.0', '0.25', '0.5', '0.75', '1.0'];
+        const xValues = [0.0, 0.25, 0.5, 0.75, 1.0];
         
-        // Uniform Distribution
-        const uniformData = xValues.map(() => 0.5);
+        // Uniform Distribution - constant value
+        const uniformData = [1.0, 1.0, 1.0, 1.0, 1.0];
         new Chart("dist-uniform", {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
                     data: uniformData,
-                    fill: true,
-                    backgroundColor: 'rgba(168, 85, 247, 0.3)',
+                    backgroundColor: 'rgba(168, 85, 247, 0.7)',
                     borderColor: 'rgba(168, 85, 247, 1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 0
+                    borderWidth: 1
                 }]
             },
-            options: chartConfig
+            options: createChartConfig()
         });
         
-        // Normal Distribution (μ=0.5, σ=0.2)
+        // Normal Distribution (μ=0.5, σ=0.2) - bell curve centered at 0.5
         const normalData = xValues.map(x => {
             const mu = 0.5, sigma = 0.2;
             const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
             return coef * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
         });
         new Chart("dist-normal", {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
                     data: normalData,
-                    fill: true,
-                    backgroundColor: 'rgba(236, 72, 153, 0.3)',
+                    backgroundColor: 'rgba(236, 72, 153, 0.7)',
                     borderColor: 'rgba(236, 72, 153, 1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 0
+                    borderWidth: 1
                 }]
             },
-            options: chartConfig
+            options: createChartConfig()
         });
         
-        // Bimodal Distribution
+        // Bimodal Distribution - two peaks at 0.25 and 0.75
         const bimodalData = xValues.map(x => {
-            const sigma = 0.1;
+            const sigma = 0.15;
             const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
             const peak1 = coef * Math.exp(-Math.pow(x - 0.2, 2) / (2 * sigma * sigma));
             const peak2 = coef * Math.exp(-Math.pow(x - 0.8, 2) / (2 * sigma * sigma));
             return (peak1 + peak2) / 2;
         });
         new Chart("dist-bimodal", {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
                     data: bimodalData,
-                    fill: true,
-                    backgroundColor: 'rgba(34, 197, 94, 0.3)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
                     borderColor: 'rgba(34, 197, 94, 1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 0
+                    borderWidth: 1
                 }]
             },
-            options: chartConfig
+            options: createChartConfig()
         });
         
-        // Left-skewed Distribution (Beta distribution approximation)
+        // Left-skewed Distribution - higher values on the left
         const leftSkewedData = xValues.map(x => {
+            if (x === 0) return 0;
+            if (x === 1) return 0;
             const alpha = 2, beta = 5;
-            if (x === 0 || x === 1) return 0;
             return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
         });
         new Chart("dist-left", {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
                     data: leftSkewedData,
-                    fill: true,
-                    backgroundColor: 'rgba(59, 130, 246, 0.3)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
                     borderColor: 'rgba(59, 130, 246, 1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 0
+                    borderWidth: 1
                 }]
             },
-            options: chartConfig
+            options: createChartConfig()
         });
         
-        // Right-skewed Distribution (Beta distribution approximation)
+        // Right-skewed Distribution - higher values on the right
         const rightSkewedData = xValues.map(x => {
+            if (x === 0) return 0;
+            if (x === 1) return 0;
             const alpha = 5, beta = 2;
-            if (x === 0 || x === 1) return 0;
             return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
         });
         new Chart("dist-right", {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
                     data: rightSkewedData,
-                    fill: true,
-                    backgroundColor: 'rgba(251, 146, 60, 0.3)',
+                    backgroundColor: 'rgba(251, 146, 60, 0.7)',
                     borderColor: 'rgba(251, 146, 60, 1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 0
+                    borderWidth: 1
                 }]
             },
-            options: chartConfig
+            options: createChartConfig()
         });
         
-        // Polarized Distribution (two spikes at 0 and 1)
+        // Polarized Distribution - high values at extremes only
         const polarizedData = xValues.map(x => {
-            if (x < 0.05) return 10 * (0.05 - x);
-            if (x > 0.95) return 10 * (x - 0.95);
-            return 0.02;
+            if (x === 0.0) return 5.0;
+            if (x === 1.0) return 5.0;
+            return 0.1;
         });
         new Chart("dist-polarized", {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: xLabels,
                 datasets: [{
                     data: polarizedData,
-                    fill: true,
-                    backgroundColor: 'rgba(239, 68, 68, 0.3)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
                     borderColor: 'rgba(239, 68, 68, 1)',
-                    borderWidth: 2,
-                    tension: 0.4,
-                    pointRadius: 0
+                    borderWidth: 1
                 }]
             },
-            options: chartConfig
+            options: createChartConfig()
         });
     }
     
