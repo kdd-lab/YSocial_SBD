@@ -1628,7 +1628,7 @@ def opinion_configuration(idexp):
         return redirect(url_for('experiments.settings'))
 
     # Verify that opinions annotation is present
-    annotations = {an: None for an in exp.annotations.split(",")} if exp.annotations else {}
+    annotations = {an.strip(): None for an in exp.annotations.split(",")} if exp.annotations and exp.annotations.strip() else {}
     if "opinions" not in annotations:
         flash("This experiment does not have opinions annotation.", "warning")
         return redirect(url_for('experiments.experiment_details', uid=idexp))

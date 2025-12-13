@@ -165,7 +165,7 @@
                                 <button type="submit" class="button is-solid accent-button" id="submit-btn" disabled>
                                     Save Configuration
                                 </button>
-                                <button type="button" class="button is-solid grey-button" id="close-btn">
+                                <button type="button" class="button is-solid grey-button" id="close-btn" data-redirect-url="/admin/experiment_details/{{ experiment.idexp }}">
                                     Close
                                 </button>
                             </div>
@@ -193,8 +193,9 @@
         // Add to selected array
         selectedDimensions.push(id);
         
-        // Hide from available
-        const availableTag = document.querySelector(`#available-tags .segmentation-tag[data-id="${id}"]`);
+        // Hide from available (use CSS.escape for safety)
+        const escapedId = CSS.escape(id);
+        const availableTag = document.querySelector(`#available-tags .segmentation-tag[data-id="${escapedId}"]`);
         if (availableTag) {
             availableTag.style.display = 'none';
         }
@@ -233,14 +234,15 @@
         // Remove from selected array
         selectedDimensions = selectedDimensions.filter(d => d !== id);
         
-        // Show in available
-        const availableTag = document.querySelector(`#available-tags .segmentation-tag[data-id="${id}"]`);
+        // Show in available (use CSS.escape for safety)
+        const escapedId = CSS.escape(id);
+        const availableTag = document.querySelector(`#available-tags .segmentation-tag[data-id="${escapedId}"]`);
         if (availableTag) {
             availableTag.style.display = 'inline-block';
         }
         
         // Remove from selected container
-        const selectedTag = document.querySelector(`#selected-dimensions .segmentation-tag[data-id="${id}"]`);
+        const selectedTag = document.querySelector(`#selected-dimensions .segmentation-tag[data-id="${escapedId}"]`);
         if (selectedTag) {
             selectedTag.remove();
         }
@@ -280,7 +282,11 @@
         
         // Update each topic's segment configuration
         topics.forEach(topic => {
-            const container = document.getElementById(`segments-topic-${topic.id}`);
+            // Use CSS.escape for safety even though topic.id is server-controlled
+            const containerId = 'segments-topic-' + CSS.escape(String(topic.id));
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
             // Clear container using DOM methods
             while (container.firstChild) {
                 container.removeChild(container.firstChild);
@@ -374,7 +380,10 @@
         const closeBtn = document.getElementById('close-btn');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
-                window.location.href = '/admin/experiment_details/{{ experiment.idexp }}';
+                const redirectUrl = this.getAttribute('data-redirect-url');
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                }
             });
         }
     });
