@@ -142,7 +142,7 @@
                             </div>
 
                             <!-- Topic Configuration -->
-                            <div class="box-content" id="topic-configuration" style="display: none;">
+                            <div class="box-content" id="topic-configuration">
                                 <h4 class="title is-6" style="margin-bottom: 15px;">2. Configure Opinion Distributions for Each Topic</h4>
                                 <p style="color: #666; margin-bottom: 20px; font-size: 0.9em;">
                                     For each topic, select the opinion distribution for every population segment.
@@ -181,6 +181,7 @@
     const topics = {{ topics | tojson }};
     const distributions = {{ distributions | tojson }};
     const segmentationOptions = {{ segmentation_options | tojson }};
+    const segmentValues = {{ segment_values | tojson }};
     
     let selectedDimensions = [];
     
@@ -263,21 +264,15 @@
         // Update hidden input
         document.getElementById('segmentation-input').value = selectedDimensions.join(',');
         
-        // Generate segments based on selected dimensions
-        if (selectedDimensions.length > 0) {
-            generateSegmentConfigurations();
-            document.getElementById('topic-configuration').style.display = 'block';
-            document.getElementById('submit-btn').disabled = false;
-        } else {
-            document.getElementById('topic-configuration').style.display = 'none';
-            document.getElementById('submit-btn').disabled = true;
-        }
+        // Always generate segment configurations (even if no dimensions selected)
+        generateSegmentConfigurations();
+        
+        // Enable submit button
+        document.getElementById('submit-btn').disabled = false;
     }
     
     function generateSegmentConfigurations() {
-        // For now, generate example segments based on dimensions
-        // In a real implementation, this would fetch actual values from the database
-        
+        // Generate segments based on selected dimensions using actual values from population
         const segments = generateSegments(selectedDimensions);
         
         // Update each topic's segment configuration
@@ -333,23 +328,23 @@
     }
     
     function generateSegments(dimensions) {
-        // Generate example segment combinations
-        // In a real implementation, this would fetch actual values from the database
+        // Use actual segment values from the population data
         
-        const dimensionValues = {
-            'age': ['18-25', '26-35', '36-50', '51-65', '65+'],
-            'political_leaning': ['Liberal', 'Moderate', 'Conservative'],
-            'gender': ['Male', 'Female', 'Other'],
-            'education_level': ['High School', 'Bachelor', 'Master', 'PhD']
-        };
+        // If no dimensions selected, return a default segment for "All Population"
+        if (dimensions.length === 0) {
+            return ['All Population'];
+        }
         
-        if (dimensions.length === 0) return [];
-        
-        // Generate combinations
+        // Generate combinations using actual values from the population
         let segments = [''];
         
         dimensions.forEach(dim => {
-            const values = dimensionValues[dim] || ['Value1', 'Value2'];
+            const values = segmentValues[dim] || [];
+            if (values.length === 0) {
+                // If no values for this dimension, skip it
+                return;
+            }
+            
             const newSegments = [];
             
             segments.forEach(segment => {
@@ -386,6 +381,9 @@
                 }
             });
         }
+        
+        // Initialize with default "All Population" segment for each topic
+        generateSegmentConfigurations();
     });
 </script>
 

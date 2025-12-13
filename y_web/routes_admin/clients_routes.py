@@ -1053,7 +1053,7 @@ def create_client():
 
     # Check if opinions annotation is present and redirect to opinion configuration
     if opinions_enabled:
-        return redirect(url_for('clientsr.opinion_configuration', idexp=exp_id))
+        return redirect(url_for('clientsr.opinion_configuration', idexp=exp_id, client_id=client.id))
     
     # load experiment_details page
     from .experiments_routes import experiment_details
@@ -1621,11 +1621,23 @@ def opinion_configuration(idexp):
     """Display opinion configuration page for experiments with opinions annotation."""
     check_privileges(current_user.username)
 
+    # Get client_id from query parameters
+    client_id = request.args.get('client_id', type=int)
+    if not client_id:
+        flash("Client ID is required.", "error")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
     # Get experiment details
     exp = Exps.query.filter_by(idexp=idexp).first()
     if not exp:
         flash("Experiment not found.", "error")
         return redirect(url_for('experiments.settings'))
+
+    # Get client details
+    client = Client.query.filter_by(id=client_id).first()
+    if not client or client.id_exp != idexp:
+        flash("Client not found or does not belong to this experiment.", "error")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
 
     # Verify that opinions annotation is present
     annotations = {an.strip(): None for an in exp.annotations.split(",")} if exp.annotations and exp.annotations.strip() else {}
@@ -1638,6 +1650,67 @@ def opinion_configuration(idexp):
     topics_ids = [t.topic_id for t in topics]
     topics = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
     topics = [{"id": t.id, "name": t.name} for t in topics]
+
+    # Get population and load population JSON file to get actual segment values
+    population = Population.query.filter_by(id=client.population_id).first()
+    if not population:
+        flash("Population not found.", "error")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
+    # Load population JSON file to get actual segment values
+    from y_web.utils.path_utils import get_writable_path
+    from y_web.utils import get_db_type
+    
+    writable_base = get_writable_path()
+    dbtype = get_db_type()
+    
+    if dbtype == "sqlite":
+        exp_folder = exp.db_name.split(os.sep)[1]
+    else:
+        exp_folder = exp.db_name.removeprefix("experiments_")
+    
+    population_file = os.path.join(
+        writable_base,
+        "y_web",
+        "experiments",
+        exp_folder,
+        f"{population.name.replace(' ', '')}.json"
+    )
+    
+    # Read population data to get actual segment values
+    segment_values = {
+        "age": set(),
+        "political_leaning": set(),
+        "gender": set(),
+        "education_level": set()
+    }
+    
+    try:
+        if os.path.exists(population_file):
+            with open(population_file, 'r') as f:
+                pop_data = json.load(f)
+                for agent in pop_data.get("agents", []):
+                    if not agent.get("is_page", 0):  # Exclude pages
+                        age = agent.get("age")
+                        if age:
+                            segment_values["age"].add(str(age))
+                        
+                        leaning = agent.get("leaning")
+                        if leaning:
+                            segment_values["political_leaning"].add(str(leaning))
+                        
+                        gender = agent.get("gender")
+                        if gender:
+                            segment_values["gender"].add(str(gender))
+                        
+                        education = agent.get("education_level")
+                        if education:
+                            segment_values["education_level"].add(str(education))
+    except Exception as e:
+        print(f"Error reading population file: {e}")
+    
+    # Convert sets to sorted lists
+    segment_values = {k: sorted(list(v)) for k, v in segment_values.items()}
 
     # Define available distribution types
     distributions = [
@@ -1660,9 +1733,11 @@ def opinion_configuration(idexp):
     return render_template(
         "admin/opinion_configuration.html",
         experiment=exp,
+        client=client,
         topics=topics,
         distributions=distributions,
         segmentation_options=segmentation_options,
+        segment_values=segment_values,
     )
 
 
