@@ -5303,14 +5303,24 @@ def update_opinion_group():
         group.name = data["name"]
     if "lower_bound" in data:
         try:
-            group.lower_bound = float(data["lower_bound"])
+            lower_bound = float(data["lower_bound"])
+            if not (0 <= lower_bound <= 1):
+                return jsonify({"success": False, "message": "Lower bound must be in [0, 1]"}), 400
+            group.lower_bound = lower_bound
         except ValueError:
             return jsonify({"success": False, "message": "Invalid lower_bound value"}), 400
     if "upper_bound" in data:
         try:
-            group.upper_bound = float(data["upper_bound"])
+            upper_bound = float(data["upper_bound"])
+            if not (0 <= upper_bound <= 1):
+                return jsonify({"success": False, "message": "Upper bound must be in [0, 1]"}), 400
+            group.upper_bound = upper_bound
         except ValueError:
             return jsonify({"success": False, "message": "Invalid upper_bound value"}), 400
+
+    # Validate that lower_bound <= upper_bound
+    if group.lower_bound > group.upper_bound:
+        return jsonify({"success": False, "message": "Lower bound must be <= upper bound"}), 400
 
     db.session.commit()
     return jsonify({"success": True})

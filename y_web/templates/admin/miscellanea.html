@@ -2980,11 +2980,23 @@
                                 document.getElementById('opinion-dist-form').addEventListener('submit', function(e) {
                                     const distType = document.getElementById('dist-type').value;
                                     const params = {};
+                                    let hasError = false;
                                     
                                     document.querySelectorAll('.dist-param').forEach(input => {
                                         const paramName = input.dataset.paramName;
-                                        params[paramName] = parseFloat(input.value);
+                                        const value = parseFloat(input.value);
+                                        if (isNaN(value)) {
+                                            alert(`Invalid value for ${paramName}: must be a valid number`);
+                                            hasError = true;
+                                            return;
+                                        }
+                                        params[paramName] = value;
                                     });
+                                    
+                                    if (hasError) {
+                                        e.preventDefault();
+                                        return false;
+                                    }
                                     
                                     document.getElementById('dist-params-json').value = JSON.stringify(params);
                                 });
