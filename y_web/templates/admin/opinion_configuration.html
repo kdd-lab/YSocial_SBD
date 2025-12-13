@@ -274,13 +274,20 @@
     function generateSegmentConfigurations() {
         // Generate segments based on selected dimensions using actual values from population
         const segments = generateSegments(selectedDimensions);
+        console.log('Generated segments:', segments);
         
         // Update each topic's segment configuration
         topics.forEach(topic => {
-            // Use CSS.escape for safety even though topic.id is server-controlled
-            const containerId = 'segments-topic-' + CSS.escape(String(topic.id));
+            console.log('Processing topic:', topic);
+            // topic.id is a number, so we can safely use it directly
+            const containerId = 'segments-topic-' + topic.id;
+            console.log('Looking for container:', containerId);
             const container = document.getElementById(containerId);
-            if (!container) return;
+            if (!container) {
+                console.error('Container not found:', containerId);
+                return;
+            }
+            console.log('Container found:', container);
             
             // Clear container using DOM methods
             while (container.firstChild) {
@@ -288,6 +295,7 @@
             }
             
             segments.forEach((segment, segmentIndex) => {
+                console.log('Creating segment config for:', segment);
                 const segmentDiv = document.createElement('div');
                 segmentDiv.className = 'segment-config';
                 
@@ -324,6 +332,7 @@
                 segmentDiv.appendChild(selectWrapper);
                 container.appendChild(segmentDiv);
             });
+            console.log('Finished processing topic:', topic.name);
         });
     }
     
@@ -361,6 +370,11 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
+        // Debug: Log the data received from backend
+        console.log('Topics:', topics);
+        console.log('Segment Values:', segmentValues);
+        console.log('Distributions:', distributions);
+        
         // Set up event listeners for available dimension tags
         const availableTags = document.querySelectorAll('#available-tags .segmentation-tag.available');
         availableTags.forEach(tag => {
@@ -383,6 +397,7 @@
         }
         
         // Initialize with default "All Population" segment for each topic
+        console.log('Initializing segment configurations...');
         generateSegmentConfigurations();
     });
 </script>
