@@ -1760,6 +1760,7 @@ def opinion_configuration(idexp):
         distributions=distributions,
         segmentation_options=segmentation_options,
         segment_values=segment_values,
+        llm_agents_enabled=exp.llm_agents_enabled if hasattr(exp, "llm_agents_enabled") else False,
     )
 
 

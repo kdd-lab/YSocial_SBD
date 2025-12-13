@@ -212,6 +212,75 @@
                                 </div>
                             </div>
 
+                            <!-- Opinion Update Rule Configuration -->
+                            <div class="box-content" id="update-rule-configuration" style="margin-top: 20px;">
+                                <div class="form-section-header">3. Select Opinion Update Rule</div>
+                                <div class="form-section-description">
+                                    Choose how agent opinions are updated during the simulation.
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <label class="radio" style="display: block; margin-bottom: 8px;">
+                                        <input type="radio" name="update_rule" value="bounded_confidence" checked onchange="toggleUpdateRuleOptions()">
+                                        <strong>Bounded Confidence</strong> - Agents update opinions based on similarity with others
+                                    </label>
+                                    
+                                    <label class="radio" style="display: block; margin-bottom: 8px;">
+                                        <input type="radio" name="update_rule" value="llm_evaluation" onchange="toggleUpdateRuleOptions()" {% if not llm_agents_enabled %}disabled{% endif %}>
+                                        <strong>LLM Evaluation</strong> - Agents use LLM to evaluate and update opinions
+                                        {% if not llm_agents_enabled %}<span style="color: #999; font-size: 0.85em;">(Requires LLM agents enabled)</span>{% endif %}
+                                    </label>
+                                </div>
+                                
+                                <!-- Bounded Confidence Parameters -->
+                                <div id="bounded-confidence-params" style="display: block; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                    <div style="font-weight: 600; margin-bottom: 10px; font-size: 0.9em;">Bounded Confidence Parameters</div>
+                                    
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Epsilon (Confidence Bound)</label>
+                                            <input type="number" class="input" name="bc_epsilon" value="0.25" min="0" max="1" step="0.01" style="font-size: 0.9em; padding: 6px;">
+                                            <small style="color: #6b7280; font-size: 0.8em;">Range: 0-1, Default: 0.25</small>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Mu (Averaging Weight)</label>
+                                            <input type="number" class="input" name="bc_mu" value="0.5" min="0" max="1" step="0.01" style="font-size: 0.9em; padding: 6px;">
+                                            <small style="color: #6b7280; font-size: 0.8em;">Range: 0-1, Default: 0.5</small>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Theta (Backfire Strength)</label>
+                                            <input type="number" class="input" name="bc_theta" value="0" min="0" max="1" step="0.01" style="font-size: 0.9em; padding: 6px;">
+                                            <small style="color: #6b7280; font-size: 0.8em;">Range: 0-1, Default: 0</small>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Cold Start Strategy</label>
+                                            <select class="input" name="bc_cold_start" style="font-size: 0.9em; padding: 6px;">
+                                                <option value="neutral">Neutral (0.5)</option>
+                                                <option value="inherited">Inherited</option>
+                                                <option value="weighted">Weighted on Profile Similarity</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- LLM Evaluation Parameters -->
+                                <div id="llm-evaluation-params" style="display: none; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                    <div style="font-weight: 600; margin-bottom: 10px; font-size: 0.9em;">LLM Evaluation Parameters</div>
+                                    
+                                    <div>
+                                        <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Cold Start Strategy</label>
+                                        <select class="input" name="llm_cold_start" style="font-size: 0.9em; padding: 6px; max-width: 300px;">
+                                            <option value="neutral">Neutral (0.5)</option>
+                                            <option value="inherited">Inherited</option>
+                                            <option value="weighted">Weighted on Profile Similarity</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Action Buttons -->
                             <div class="box-content" style="margin-top: 20px; display: flex; gap: 10px;">
                                 <button type="submit" class="button is-solid accent-button" id="submit-btn">
@@ -263,6 +332,20 @@
         
         // Always generate segment configurations (even if no dimensions selected)
         generateSegmentConfigurations();
+    }
+    
+    function toggleUpdateRuleOptions() {
+        const selectedRule = document.querySelector('input[name="update_rule"]:checked').value;
+        const bcParams = document.getElementById('bounded-confidence-params');
+        const llmParams = document.getElementById('llm-evaluation-params');
+        
+        if (selectedRule === 'bounded_confidence') {
+            bcParams.style.display = 'block';
+            llmParams.style.display = 'none';
+        } else if (selectedRule === 'llm_evaluation') {
+            bcParams.style.display = 'none';
+            llmParams.style.display = 'block';
+        }
     }
     
     function generateSegmentConfigurations() {
