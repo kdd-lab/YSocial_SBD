@@ -825,9 +825,9 @@ def create_client():
                 "daily_activity_level": a.daily_activity_level,
                 "profession": a.profession,
                 "activity_profile": activity_profile_name,
-                "opinions": {
-                    i: random.random() for i in ints[0]
-                } if opinions_enabled else None,  # @todo: check initial opinions
+                "opinions": (
+                    {i: random.random() for i in ints[0]} if opinions_enabled else None
+                ),  # @todo: check initial opinions
             }
         )
 
