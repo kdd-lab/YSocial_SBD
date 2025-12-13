@@ -8,6 +8,7 @@ This script adds two tables for opinion dynamics simulations:
 Run this script to update existing YSocial installations.
 """
 
+import json
 import os
 import sqlite3
 import sys
@@ -65,6 +66,7 @@ def migrate_sqlite(db_path):
         )
         distributions_exists = cursor.fetchone() is not None
 
+        distributions_created = False
         if not distributions_exists:
             cursor.execute(
                 """
@@ -77,8 +79,27 @@ def migrate_sqlite(db_path):
             """
             )
             print("✓ Created opinion_distributions table in SQLite database")
+            distributions_created = True
         else:
             print("○ opinion_distributions table already exists in SQLite database")
+
+        # Populate default distributions if table was just created
+        if distributions_created:
+            default_distributions = [
+                ('Uniform', 'uniform', json.dumps({'low': 0, 'high': 1})),
+                ('Normal (μ=0.5, σ=0.2)', 'normal', json.dumps({'loc': 0.5, 'scale': 0.2})),
+                ('Bimodal (peaks at 0.2 and 0.8)', 'bimodal', json.dumps({'peak1': 0.2, 'peak2': 0.8, 'sigma': 0.15})),
+                ('Left-skewed (μ=0.3)', 'beta', json.dumps({'a': 2, 'b': 5})),
+                ('Right-skewed (μ=0.7)', 'beta', json.dumps({'a': 5, 'b': 2})),
+                ('Polarized (0 or 1)', 'polarized', json.dumps({})),
+            ]
+            
+            for name, dist_type, params in default_distributions:
+                cursor.execute(
+                    "INSERT INTO opinion_distributions (name, distribution_type, parameters) VALUES (?, ?, ?)",
+                    (name, dist_type, params)
+                )
+            print(f"✓ Populated {len(default_distributions)} default distributions in SQLite database")
 
         conn.commit()
         conn.close()
@@ -151,6 +172,7 @@ def migrate_postgresql(host, port, database, user, password):
         )
         distributions_exists = cursor.fetchone() is not None
 
+        distributions_created = False
         if not distributions_exists:
             cursor.execute(
                 """
@@ -163,8 +185,27 @@ def migrate_postgresql(host, port, database, user, password):
             """
             )
             print("✓ Created opinion_distributions table in PostgreSQL database")
+            distributions_created = True
         else:
             print("○ opinion_distributions table already exists in PostgreSQL database")
+
+        # Populate default distributions if table was just created
+        if distributions_created:
+            default_distributions = [
+                ('Uniform', 'uniform', json.dumps({'low': 0, 'high': 1})),
+                ('Normal (μ=0.5, σ=0.2)', 'normal', json.dumps({'loc': 0.5, 'scale': 0.2})),
+                ('Bimodal (peaks at 0.2 and 0.8)', 'bimodal', json.dumps({'peak1': 0.2, 'peak2': 0.8, 'sigma': 0.15})),
+                ('Left-skewed (μ=0.3)', 'beta', json.dumps({'a': 2, 'b': 5})),
+                ('Right-skewed (μ=0.7)', 'beta', json.dumps({'a': 5, 'b': 2})),
+                ('Polarized (0 or 1)', 'polarized', json.dumps({})),
+            ]
+            
+            for name, dist_type, params in default_distributions:
+                cursor.execute(
+                    "INSERT INTO opinion_distributions (name, distribution_type, parameters) VALUES (%s, %s, %s)",
+                    (name, dist_type, params)
+                )
+            print(f"✓ Populated {len(default_distributions)} default distributions in PostgreSQL database")
 
         conn.commit()
         conn.close()

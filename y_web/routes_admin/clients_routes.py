@@ -1765,17 +1765,6 @@ def opinion_configuration(idexp):
             print(f"Warning: Invalid JSON parameters for distribution {dist.name}")
             continue
     
-    # If no distributions in database, use default hardcoded ones
-    if not distributions:
-        distributions = [
-            {'id': 'default_uniform', 'name': 'Uniform', 'type': 'uniform', 'parameters': {'low': 0, 'high': 1}},
-            {'id': 'default_normal', 'name': 'Normal (μ=0.5, σ=0.2)', 'type': 'normal', 'parameters': {'loc': 0.5, 'scale': 0.2}},
-            {'id': 'default_bimodal', 'name': 'Bimodal (peaks at 0.2 and 0.8)', 'type': 'bimodal', 'parameters': {'peak1': 0.2, 'peak2': 0.8, 'sigma': 0.15}},
-            {'id': 'default_left', 'name': 'Left-skewed (μ=0.3)', 'type': 'beta', 'parameters': {'a': 2, 'b': 5}},
-            {'id': 'default_right', 'name': 'Right-skewed (μ=0.7)', 'type': 'beta', 'parameters': {'a': 5, 'b': 2}},
-            {'id': 'default_polarized', 'name': 'Polarized (0 or 1)', 'type': 'polarized', 'parameters': {}},
-        ]
-    
     # Extract just the names for the dropdown
     distribution_names = [d['name'] for d in distributions]
 
