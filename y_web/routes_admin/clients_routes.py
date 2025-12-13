@@ -28,6 +28,7 @@ from flask_login import current_user, login_required
 from y_web import db
 from y_web.models import (
     ActivityProfile,
+    AgeClass,
     Agent,
     Agent_Population,
     Agent_Profile,
