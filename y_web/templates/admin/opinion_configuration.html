@@ -126,7 +126,7 @@
                                     <strong>Available Dimensions:</strong>
                                     <div id="available-tags" style="margin-top: 10px;">
                                         {% for dim in segmentation_options %}
-                                        <span class="segmentation-tag available" data-id="{{ dim.id }}" onclick="addDimension('{{ dim.id }}', '{{ dim.name }}')">
+                                        <span class="segmentation-tag available" data-id="{{ dim.id }}" data-name="{{ dim.name }}">
                                             {{ dim.name }}
                                         </span>
                                         {% endfor %}
@@ -210,7 +210,19 @@
         const tag = document.createElement('span');
         tag.className = 'segmentation-tag';
         tag.setAttribute('data-id', id);
-        tag.innerHTML = `${name} <span class="remove-btn" onclick="removeDimension('${id}')">×</span>`;
+        
+        // Create text content safely
+        tag.textContent = name + ' ';
+        
+        // Create remove button safely
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', function() {
+            removeDimension(id);
+        });
+        
+        tag.appendChild(removeBtn);
         selectedContainer.appendChild(tag);
         
         // Update form
@@ -271,7 +283,7 @@
             const container = document.getElementById(`segments-topic-${topic.id}`);
             container.innerHTML = '';
             
-            segments.forEach(segment => {
+            segments.forEach((segment, segmentIndex) => {
                 const segmentDiv = document.createElement('div');
                 segmentDiv.className = 'segment-config';
                 
@@ -284,7 +296,9 @@
                 
                 const select = document.createElement('select');
                 select.className = 'input';
-                select.name = `dist_topic_${topic.id}_segment_${segment.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                // Use index-based naming to avoid collisions
+                select.name = `dist_topic_${topic.id}_segment_${segmentIndex}`;
+                select.setAttribute('data-segment-name', segment);
                 
                 // Add default option
                 const defaultOption = document.createElement('option');
@@ -343,7 +357,15 @@
     
     // Initialize
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Opinion configuration page loaded');
+        // Set up event listeners for available dimension tags
+        const availableTags = document.querySelectorAll('#available-tags .segmentation-tag.available');
+        availableTags.forEach(tag => {
+            tag.addEventListener('click', function() {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                addDimension(id, name);
+            });
+        });
     });
 </script>
 
