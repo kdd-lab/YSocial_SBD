@@ -728,3 +728,20 @@ CREATE TABLE watchdog_settings (
     run_interval_minutes INTEGER NOT NULL DEFAULT 15,
     last_run             TIMESTAMP DEFAULT NULL
 );
+
+-- -----------------------------
+-- Opinion Dynamics
+-- -----------------------------
+CREATE TABLE opinion_groups (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    lower_bound DOUBLE PRECISION NOT NULL,
+    upper_bound DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE opinion_distributions (
+    id                SERIAL PRIMARY KEY,
+    name              VARCHAR(100) NOT NULL,
+    distribution_type VARCHAR(50) NOT NULL,
+    parameters        TEXT NOT NULL
+);

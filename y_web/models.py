@@ -1116,3 +1116,35 @@ class WatchdogSettings(db.Model):
         db.Integer, nullable=False, default=15
     )  # Default 15 minutes
     last_run = db.Column(db.DateTime, nullable=True)  # Last time watchdog ran
+
+
+class OpinionGroup(db.Model):
+    """
+    Opinion group definitions for opinion dynamics simulations.
+
+    Defines groups of opinions with a name and value range [lower_bound, upper_bound]
+    where bounds are in the interval [0, 1].
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_groups"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    lower_bound = db.Column(db.Float, nullable=False)
+    upper_bound = db.Column(db.Float, nullable=False)
+
+
+class OpinionDistribution(db.Model):
+    """
+    Opinion distribution configurations for opinion dynamics simulations.
+
+    Stores distribution types (uniform, beta, etc.) and their parameters
+    as a JSON string for flexible configuration of opinion initialization.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_distributions"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    distribution_type = db.Column(db.String(50), nullable=False)
+    parameters = db.Column(db.Text, nullable=False)  # JSON string
