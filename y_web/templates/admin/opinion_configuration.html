@@ -165,7 +165,7 @@
                                 <button type="submit" class="button is-solid accent-button" id="submit-btn" disabled>
                                     Save Configuration
                                 </button>
-                                <button type="button" class="button is-solid grey-button" onclick="window.location.href='/admin/experiment_details/{{ experiment.idexp }}'">
+                                <button type="button" class="button is-solid grey-button" id="close-btn">
                                     Close
                                 </button>
                             </div>
@@ -281,7 +281,10 @@
         // Update each topic's segment configuration
         topics.forEach(topic => {
             const container = document.getElementById(`segments-topic-${topic.id}`);
-            container.innerHTML = '';
+            // Clear container using DOM methods
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
             
             segments.forEach((segment, segmentIndex) => {
                 const segmentDiv = document.createElement('div');
@@ -366,6 +369,14 @@
                 addDimension(id, name);
             });
         });
+        
+        // Set up close button event listener
+        const closeBtn = document.getElementById('close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                window.location.href = '/admin/experiment_details/{{ experiment.idexp }}';
+            });
+        }
     });
 </script>
 
