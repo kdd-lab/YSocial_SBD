@@ -21,6 +21,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    url_for,
 )
 from flask_login import current_user, login_required
 
@@ -1050,6 +1051,10 @@ def create_client():
         }
     )
 
+    # Check if opinions annotation is present and redirect to opinion configuration
+    if opinions_enabled:
+        return redirect(url_for('clientsr.opinion_configuration', idexp=exp_id))
+    
     # load experiment_details page
     from .experiments_routes import experiment_details
 
@@ -1608,3 +1613,83 @@ def update_llm(uid):
 
     db.session.commit()
     return redirect(request.referrer)
+
+
+@clientsr.route("/admin/opinion_configuration/<int:idexp>")
+@login_required
+def opinion_configuration(idexp):
+    """Display opinion configuration page for experiments with opinions annotation."""
+    check_privileges(current_user.username)
+
+    # Get experiment details
+    exp = Exps.query.filter_by(idexp=idexp).first()
+    if not exp:
+        flash("Experiment not found.", "error")
+        return redirect(url_for('experiments.settings'))
+
+    # Verify that opinions annotation is present
+    annotations = {an: None for an in exp.annotations.split(",")}
+    if "opinions" not in annotations:
+        flash("This experiment does not have opinions annotation.", "warning")
+        return redirect(url_for('experiments.experiment_details', uid=idexp))
+
+    # Get experiment topics
+    topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
+    topics_ids = [t.topic_id for t in topics]
+    topics = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics = [{"id": t.id, "name": t.name} for t in topics]
+
+    # Define available distribution types
+    distributions = [
+        "Uniform",
+        "Normal (μ=0.5, σ=0.2)",
+        "Bimodal (peaks at 0.2 and 0.8)",
+        "Left-skewed (μ=0.3)",
+        "Right-skewed (μ=0.7)",
+        "Polarized (0 or 1)",
+    ]
+
+    # Define available segmentation dimensions
+    segmentation_options = [
+        {"id": "age", "name": "Age Classes"},
+        {"id": "political_leaning", "name": "Political Leaning"},
+        {"id": "gender", "name": "Gender"},
+        {"id": "education_level", "name": "Education Level"},
+    ]
+
+    return render_template(
+        "admin/opinion_configuration.html",
+        experiment=exp,
+        topics=topics,
+        distributions=distributions,
+        segmentation_options=segmentation_options,
+    )
+
+
+@clientsr.route("/admin/set_opinion_distributions", methods=["POST"])
+@login_required
+def set_opinion_distributions():
+    """Handle opinion distribution configuration submission (data gathering only)."""
+    check_privileges(current_user.username)
+
+    # Get experiment ID from form
+    idexp = request.form.get("idexp")
+    
+    if not idexp:
+        flash("Experiment ID is missing.", "error")
+        return redirect(url_for('experiments.settings'))
+
+    # Get the selected segmentation dimensions
+    segmentation = request.form.get("segmentation")  # Comma-separated list
+    
+    # Get all form data as JSON for debugging/future use
+    form_data = dict(request.form)
+    
+    # Log the configuration (for now, just flash a message)
+    flash(f"Opinion distribution configuration received: {len(form_data)} fields", "success")
+    
+    # For now, just acknowledge receipt without saving
+    # In the future, this would save to database or configuration files
+    
+    # Return success response (no actual saving yet as per requirements)
+    return redirect(url_for('experiments.experiment_details', uid=idexp))
