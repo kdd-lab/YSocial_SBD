@@ -38,6 +38,7 @@ from y_web.models import (
     Exp_Topic,
     Exps,
     Follow_Recsys,
+    OpinionDistribution,
     Page,
     Page_Population,
     Population,
@@ -1746,15 +1747,37 @@ def opinion_configuration(idexp):
     segment_values = {k: sorted(list(v)) for k, v in segment_values.items()}
     print(f"Extracted segment values: {segment_values}")
 
-    # Define available distribution types
-    distributions = [
-        "Uniform",
-        "Normal (μ=0.5, σ=0.2)",
-        "Bimodal (peaks at 0.2 and 0.8)",
-        "Left-skewed (μ=0.3)",
-        "Right-skewed (μ=0.7)",
-        "Polarized (0 or 1)",
-    ]
+    # Fetch available distribution types from the OpinionDistribution table
+    opinion_distributions = OpinionDistribution.query.all()
+    
+    # Create a list of distribution dictionaries with name, type, and parameters
+    distributions = []
+    for dist in opinion_distributions:
+        try:
+            params = json.loads(dist.parameters)
+            distributions.append({
+                'id': dist.id,
+                'name': dist.name,
+                'type': dist.distribution_type,
+                'parameters': params
+            })
+        except json.JSONDecodeError:
+            print(f"Warning: Invalid JSON parameters for distribution {dist.name}")
+            continue
+    
+    # If no distributions in database, use default hardcoded ones
+    if not distributions:
+        distributions = [
+            {'id': 'default_uniform', 'name': 'Uniform', 'type': 'uniform', 'parameters': {'low': 0, 'high': 1}},
+            {'id': 'default_normal', 'name': 'Normal (μ=0.5, σ=0.2)', 'type': 'normal', 'parameters': {'loc': 0.5, 'scale': 0.2}},
+            {'id': 'default_bimodal', 'name': 'Bimodal (peaks at 0.2 and 0.8)', 'type': 'bimodal', 'parameters': {'peak1': 0.2, 'peak2': 0.8, 'sigma': 0.15}},
+            {'id': 'default_left', 'name': 'Left-skewed (μ=0.3)', 'type': 'beta', 'parameters': {'a': 2, 'b': 5}},
+            {'id': 'default_right', 'name': 'Right-skewed (μ=0.7)', 'type': 'beta', 'parameters': {'a': 5, 'b': 2}},
+            {'id': 'default_polarized', 'name': 'Polarized (0 or 1)', 'type': 'polarized', 'parameters': {}},
+        ]
+    
+    # Extract just the names for the dropdown
+    distribution_names = [d['name'] for d in distributions]
 
     # Define available segmentation dimensions
     segmentation_options = [
@@ -1770,6 +1793,7 @@ def opinion_configuration(idexp):
         client=client,
         topics=topics,
         distributions=distributions,
+        distribution_names=distribution_names,
         segmentation_options=segmentation_options,
         segment_values=segment_values,
         llm_agents_enabled=(

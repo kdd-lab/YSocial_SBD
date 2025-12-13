@@ -258,54 +258,8 @@
                                 <!-- Distribution Visualizations -->
                                 <div style="margin: 20px 0; padding: 15px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
                                     <div style="font-weight: 600; margin-bottom: 12px; font-size: 0.9em; color: #374151;">Available Distributions:</div>
-                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
-                                        <!-- Uniform Distribution -->
-                                        <div class="dist-preview">
-                                            <div style="height: 100px;">
-                                                <canvas id="dist-uniform"></canvas>
-                                            </div>
-                                            <div class="dist-name">Uniform</div>
-                                        </div>
-                                        
-                                        <!-- Normal Distribution -->
-                                        <div class="dist-preview">
-                                            <div style="height: 100px;">
-                                                <canvas id="dist-normal"></canvas>
-                                            </div>
-                                            <div class="dist-name">Normal (μ=0.5, σ=0.2)</div>
-                                        </div>
-                                        
-                                        <!-- Bimodal Distribution -->
-                                        <div class="dist-preview">
-                                            <div style="height: 100px;">
-                                                <canvas id="dist-bimodal"></canvas>
-                                            </div>
-                                            <div class="dist-name">Bimodal (peaks at 0.2 and 0.8)</div>
-                                        </div>
-                                        
-                                        <!-- Left-skewed Distribution -->
-                                        <div class="dist-preview">
-                                            <div style="height: 100px;">
-                                                <canvas id="dist-left"></canvas>
-                                            </div>
-                                            <div class="dist-name">Left-skewed (μ=0.3)</div>
-                                        </div>
-                                        
-                                        <!-- Right-skewed Distribution -->
-                                        <div class="dist-preview">
-                                            <div style="height: 100px;">
-                                                <canvas id="dist-right"></canvas>
-                                            </div>
-                                            <div class="dist-name">Right-skewed (μ=0.7)</div>
-                                        </div>
-                                        
-                                        <!-- Polarized Distribution -->
-                                        <div class="dist-preview">
-                                            <div style="height: 100px;">
-                                                <canvas id="dist-polarized"></canvas>
-                                            </div>
-                                            <div class="dist-name">Polarized (0 or 1)</div>
-                                        </div>
+                                    <div id="distributions-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+                                        <!-- Distributions will be dynamically generated here -->
                                     </div>
                                 </div>
                                 
@@ -418,10 +372,16 @@
     
     let selectedDimensions = [];
     
-    // Initialize distribution preview charts
+    // Initialize distribution preview charts dynamically from database
     function initializeDistributionCharts() {
+        const grid = document.getElementById('distributions-grid');
+        if (!grid) return;
+        
+        // Clear existing content
+        grid.innerHTML = '';
+        
         // Base chart configuration for all distributions
-        function createChartConfig(independentScale = true) {
+        function createChartConfig() {
             return {
                 responsive: true,
                 maintainAspectRatio: true,
@@ -434,7 +394,6 @@
                     y: {
                         display: false,
                         beginAtZero: true
-                        // No max specified - let each chart scale independently
                     },
                     x: {
                         display: true,
@@ -447,128 +406,125 @@
             };
         }
         
-        // Use 5 bars for each distribution
         const xLabels = ['0.0', '0.25', '0.5', '0.75', '1.0'];
         const xValues = [0.0, 0.25, 0.5, 0.75, 1.0];
+        const colors = [
+            'rgba(168, 85, 247, 0.7)',  // purple
+            'rgba(236, 72, 153, 0.7)',  // pink
+            'rgba(34, 197, 94, 0.7)',   // green
+            'rgba(59, 130, 246, 0.7)',  // blue
+            'rgba(251, 146, 60, 0.7)',  // orange
+            'rgba(239, 68, 68, 0.7)',   // red
+            'rgba(20, 184, 166, 0.7)',  // teal
+            'rgba(168, 162, 158, 0.7)', // gray
+        ];
         
-        // Uniform Distribution - constant value
-        const uniformData = [1.0, 1.0, 1.0, 1.0, 1.0];
-        new Chart("dist-uniform", {
-            type: 'bar',
-            data: {
-                labels: xLabels,
-                datasets: [{
-                    data: uniformData,
-                    backgroundColor: 'rgba(168, 85, 247, 0.7)',
-                    borderColor: 'rgba(168, 85, 247, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: createChartConfig()
-        });
+        // Function to generate data based on distribution type and parameters
+        function generateDistributionData(type, params) {
+            switch (type) {
+                case 'uniform':
+                    return [1.0, 1.0, 1.0, 1.0, 1.0];
+                
+                case 'normal':
+                    const mu = params.loc || 0.5;
+                    const sigma = params.scale || 0.2;
+                    return xValues.map(x => {
+                        const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
+                        return coef * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
+                    });
+                
+                case 'beta':
+                    const a = params.a || 2;
+                    const b = params.b || 5;
+                    return xValues.map(x => {
+                        if (x === 0 || x === 1) return 0;
+                        return Math.pow(x, a - 1) * Math.pow(1 - x, b - 1);
+                    });
+                
+                case 'exponential':
+                    const scale = params.scale || 1;
+                    return xValues.map(x => Math.exp(-x / scale));
+                
+                case 'gamma':
+                    const shape = params.shape || 2;
+                    const gScale = params.scale || 1;
+                    return xValues.map(x => {
+                        if (x === 0) return 0;
+                        return Math.pow(x, shape - 1) * Math.exp(-x / gScale);
+                    });
+                
+                case 'lognormal':
+                    const mean = params.mean || 0;
+                    const sgm = params.sigma || 1;
+                    return xValues.map(x => {
+                        if (x === 0) return 0;
+                        const coef = 1 / (x * sgm * Math.sqrt(2 * Math.PI));
+                        return coef * Math.exp(-Math.pow(Math.log(x) - mean, 2) / (2 * sgm * sgm));
+                    });
+                
+                case 'bimodal':
+                    const peak1 = params.peak1 || 0.2;
+                    const peak2 = params.peak2 || 0.8;
+                    const bSigma = params.sigma || 0.15;
+                    return xValues.map(x => {
+                        const coef = 1 / (bSigma * Math.sqrt(2 * Math.PI));
+                        const p1 = coef * Math.exp(-Math.pow(x - peak1, 2) / (2 * bSigma * bSigma));
+                        const p2 = coef * Math.exp(-Math.pow(x - peak2, 2) / (2 * bSigma * bSigma));
+                        return (p1 + p2) / 2;
+                    });
+                
+                case 'polarized':
+                    return xValues.map(x => (x === 0.0 || x === 1.0) ? 5.0 : 0.1);
+                
+                default:
+                    // Default to uniform if type not recognized
+                    return [1.0, 1.0, 1.0, 1.0, 1.0];
+            }
+        }
         
-        // Normal Distribution (μ=0.5, σ=0.2) - bell curve centered at 0.5
-        const normalData = xValues.map(x => {
-            const mu = 0.5, sigma = 0.2;
-            const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
-            return coef * Math.exp(-Math.pow(x - mu, 2) / (2 * sigma * sigma));
-        });
-        new Chart("dist-normal", {
-            type: 'bar',
-            data: {
-                labels: xLabels,
-                datasets: [{
-                    data: normalData,
-                    backgroundColor: 'rgba(236, 72, 153, 0.7)',
-                    borderColor: 'rgba(236, 72, 153, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: createChartConfig()
-        });
-        
-        // Bimodal Distribution - two peaks at 0.25 and 0.75
-        const bimodalData = xValues.map(x => {
-            const sigma = 0.15;
-            const coef = 1 / (sigma * Math.sqrt(2 * Math.PI));
-            const peak1 = coef * Math.exp(-Math.pow(x - 0.2, 2) / (2 * sigma * sigma));
-            const peak2 = coef * Math.exp(-Math.pow(x - 0.8, 2) / (2 * sigma * sigma));
-            return (peak1 + peak2) / 2;
-        });
-        new Chart("dist-bimodal", {
-            type: 'bar',
-            data: {
-                labels: xLabels,
-                datasets: [{
-                    data: bimodalData,
-                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
-                    borderColor: 'rgba(34, 197, 94, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: createChartConfig()
-        });
-        
-        // Left-skewed Distribution - higher values on the left
-        const leftSkewedData = xValues.map(x => {
-            if (x === 0) return 0;
-            if (x === 1) return 0;
-            const alpha = 2, beta = 5;
-            return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
-        });
-        new Chart("dist-left", {
-            type: 'bar',
-            data: {
-                labels: xLabels,
-                datasets: [{
-                    data: leftSkewedData,
-                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                    borderColor: 'rgba(59, 130, 246, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: createChartConfig()
-        });
-        
-        // Right-skewed Distribution - higher values on the right
-        const rightSkewedData = xValues.map(x => {
-            if (x === 0) return 0;
-            if (x === 1) return 0;
-            const alpha = 5, beta = 2;
-            return Math.pow(x, alpha - 1) * Math.pow(1 - x, beta - 1);
-        });
-        new Chart("dist-right", {
-            type: 'bar',
-            data: {
-                labels: xLabels,
-                datasets: [{
-                    data: rightSkewedData,
-                    backgroundColor: 'rgba(251, 146, 60, 0.7)',
-                    borderColor: 'rgba(251, 146, 60, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: createChartConfig()
-        });
-        
-        // Polarized Distribution - high values at extremes only
-        const polarizedData = xValues.map(x => {
-            if (x === 0.0) return 5.0;
-            if (x === 1.0) return 5.0;
-            return 0.1;
-        });
-        new Chart("dist-polarized", {
-            type: 'bar',
-            data: {
-                labels: xLabels,
-                datasets: [{
-                    data: polarizedData,
-                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
-                    borderColor: 'rgba(239, 68, 68, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: createChartConfig()
+        // Create preview for each distribution from database
+        distributions.forEach((dist, index) => {
+            const distId = `dist-${dist.id}`;
+            const colorIndex = index % colors.length;
+            
+            // Create container
+            const preview = document.createElement('div');
+            preview.className = 'dist-preview';
+            
+            // Create canvas container
+            const canvasContainer = document.createElement('div');
+            canvasContainer.style.height = '100px';
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.id = distId;
+            canvasContainer.appendChild(canvas);
+            
+            // Create name label
+            const nameLabel = document.createElement('div');
+            nameLabel.className = 'dist-name';
+            nameLabel.textContent = dist.name;
+            
+            // Append elements
+            preview.appendChild(canvasContainer);
+            preview.appendChild(nameLabel);
+            grid.appendChild(preview);
+            
+            // Generate data and create chart
+            const data = generateDistributionData(dist.type, dist.parameters);
+            new Chart(distId, {
+                type: 'bar',
+                data: {
+                    labels: xLabels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors[colorIndex],
+                        borderColor: colors[colorIndex].replace('0.7', '1'),
+                        borderWidth: 1
+                    }]
+                },
+                options: createChartConfig()
+            });
         });
     }
     
@@ -684,13 +640,13 @@
                 select.name = `dist_topic_${topic.id}_segment_${segmentIndex}`;
                 select.setAttribute('data-segment-name', segment);
                 
-                // Add distribution options with Uniform as default
-                distributions.forEach(dist => {
+                // Add distribution options with first one as default
+                distributions.forEach((dist, idx) => {
                     const option = document.createElement('option');
-                    option.value = dist;
-                    option.textContent = dist;
-                    // Set Uniform as the default selected option
-                    if (dist === 'Uniform') {
+                    option.value = dist.name;
+                    option.textContent = dist.name;
+                    // Set first distribution as default
+                    if (idx === 0) {
                         option.selected = true;
                     }
                     select.appendChild(option);
