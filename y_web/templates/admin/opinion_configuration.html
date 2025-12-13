@@ -49,11 +49,41 @@
         min-height: 50px;
     }
     
+    #topics-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 12px;
+        max-width: 100%;
+    }
+    
+    @media (min-width: 1400px) {
+        #topics-container {
+            grid-template-columns: repeat(4, 1fr);
+        }
+    }
+    
+    @media (min-width: 1000px) and (max-width: 1399px) {
+        #topics-container {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+    
+    @media (min-width: 768px) and (max-width: 999px) {
+        #topics-container {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 767px) {
+        #topics-container {
+            grid-template-columns: 1fr;
+        }
+    }
+    
     .topic-config-box {
         border: 1px solid #e5e7eb;
         border-radius: 6px;
         padding: 12px;
-        margin-bottom: 12px;
         background-color: white;
     }
     
