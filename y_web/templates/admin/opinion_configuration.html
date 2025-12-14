@@ -482,7 +482,15 @@
                     });
                 
                 case 'polarized':
-                    return xValues.map(x => (x === 0.0 || x === 1.0) ? 5.0 : 0.1);
+                    // Polarized distribution: high values at extremes (first and last bins), low in middle
+                    return xValues.map((x, idx) => {
+                        // Check if this is the first or last bin
+                        if (idx === 0 || idx === xValues.length - 1) {
+                            return 5.0;  // High value at extremes
+                        } else {
+                            return 0.1;  // Low value in middle
+                        }
+                    });
                 
                 default:
                     // Default to uniform if type not recognized
