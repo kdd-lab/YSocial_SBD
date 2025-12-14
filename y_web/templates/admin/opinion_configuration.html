@@ -408,9 +408,14 @@
             };
         }
         
-        // Use bins from opinion groups if available, otherwise use defaults
+        // Use bins from opinion groups to calculate bin centers for distribution evaluation
+        // Bin centers provide better representation of distributions within each bin
         const xLabels = labelsFromBackend;
-        const xValues = binsFromBackend.slice(0, -1); // Remove last element as it's just the upper bound
+        const binBoundaries = binsFromBackend;
+        const xValues = binBoundaries.slice(0, -1).map((lower, i) => {
+            const upper = binBoundaries[i + 1];
+            return (lower + upper) / 2;  // Calculate bin center
+        });
         const colors = [
             'rgba(168, 85, 247, 0.7)',  // purple
             'rgba(236, 72, 153, 0.7)',  // pink
