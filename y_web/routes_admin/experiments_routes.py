@@ -5322,6 +5322,17 @@ def update_opinion_group():
     if group.lower_bound > group.upper_bound:
         return jsonify({"success": False, "message": "Lower bound must be <= upper bound"}), 400
 
+    # Check for overlaps with other existing groups
+    existing_groups = OpinionGroup.query.filter(OpinionGroup.id != group_id).all()
+    for existing in existing_groups:
+        # Check if the updated group overlaps with any other existing group
+        # Two ranges [a1, a2] and [b1, b2] overlap if: a1 < b2 AND b1 < a2
+        if group.lower_bound < existing.upper_bound and existing.lower_bound < group.upper_bound:
+            return jsonify({
+                "success": False,
+                "message": f"Overlaps with '{existing.name}' [{existing.lower_bound}, {existing.upper_bound}]"
+            }), 400
+
     db.session.commit()
     return jsonify({"success": True})
 
@@ -5351,6 +5362,20 @@ def create_opinion_group():
     if lower_bound > upper_bound:
         flash("Lower bound must be less than or equal to upper bound.", "error")
         return redirect(request.referrer)
+
+    # Check for overlaps with existing groups
+    existing_groups = OpinionGroup.query.all()
+    for existing in existing_groups:
+        # Check if the new group overlaps with any existing group
+        # Two ranges [a1, a2] and [b1, b2] overlap if: a1 < b2 AND b1 < a2
+        if lower_bound < existing.upper_bound and existing.lower_bound < upper_bound:
+            flash(
+                f"Opinion group overlaps with existing group '{existing.name}' "
+                f"[{existing.lower_bound}, {existing.upper_bound}]. "
+                "Groups must not overlap.",
+                "error"
+            )
+            return redirect(request.referrer)
 
     group = OpinionGroup(name=name, lower_bound=lower_bound, upper_bound=upper_bound)
     db.session.add(group)

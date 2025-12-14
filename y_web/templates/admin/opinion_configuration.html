@@ -369,6 +369,8 @@
     const distributions = {{ distributions | tojson }};
     const segmentationOptions = {{ segmentation_options | tojson }};
     const segmentValues = {{ segment_values | tojson }};
+    const binsFromBackend = {{ bins | tojson }};
+    const labelsFromBackend = {{ labels | tojson }};
     
     let selectedDimensions = [];
     
@@ -406,8 +408,9 @@
             };
         }
         
-        const xLabels = ['0.0', '0.25', '0.5', '0.75', '1.0'];
-        const xValues = [0.0, 0.25, 0.5, 0.75, 1.0];
+        // Use bins from opinion groups if available, otherwise use defaults
+        const xLabels = labelsFromBackend;
+        const xValues = binsFromBackend.slice(0, -1); // Remove last element as it's just the upper bound
         const colors = [
             'rgba(168, 85, 247, 0.7)',  // purple
             'rgba(236, 72, 153, 0.7)',  // pink
