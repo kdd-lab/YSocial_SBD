@@ -1782,8 +1782,7 @@ def opinion_configuration(idexp):
             bins.append(group.lower_bound)
             labels.append(group.name)
         # Add the upper bound of the last group
-        if opinion_groups:
-            bins.append(opinion_groups[-1].upper_bound)
+        bins.append(opinion_groups[-1].upper_bound)
     else:
         # Default to 5 bins if no groups defined
         bins = [0.0, 0.25, 0.5, 0.75, 1.0]
