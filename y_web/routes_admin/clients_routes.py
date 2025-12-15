@@ -15,6 +15,7 @@ import traceback
 
 import faker
 import networkx as nx
+import numpy as np
 from flask import (
     Blueprint,
     flash,
@@ -60,6 +61,9 @@ from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama
 from y_web.utils.path_utils import get_resource_path
 
 clientsr = Blueprint("clientsr", __name__)
+
+# Constants for opinion distribution sampling
+DISTRIBUTION_SCALE_FACTOR = 10.0  # Scale factor for gamma/lognormal distributions
 
 
 @clientsr.route("/admin/reset_client/<int:uid>")
@@ -1930,8 +1934,12 @@ def set_opinion_distributions():
                 "type": dist.distribution_type,
                 "parameters": params,
             }
-        except json.JSONDecodeError:
-            print(f"Warning: Invalid JSON parameters for distribution {dist.name}")
+        except json.JSONDecodeError as e:
+            error_msg = (
+                f"Invalid JSON parameters for distribution '{dist.name}': {str(e)}"
+            )
+            print(f"Warning: {error_msg}")
+            flash(error_msg, "warning")
 
     # Helper function to identify segment for an agent
     def get_agent_segment(agent_data, dimensions):
@@ -1952,7 +1960,8 @@ def set_opinion_distributions():
                             age_class_found = True
                             break
                     if not age_class_found:
-                        segment_parts.append(f"{age}")
+                        # Use "Other" for ages that don't fit any defined class
+                        segment_parts.append(f"Age-{age}")
             elif dim == "political_leaning":
                 leaning = agent_data.get("leaning")
                 if leaning:
@@ -2037,8 +2046,6 @@ def set_opinion_distributions():
         params = dist_info["parameters"]
 
         try:
-            import numpy as np
-
             if dist_type == "uniform":
                 return np.random.uniform(0, 1)
             elif dist_type == "normal":
@@ -2059,15 +2066,15 @@ def set_opinion_distributions():
             elif dist_type == "gamma":
                 shape = params.get("shape", 2)
                 scale = params.get("scale", 1)
-                # Scale and clip to [0, 1]
+                # Scale and clip to [0, 1] using DISTRIBUTION_SCALE_FACTOR
                 value = np.random.gamma(shape, scale)
-                return max(0.0, min(1.0, value / 10.0))  # Scale down gamma values
+                return max(0.0, min(1.0, value / DISTRIBUTION_SCALE_FACTOR))
             elif dist_type == "lognormal":
                 mean = params.get("mean", 0)
                 sigma = params.get("sigma", 1)
-                # Scale and clip to [0, 1]
+                # Scale and clip to [0, 1] using DISTRIBUTION_SCALE_FACTOR
                 value = np.random.lognormal(mean, sigma)
-                return max(0.0, min(1.0, value / 10.0))  # Scale down lognormal values
+                return max(0.0, min(1.0, value / DISTRIBUTION_SCALE_FACTOR))
             elif dist_type == "bimodal":
                 peak1 = params.get("peak1", 0.2)
                 peak2 = params.get("peak2", 0.8)
@@ -2089,7 +2096,11 @@ def set_opinion_distributions():
                 # Default to uniform if type not recognized
                 return np.random.uniform(0, 1)
         except Exception as e:
-            print(f"Error sampling from distribution {distribution_name}: {e}")
+            error_msg = (
+                f"Error sampling from distribution '{distribution_name}': {str(e)}"
+            )
+            print(f"Warning: {error_msg}")
+            flash(error_msg, "warning")
             return random.random()
 
     # Process each agent in the population
