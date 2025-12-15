@@ -2192,7 +2192,7 @@ def set_opinion_distributions():
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
     opinion_groups_dict = {}
     for group in opinion_groups:
-        opinion_groups_dict[group.name] = [group.lower_bound, group.upper_bound]
+        opinion_groups_dict[group.name.rstrip()] = [group.lower_bound, group.upper_bound]
 
     opinion_dynamics["opinion_groups"] = opinion_groups_dict
 
