@@ -1825,11 +1825,11 @@ def set_opinion_distributions():
     # Get experiment ID and client ID from form
     idexp = request.form.get("idexp")
     client_id = request.form.get("client_id")
-    
+
     if not idexp:
         flash("Experiment ID is missing.", "error")
         return redirect(url_for("experiments.settings"))
-    
+
     if not client_id:
         flash("Client ID is missing.", "error")
         return redirect(url_for("experiments.experiment_details", uid=idexp))
@@ -1844,7 +1844,7 @@ def set_opinion_distributions():
     if not client or client.id_exp != int(idexp):
         flash("Client not found or does not belong to this experiment.", "error")
         return redirect(url_for("experiments.experiment_details", uid=idexp))
-    
+
     # Get population
     population = Population.query.filter_by(id=client.population_id).first()
     if not population:
@@ -1859,7 +1859,7 @@ def set_opinion_distributions():
     # Form fields are named: dist_topic_{topic_id}_segment_{segment_index}
     # Each select also has data-segment-name attribute with the actual segment name
     topic_segment_distributions = {}
-    
+
     for key, value in request.form.items():
         if key.startswith("dist_topic_"):
             # Parse the field name: dist_topic_{topic_id}_segment_{segment_index}
@@ -1868,16 +1868,18 @@ def set_opinion_distributions():
                 topic_id = int(parts[2])
                 segment_index = int(parts[4])
                 distribution_name = value
-                
+
                 if topic_id not in topic_segment_distributions:
                     topic_segment_distributions[topic_id] = {}
-                
+
                 topic_segment_distributions[topic_id][segment_index] = distribution_name
 
     # Get experiment topics
     topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
     topics_ids = [t.topic_id for t in topics]
-    topics_list = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics_list = (
+        db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    )
     topic_id_to_name = {t.id: t.name for t in topics_list}
 
     # Load age classes for segment identification
@@ -1926,7 +1928,7 @@ def set_opinion_distributions():
             params = json.loads(dist.parameters)
             distributions_map[dist.name] = {
                 "type": dist.distribution_type,
-                "parameters": params
+                "parameters": params,
             }
         except json.JSONDecodeError:
             print(f"Warning: Invalid JSON parameters for distribution {dist.name}")
@@ -1936,7 +1938,7 @@ def set_opinion_distributions():
         """Determine the segment for an agent based on selected dimensions."""
         if not dimensions:
             return "All Population"
-        
+
         segment_parts = []
         for dim in dimensions:
             if dim == "age":
@@ -1963,7 +1965,7 @@ def set_opinion_distributions():
                 education = agent_data.get("education_level")
                 if education:
                     segment_parts.append(str(education))
-        
+
         return " - ".join(segment_parts) if segment_parts else "All Population"
 
     # Helper function to get segment index
@@ -1972,14 +1974,14 @@ def set_opinion_distributions():
         # Generate all possible segments in the same order as the frontend
         if not dimensions:
             return 0
-        
+
         # Collect unique values for each dimension from the population
         dimension_values = {dim: set() for dim in dimensions}
-        
+
         for agent in pop_data_agents:
             if agent.get("is_page", 0):
                 continue
-            
+
             for dim in dimensions:
                 if dim == "age":
                     age = agent.get("age")
@@ -2000,23 +2002,23 @@ def set_opinion_distributions():
                     education = agent.get("education_level")
                     if education:
                         dimension_values[dim].add(str(education))
-        
+
         # Sort values for each dimension
         dimension_values = {k: sorted(list(v)) for k, v in dimension_values.items()}
-        
+
         # Generate all segments in order
         segments = [""]
         for dim in dimensions:
             values = dimension_values.get(dim, [])
             if not values:
                 continue
-            
+
             new_segments = []
             for segment in segments:
                 for value in values:
                     new_segments.append(segment + " - " + value if segment else value)
             segments = new_segments
-        
+
         # Find the index of our segment
         try:
             return segments.index(segment_name)
@@ -2029,14 +2031,14 @@ def set_opinion_distributions():
         if distribution_name not in distributions_map:
             # Default to uniform random if distribution not found
             return random.random()
-        
+
         dist_info = distributions_map[distribution_name]
         dist_type = dist_info["type"]
         params = dist_info["parameters"]
-        
+
         try:
             import numpy as np
-            
+
             if dist_type == "uniform":
                 return np.random.uniform(0, 1)
             elif dist_type == "normal":
@@ -2096,22 +2098,24 @@ def set_opinion_distributions():
         # Skip pages
         if agent.get("is_page", 0):
             continue
-        
+
         # Get agent's segment
         agent_segment = get_agent_segment(agent, selected_dimensions)
-        segment_index = get_segment_index(agent_segment, selected_dimensions, pop_data["agents"])
-        
+        segment_index = get_segment_index(
+            agent_segment, selected_dimensions, pop_data["agents"]
+        )
+
         # Get agent's interests (topics)
         interests = agent.get("interests", [])
         if isinstance(interests, list) and len(interests) > 0:
             topic_names = interests[0] if isinstance(interests[0], list) else interests
         else:
             topic_names = []
-        
+
         # Initialize or update opinions for this agent
         if "opinions" not in agent or agent["opinions"] is None:
             agent["opinions"] = {}
-        
+
         # For each topic the agent is interested in
         for topic_name in topic_names:
             # Find the topic ID
@@ -2120,14 +2124,16 @@ def set_opinion_distributions():
                 if tname == topic_name:
                     topic_id = tid
                     break
-            
+
             if topic_id is None:
                 continue
-            
+
             # Get the distribution for this topic-segment combination
             if topic_id in topic_segment_distributions:
                 if segment_index in topic_segment_distributions[topic_id]:
-                    distribution_name = topic_segment_distributions[topic_id][segment_index]
+                    distribution_name = topic_segment_distributions[topic_id][
+                        segment_index
+                    ]
                     # Sample a value from the distribution
                     opinion_value = sample_from_distribution(distribution_name)
                     agent["opinions"][topic_name] = opinion_value
@@ -2137,7 +2143,10 @@ def set_opinion_distributions():
     try:
         with open(population_file, "w") as f:
             json.dump(pop_data, f, indent=4)
-        flash(f"Successfully updated opinions for {updated_count} agent-topic pairs.", "success")
+        flash(
+            f"Successfully updated opinions for {updated_count} agent-topic pairs.",
+            "success",
+        )
     except Exception as e:
         flash(f"Error saving population file: {str(e)}", "error")
         return redirect(url_for("experiments.experiment_details", uid=idexp))
