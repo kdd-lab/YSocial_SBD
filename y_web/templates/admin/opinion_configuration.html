@@ -230,6 +230,7 @@
                         
                         <form id="opinion-form" action="/admin/set_opinion_distributions" method="POST">
                             <input type="hidden" name="idexp" value="{{ experiment.idexp }}">
+                            <input type="hidden" name="client_id" value="{{ client.id }}">
                             <input type="hidden" name="segmentation" id="segmentation-input" value="">
 
                             <!-- Segmentation Selection -->
