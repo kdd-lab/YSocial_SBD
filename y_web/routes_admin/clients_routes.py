@@ -2162,4 +2162,60 @@ def set_opinion_distributions():
         flash(f"Error saving population file: {str(e)}", "error")
         return redirect(url_for("experiments.experiment_details", uid=idexp))
 
+    # Update client configuration JSON with opinion dynamics settings
+    # Get opinion update rule from form
+    update_rule = request.form.get("update_rule", "bounded_confidence")
+
+    # Build opinion dynamics configuration based on selected rule
+    opinion_dynamics = {"model_name": update_rule, "parameters": {}}
+
+    if update_rule == "bounded_confidence":
+        # Collect bounded confidence parameters
+        bc_epsilon = request.form.get("bc_epsilon", "0.25")
+        bc_mu = request.form.get("bc_mu", "0.5")
+        bc_theta = request.form.get("bc_theta", "0")
+        bc_cold_start = request.form.get("bc_cold_start", "neutral")
+
+        opinion_dynamics["parameters"] = {
+            "epsilon": float(bc_epsilon),
+            "mu": float(bc_mu),
+            "theta": float(bc_theta),
+            "cold_start": bc_cold_start,
+        }
+    elif update_rule == "llm_evaluation":
+        # Collect LLM evaluation parameters
+        llm_cold_start = request.form.get("llm_cold_start", "neutral")
+
+        opinion_dynamics["parameters"] = {"cold_start": llm_cold_start}
+
+    # Load and update client configuration JSON file
+    client_config_file = os.path.join(
+        writable_base,
+        "y_web",
+        "experiments",
+        exp_folder,
+        f"client_{client.name}-{population.name}.json",
+    )
+
+    if os.path.exists(client_config_file):
+        try:
+            with open(client_config_file, "r") as f:
+                client_config = json.load(f)
+
+            # Add opinion_dynamics to simulation section
+            if "simulation" not in client_config:
+                client_config["simulation"] = {}
+
+            client_config["simulation"]["opinion_dynamics"] = opinion_dynamics
+
+            # Save updated configuration
+            with open(client_config_file, "w") as f:
+                json.dump(client_config, f, indent=4)
+
+            flash("Opinion dynamics configuration saved successfully.", "success")
+        except Exception as e:
+            flash(f"Error updating client configuration: {str(e)}", "warning")
+    else:
+        flash(f"Client configuration file not found: {client_config_file}", "warning")
+
     return redirect(url_for("experiments.experiment_details", uid=idexp))
