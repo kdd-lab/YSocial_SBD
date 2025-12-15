@@ -665,6 +665,178 @@
                             </div>
                         </form>
                     </div>
+
+                    <!-- Agent Archetypes and Transitions Box -->
+                    <div class="dashboard-box" id="box-agent-archetypes" style="padding: 16px; margin-top: 20px;">
+                        <h3 class="title is-5 is-thin">Agent Archetypes and Transitions</h3>
+                        <small style="font-size: 0.8em; color: #6b7280;">Default values from <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a></small>
+                        
+                        <div class="box-content" style="margin-top: 12px;">
+                            <p style="font-size: 0.85em; color: #666; margin-bottom: 12px; font-weight: 500;">Archetype Distribution:</p>
+                            <p style="font-size: 0.75em; color: #777; margin-bottom: 12px; line-height: 1.4;">
+                                Define the percentage of agents in each behavioral archetype. Values should sum to 100%.
+                            </p>
+                            
+                            <style>
+                                .archetype-grid {
+                                    display: grid;
+                                    grid-template-columns: 2fr 1fr;
+                                    gap: 12px;
+                                    margin-bottom: 20px;
+                                }
+                                .archetype-item {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 10px;
+                                }
+                                .archetype-item label {
+                                    font-size: 0.85em;
+                                    color: #374151;
+                                    font-weight: 500;
+                                    flex: 1;
+                                }
+                                .archetype-description {
+                                    font-size: 0.75em;
+                                    color: #6b7280;
+                                    grid-column: 1 / -1;
+                                    margin-top: -8px;
+                                    margin-bottom: 4px;
+                                    line-height: 1.3;
+                                }
+                                .archetype-item input {
+                                    width: 80px;
+                                    padding: 6px 8px;
+                                    text-align: center;
+                                    font-size: 0.85em;
+                                    border: 1px solid #d1d5db;
+                                    border-radius: 4px;
+                                }
+                                .archetype-item input:focus {
+                                    outline: none;
+                                    border-color: #22c55e;
+                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                }
+                                .transition-matrix {
+                                    margin-top: 16px;
+                                }
+                                .transition-table {
+                                    width: 100%;
+                                    border-collapse: collapse;
+                                    font-size: 0.8em;
+                                }
+                                .transition-table th,
+                                .transition-table td {
+                                    padding: 6px 8px;
+                                    text-align: center;
+                                    border: 1px solid #e5e7eb;
+                                }
+                                .transition-table th {
+                                    background-color: #f9fafb;
+                                    color: #374151;
+                                    font-weight: 600;
+                                    font-size: 0.75em;
+                                }
+                                .transition-table td:first-child {
+                                    background-color: #f9fafb;
+                                    font-weight: 500;
+                                    text-align: left;
+                                    color: #374151;
+                                    font-size: 0.75em;
+                                }
+                                .transition-table input {
+                                    width: 60px;
+                                    padding: 4px 6px;
+                                    text-align: center;
+                                    font-size: 0.8em;
+                                    border: 1px solid #d1d5db;
+                                    border-radius: 3px;
+                                }
+                                .transition-table input:focus {
+                                    outline: none;
+                                    border-color: #22c55e;
+                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                }
+                            </style>
+
+                            <form action="/admin/update_agent_archetypes/{{ client.id }}" method="POST">
+                                <div class="archetype-grid">
+                                    <div class="archetype-item">
+                                        <label>The Validator (Active Audience)</label>
+                                        <input type="text" name="archetype_validator" value="{{ (client.archetype_validator * 100) | round(1) if client.archetype_validator else 52.0 }}" required>
+                                        <span style="font-size: 0.85em; color: #6b7280;">%</span>
+                                    </div>
+                                    <div class="archetype-description">
+                                        ~70% of activity is validating others (reactions, sharing). Engaged in curation and occasional posting.
+                                    </div>
+
+                                    <div class="archetype-item">
+                                        <label>The Broadcaster (Content Creator)</label>
+                                        <input type="text" name="archetype_broadcaster" value="{{ (client.archetype_broadcaster * 100) | round(1) if client.archetype_broadcaster else 20.0 }}" required>
+                                        <span style="font-size: 0.85em; color: #6b7280;">%</span>
+                                    </div>
+                                    <div class="archetype-description">
+                                        ~75% of actions are posts/comments. Active creators with moderate reactions.
+                                    </div>
+
+                                    <div class="archetype-item">
+                                        <label>The Explorer (Network Growth)</label>
+                                        <input type="text" name="archetype_explorer" value="{{ (client.archetype_explorer * 100) | round(1) if client.archetype_explorer else 28.0 }}" required>
+                                        <span style="font-size: 0.85em; color: #6b7280;">%</span>
+                                    </div>
+                                    <div class="archetype-description">
+                                        Aggressively focused on expanding their social graph and discovering new connections.
+                                    </div>
+                                </div>
+
+                                <div class="transition-matrix">
+                                    <p style="font-size: 0.85em; color: #666; margin-bottom: 8px; font-weight: 500;">Transition Probabilities:</p>
+                                    <p style="font-size: 0.75em; color: #777; margin-bottom: 12px; line-height: 1.4;">
+                                        Probability (%) that an agent transitions from one archetype to another. Each row should sum to 100%.
+                                    </p>
+                                    <table class="transition-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align: left;">From / To</th>
+                                                <th>Validator</th>
+                                                <th>Broadcaster</th>
+                                                <th>Explorer</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Validator</td>
+                                                <td><input type="text" name="trans_val_val" value="{{ (client.trans_val_val * 100) | round(1) if client.trans_val_val else 85.3 }}" required></td>
+                                                <td><input type="text" name="trans_val_broad" value="{{ (client.trans_val_broad * 100) | round(1) if client.trans_val_broad else 8.1 }}" required></td>
+                                                <td><input type="text" name="trans_val_expl" value="{{ (client.trans_val_expl * 100) | round(1) if client.trans_val_expl else 6.6 }}" required></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Broadcaster</td>
+                                                <td><input type="text" name="trans_broad_val" value="{{ (client.trans_broad_val * 100) | round(1) if client.trans_broad_val else 19.5 }}" required></td>
+                                                <td><input type="text" name="trans_broad_broad" value="{{ (client.trans_broad_broad * 100) | round(1) if client.trans_broad_broad else 72.9 }}" required></td>
+                                                <td><input type="text" name="trans_broad_expl" value="{{ (client.trans_broad_expl * 100) | round(1) if client.trans_broad_expl else 7.5 }}" required></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Explorer</td>
+                                                <td><input type="text" name="trans_expl_val" value="{{ (client.trans_expl_val * 100) | round(1) if client.trans_expl_val else 36.4 }}" required></td>
+                                                <td><input type="text" name="trans_expl_broad" value="{{ (client.trans_expl_broad * 100) | round(1) if client.trans_expl_broad else 14.6 }}" required></td>
+                                                <td><input type="text" name="trans_expl_expl" value="{{ (client.trans_expl_expl * 100) | round(1) if client.trans_expl_expl else 49.0 }}" required></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div style="display: flex; gap: 12px; align-items: center; justify-content: flex-end; margin-top: 16px;">
+                                    <a class="link-tooltip" href="/admin/reset_agent_archetypes/{{ client.id }}" title="Reset to default values" style="padding: 8px;">
+                                        <i class="mdi mdi-backup-restore" style="font-size: 24px; color: #6b7280;"></i>
+                                    </a>
+                                    <button class="button is-solid primary-button" style="padding: 8px 24px;">
+                                        Update Archetypes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
                             <script>
                         document.getElementById('options').addEventListener('change', function () {
                             const selectedValue = this.value;

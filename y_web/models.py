@@ -717,6 +717,20 @@ class Client(db.Model):
     crecsys = db.Column(db.String(50))
     frecsys = db.Column(db.String(50))
     pid = db.Column(db.Integer, nullable=True, default=None)
+    # Agent archetype percentages
+    archetype_validator = db.Column(db.REAL, default=0.52)
+    archetype_broadcaster = db.Column(db.REAL, default=0.20)
+    archetype_explorer = db.Column(db.REAL, default=0.28)
+    # Transition probabilities (3x3 matrix)
+    trans_val_val = db.Column(db.REAL, default=0.853)
+    trans_val_broad = db.Column(db.REAL, default=0.081)
+    trans_val_expl = db.Column(db.REAL, default=0.066)
+    trans_broad_broad = db.Column(db.REAL, default=0.729)
+    trans_broad_val = db.Column(db.REAL, default=0.195)
+    trans_broad_expl = db.Column(db.REAL, default=0.075)
+    trans_expl_expl = db.Column(db.REAL, default=0.490)
+    trans_expl_val = db.Column(db.REAL, default=0.364)
+    trans_expl_broad = db.Column(db.REAL, default=0.146)
 
 
 class Client_Execution(db.Model):
