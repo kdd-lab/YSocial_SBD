@@ -15,6 +15,7 @@ import traceback
 
 import faker
 import networkx as nx
+import numpy as np
 from flask import (
     Blueprint,
     flash,
@@ -60,6 +61,9 @@ from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama
 from y_web.utils.path_utils import get_resource_path
 
 clientsr = Blueprint("clientsr", __name__)
+
+# Constants for opinion distribution sampling
+DISTRIBUTION_SCALE_FACTOR = 10.0  # Scale factor for gamma/lognormal distributions
 
 
 @clientsr.route("/admin/reset_client/<int:uid>")
@@ -1819,30 +1823,410 @@ def opinion_configuration(idexp):
 @clientsr.route("/admin/set_opinion_distributions", methods=["POST"])
 @login_required
 def set_opinion_distributions():
-    """Handle opinion distribution configuration submission (data gathering only)."""
+    """Handle opinion distribution configuration submission and update population JSON."""
     check_privileges(current_user.username)
 
-    # Get experiment ID from form
+    # Get experiment ID and client ID from form
     idexp = request.form.get("idexp")
+    client_id = request.form.get("client_id")
 
     if not idexp:
         flash("Experiment ID is missing.", "error")
         return redirect(url_for("experiments.settings"))
 
+    if not client_id:
+        flash("Client ID is missing.", "error")
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
+
+    # Get experiment and client details
+    exp = Exps.query.filter_by(idexp=idexp).first()
+    if not exp:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    client = Client.query.filter_by(id=client_id).first()
+    if not client or client.id_exp != int(idexp):
+        flash("Client not found or does not belong to this experiment.", "error")
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
+
+    # Get population
+    population = Population.query.filter_by(id=client.population_id).first()
+    if not population:
+        flash("Population not found.", "error")
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
+
     # Get the selected segmentation dimensions
-    segmentation = request.form.get("segmentation")  # Comma-separated list
+    segmentation = request.form.get("segmentation", "")
+    selected_dimensions = [d.strip() for d in segmentation.split(",") if d.strip()]
 
-    # Get all form data as JSON for debugging/future use
-    form_data = dict(request.form)
+    # Parse form data to extract topic-segment-distribution mappings
+    # Form fields are named: dist_topic_{topic_id}_segment_{segment_index}
+    # Each select also has data-segment-name attribute with the actual segment name
+    topic_segment_distributions = {}
 
-    # Log the configuration (for now, just flash a message)
-    flash(
-        f"Opinion distribution configuration received: {len(form_data)} fields",
-        "success",
+    for key, value in request.form.items():
+        if key.startswith("dist_topic_"):
+            # Parse the field name: dist_topic_{topic_id}_segment_{segment_index}
+            parts = key.split("_")
+            if len(parts) >= 4:
+                topic_id = int(parts[2])
+                segment_index = int(parts[4])
+                distribution_name = value
+
+                if topic_id not in topic_segment_distributions:
+                    topic_segment_distributions[topic_id] = {}
+
+                topic_segment_distributions[topic_id][segment_index] = distribution_name
+
+    # Get experiment topics
+    topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
+    topics_ids = [t.topic_id for t in topics]
+    topics_list = (
+        db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    )
+    topic_id_to_name = {t.id: t.name for t in topics_list}
+
+    # Load age classes for segment identification
+    age_classes = AgeClass.query.all()
+    age_class_map = {}
+    for ac in age_classes:
+        age_class_map[ac.name] = (ac.age_start, ac.age_end)
+
+    # Load population JSON file
+    from y_web.utils import get_db_type
+    from y_web.utils.path_utils import get_writable_path
+
+    writable_base = get_writable_path()
+    dbtype = get_db_type()
+
+    if dbtype == "sqlite":
+        exp_folder = exp.db_name.split(os.sep)[1]
+    else:
+        exp_folder = exp.db_name.removeprefix("experiments_")
+
+    population_file = os.path.join(
+        writable_base,
+        "y_web",
+        "experiments",
+        exp_folder,
+        f"{population.name.replace(' ', '')}.json",
     )
 
-    # For now, just acknowledge receipt without saving
-    # In the future, this would save to database or configuration files
+    if not os.path.exists(population_file):
+        flash(f"Population file not found: {population_file}", "error")
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
 
-    # Return success response (no actual saving yet as per requirements)
+    # Load population data
+    try:
+        with open(population_file, "r") as f:
+            pop_data = json.load(f)
+    except Exception as e:
+        flash(f"Error loading population file: {str(e)}", "error")
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
+
+    # Get all opinion distributions from database
+    opinion_distributions = OpinionDistribution.query.all()
+    distributions_map = {}
+    for dist in opinion_distributions:
+        try:
+            params = json.loads(dist.parameters)
+            distributions_map[dist.name] = {
+                "type": dist.distribution_type,
+                "parameters": params,
+            }
+        except json.JSONDecodeError as e:
+            error_msg = (
+                f"Invalid JSON parameters for distribution '{dist.name}': {str(e)}"
+            )
+            print(f"Warning: {error_msg}")
+            flash(error_msg, "warning")
+
+    # Helper function to identify segment for an agent
+    def get_agent_segment(agent_data, dimensions):
+        """Determine the segment for an agent based on selected dimensions."""
+        if not dimensions:
+            return "All Population"
+
+        segment_parts = []
+        for dim in dimensions:
+            if dim == "age":
+                age = agent_data.get("age")
+                if age:
+                    # Map age to age class
+                    age_class_found = False
+                    for class_name, (start, end) in age_class_map.items():
+                        if start <= age <= end:
+                            segment_parts.append(class_name)
+                            age_class_found = True
+                            break
+                    if not age_class_found:
+                        # Use "Other" for ages that don't fit any defined class
+                        segment_parts.append(f"Age-{age}")
+            elif dim == "political_leaning":
+                leaning = agent_data.get("leaning")
+                if leaning:
+                    segment_parts.append(str(leaning))
+            elif dim == "gender":
+                gender = agent_data.get("gender")
+                if gender:
+                    segment_parts.append(str(gender))
+            elif dim == "education_level":
+                education = agent_data.get("education_level")
+                if education:
+                    segment_parts.append(str(education))
+
+        return " - ".join(segment_parts) if segment_parts else "All Population"
+
+    # Helper function to get segment index
+    def get_segment_index(segment_name, dimensions, pop_data_agents):
+        """Get the segment index based on segment name and dimensions."""
+        # Generate all possible segments in the same order as the frontend
+        if not dimensions:
+            return 0
+
+        # Collect unique values for each dimension from the population
+        dimension_values = {dim: set() for dim in dimensions}
+
+        for agent in pop_data_agents:
+            if agent.get("is_page", 0):
+                continue
+
+            for dim in dimensions:
+                if dim == "age":
+                    age = agent.get("age")
+                    if age:
+                        for class_name, (start, end) in age_class_map.items():
+                            if start <= age <= end:
+                                dimension_values[dim].add(class_name)
+                                break
+                elif dim == "political_leaning":
+                    leaning = agent.get("leaning")
+                    if leaning:
+                        dimension_values[dim].add(str(leaning))
+                elif dim == "gender":
+                    gender = agent.get("gender")
+                    if gender:
+                        dimension_values[dim].add(str(gender))
+                elif dim == "education_level":
+                    education = agent.get("education_level")
+                    if education:
+                        dimension_values[dim].add(str(education))
+
+        # Sort values for each dimension
+        dimension_values = {k: sorted(list(v)) for k, v in dimension_values.items()}
+
+        # Generate all segments in order
+        segments = [""]
+        for dim in dimensions:
+            values = dimension_values.get(dim, [])
+            if not values:
+                continue
+
+            new_segments = []
+            for segment in segments:
+                for value in values:
+                    new_segments.append(segment + " - " + value if segment else value)
+            segments = new_segments
+
+        # Find the index of our segment
+        try:
+            return segments.index(segment_name)
+        except ValueError:
+            return 0
+
+    # Helper function to sample from a distribution
+    def sample_from_distribution(distribution_name):
+        """Sample a value from the specified distribution."""
+        if distribution_name not in distributions_map:
+            # Default to uniform random if distribution not found
+            return random.random()
+
+        dist_info = distributions_map[distribution_name]
+        dist_type = dist_info["type"]
+        params = dist_info["parameters"]
+
+        try:
+            if dist_type == "uniform":
+                return np.random.uniform(0, 1)
+            elif dist_type == "normal":
+                loc = params.get("loc", 0.5)
+                scale = params.get("scale", 0.2)
+                # Clip to [0, 1] range
+                value = np.random.normal(loc, scale)
+                return max(0.0, min(1.0, value))
+            elif dist_type == "beta":
+                a = params.get("a", 2)
+                b = params.get("b", 5)
+                return np.random.beta(a, b)
+            elif dist_type == "exponential":
+                scale = params.get("scale", 1)
+                # Scale and clip to [0, 1]
+                value = np.random.exponential(scale)
+                return max(0.0, min(1.0, value))
+            elif dist_type == "gamma":
+                shape = params.get("shape", 2)
+                scale = params.get("scale", 1)
+                # Scale and clip to [0, 1] using DISTRIBUTION_SCALE_FACTOR
+                value = np.random.gamma(shape, scale)
+                return max(0.0, min(1.0, value / DISTRIBUTION_SCALE_FACTOR))
+            elif dist_type == "lognormal":
+                mean = params.get("mean", 0)
+                sigma = params.get("sigma", 1)
+                # Scale and clip to [0, 1] using DISTRIBUTION_SCALE_FACTOR
+                value = np.random.lognormal(mean, sigma)
+                return max(0.0, min(1.0, value / DISTRIBUTION_SCALE_FACTOR))
+            elif dist_type == "bimodal":
+                peak1 = params.get("peak1", 0.2)
+                peak2 = params.get("peak2", 0.8)
+                sigma = params.get("sigma", 0.15)
+                # Randomly choose one of the two peaks
+                if np.random.random() < 0.5:
+                    value = np.random.normal(peak1, sigma)
+                else:
+                    value = np.random.normal(peak2, sigma)
+                return max(0.0, min(1.0, value))
+            elif dist_type == "polarized":
+                # Sample from extremes (0 or 1 with some noise)
+                if np.random.random() < 0.5:
+                    value = np.random.normal(0.0, 0.1)
+                else:
+                    value = np.random.normal(1.0, 0.1)
+                return max(0.0, min(1.0, value))
+            else:
+                # Default to uniform if type not recognized
+                return np.random.uniform(0, 1)
+        except Exception as e:
+            error_msg = (
+                f"Error sampling from distribution '{distribution_name}': {str(e)}"
+            )
+            print(f"Warning: {error_msg}")
+            flash(error_msg, "warning")
+            return random.random()
+
+    # Process each agent in the population
+    updated_count = 0
+    for agent in pop_data.get("agents", []):
+        # Skip pages
+        if agent.get("is_page", 0):
+            continue
+
+        # Get agent's segment
+        agent_segment = get_agent_segment(agent, selected_dimensions)
+        segment_index = get_segment_index(
+            agent_segment, selected_dimensions, pop_data["agents"]
+        )
+
+        # Get agent's interests (topics)
+        interests = agent.get("interests", [])
+        if isinstance(interests, list) and len(interests) > 0:
+            topic_names = interests[0] if isinstance(interests[0], list) else interests
+        else:
+            topic_names = []
+
+        # Initialize or update opinions for this agent
+        if "opinions" not in agent or agent["opinions"] is None:
+            agent["opinions"] = {}
+
+        # For each topic the agent is interested in
+        for topic_name in topic_names:
+            # Find the topic ID
+            topic_id = None
+            for tid, tname in topic_id_to_name.items():
+                if tname == topic_name:
+                    topic_id = tid
+                    break
+
+            if topic_id is None:
+                continue
+
+            # Get the distribution for this topic-segment combination
+            if topic_id in topic_segment_distributions:
+                if segment_index in topic_segment_distributions[topic_id]:
+                    distribution_name = topic_segment_distributions[topic_id][
+                        segment_index
+                    ]
+                    # Sample a value from the distribution
+                    opinion_value = sample_from_distribution(distribution_name)
+                    agent["opinions"][topic_name] = opinion_value
+                    updated_count += 1
+
+    # Save the updated population JSON file
+    try:
+        with open(population_file, "w") as f:
+            json.dump(pop_data, f, indent=4)
+        flash(
+            f"Successfully updated opinions for {updated_count} agent-topic pairs.",
+            "success",
+        )
+    except Exception as e:
+        flash(f"Error saving population file: {str(e)}", "error")
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
+
+    # Update client configuration JSON with opinion dynamics settings
+    # Get opinion update rule from form
+    update_rule = request.form.get("update_rule", "bounded_confidence")
+
+    # Build opinion dynamics configuration based on selected rule
+    opinion_dynamics = {"model_name": update_rule, "parameters": {}}
+
+    if update_rule == "bounded_confidence":
+        # Collect bounded confidence parameters
+        bc_epsilon = request.form.get("bc_epsilon", "0.25")
+        bc_mu = request.form.get("bc_mu", "0.5")
+        bc_theta = request.form.get("bc_theta", "0")
+        bc_cold_start = request.form.get("bc_cold_start", "neutral")
+
+        opinion_dynamics["parameters"] = {
+            "epsilon": float(bc_epsilon),
+            "mu": float(bc_mu),
+            "theta": float(bc_theta),
+            "cold_start": bc_cold_start,
+        }
+    elif update_rule == "llm_evaluation":
+        # Collect LLM evaluation parameters
+        llm_cold_start = request.form.get("llm_cold_start", "neutral")
+
+        opinion_dynamics["parameters"] = {"cold_start": llm_cold_start}
+
+    # Add opinion groups from database
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+    opinion_groups_dict = {}
+    for group in opinion_groups:
+        opinion_groups_dict[group.name.rstrip()] = [
+            group.lower_bound,
+            group.upper_bound,
+        ]
+
+    opinion_dynamics["opinion_groups"] = opinion_groups_dict
+
+    # Load and update client configuration JSON file
+    client_config_file = os.path.join(
+        writable_base,
+        "y_web",
+        "experiments",
+        exp_folder,
+        f"client_{client.name}-{population.name}.json",
+    )
+
+    if os.path.exists(client_config_file):
+        try:
+            with open(client_config_file, "r") as f:
+                client_config = json.load(f)
+
+            # Add opinion_dynamics to simulation section
+            if "simulation" not in client_config:
+                client_config["simulation"] = {}
+
+            client_config["simulation"]["opinion_dynamics"] = opinion_dynamics
+
+            # Save updated configuration
+            with open(client_config_file, "w") as f:
+                json.dump(client_config, f, indent=4)
+
+            flash("Opinion dynamics configuration saved successfully.", "success")
+        except Exception as e:
+            flash(f"Error updating client configuration: {str(e)}", "warning")
+    else:
+        flash(f"Client configuration file not found: {client_config_file}", "warning")
+
     return redirect(url_for("experiments.experiment_details", uid=idexp))
