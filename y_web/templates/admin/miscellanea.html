@@ -60,6 +60,7 @@
                 {% endif %}
                 <button class="misc-tab" onclick="switchMiscTab('demographics')">Demographics & Attributes</button>
                 <button class="misc-tab" onclick="switchMiscTab('content-behavior')">Content & Behavior</button>
+                <button class="misc-tab" onclick="switchMiscTab('opinion-dynamics')">Opinion Dynamics</button>
             </div>
 
             <!-- Demographics & Attributes Tab (merged Agent Attributes + Demographics) -->
@@ -2535,6 +2536,476 @@
             </div>
             <!-- End LLM Management Tab -->
             {% endif %}
+
+            <!-- Opinion Dynamics Tab -->
+            <div id="tab-opinion-dynamics" class="misc-tab-content">
+                <div class="misc-section-description">
+                    <strong>Opinion Dynamics:</strong> Configure opinion groups and distributions for opinion dynamics simulations. Define opinion ranges and statistical distributions to model agent opinions.
+                </div>
+
+                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <!-- Opinion Groups Box -->
+                    <div class="misc-compact-box" id="box-opinion-groups">
+                        <h3>Opinion Groups</h3>
+
+                        <div class="box-content">
+                            <div id="opinion_groups_table"></div>
+
+                            <script src="{{ url_for('static', filename='assets/vendor/js/gridjs.umd.js') }}"></script>
+                            <script>
+    const tableDivOpinionGroups = document.getElementById('opinion_groups_table');
+
+    const updateUrlOpinionGroups = (prev, query) => {
+        return prev + (prev.indexOf('?') >= 0 ? '&' : '?') + new URLSearchParams(query).toString();
+    };
+
+    const editableCellAttributesOpinionGroups = (data, row, col) => {
+        if (row) {
+            const columnId = col.id;
+            return {
+                contentEditable: 'true',
+                'data-element-id': row.cells[0].data,
+                'data-column-id': columnId
+            };
+        } else {
+            return {};
+        }
+    };
+
+    const gridOpinionGroups = new gridjs.Grid({
+        columns: [
+            { id: 'id', hidden: true },
+            {
+                id: 'name',
+                name: 'Group Name',
+                attributes: editableCellAttributesOpinionGroups
+            },
+            {
+                id: 'lower_bound',
+                name: 'Lower Bound',
+                attributes: editableCellAttributesOpinionGroups
+            },
+            {
+                id: 'upper_bound',
+                name: 'Upper Bound',
+                attributes: editableCellAttributesOpinionGroups
+            },
+            {
+                name: 'Actions',
+                attributes: () => ({ style: 'text-align: center;' }),
+                formatter: (cell, row) => {
+                    return gridjs.h(
+                        'div',
+                        { style: 'display: flex; justify-content: center;' },
+                        gridjs.h(
+                            'button',
+                            {
+                                className: 'btn btn-sm btn-danger',
+                                onClick: () => {
+                                    const id = row.cells[0].data;
+                                    fetch(`/admin/delete_opinion_group/${id}`, {
+                                        method: 'DELETE',
+                                    }).then(res => {
+                                        if (res.ok) {
+                                            gridOpinionGroups.forceRender();
+                                        } else {
+                                            alert("Failed to delete opinion group.");
+                                        }
+                                    });
+                                }
+                            },
+                            'Delete'
+                        )
+                    );
+                }
+            }
+        ],
+        server: {
+            url: '/admin/opinion_groups_data',
+            then: results => results.data,
+            total: results => results.total,
+        },
+        search: {
+            enabled: true,
+            server: {
+                url: (prev, search) => updateUrlOpinionGroups(prev, { search }),
+            },
+        },
+        sort: {
+            enabled: true,
+            multiColumn: true,
+            server: {
+                url: (prev, columns) => {
+                    const columnIds = ['id', 'name', 'lower_bound', 'upper_bound'];
+                    const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
+                    return updateUrlOpinionGroups(prev, { sort });
+                },
+            },
+        },
+        pagination: {
+            limit: 5,
+            enabled: true,
+            server: {
+                url: (prev, page, limit) => updateUrlOpinionGroups(prev, { start: page * limit, length: limit }),
+            },
+        },
+    });
+
+    gridOpinionGroups.render(tableDivOpinionGroups);
+
+    // Inline editing
+    let savedValueOpinionGroups;
+
+    tableDivOpinionGroups.addEventListener('focusin', ev => {
+        if (ev.target.tagName === 'TD') {
+            savedValueOpinionGroups = ev.target.textContent;
+        }
+    });
+
+    tableDivOpinionGroups.addEventListener('focusout', ev => {
+        if (ev.target.tagName === 'TD' && ev.target.dataset.elementId) {
+            if (savedValueOpinionGroups !== ev.target.textContent) {
+                fetch('/admin/opinion_groups_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: ev.target.dataset.elementId,
+                        [ev.target.dataset.columnId]: ev.target.textContent
+                    }),
+                });
+            }
+            savedValueOpinionGroups = undefined;
+        }
+    });
+
+    tableDivOpinionGroups.addEventListener('keydown', ev => {
+        if (ev.target.tagName === 'TD') {
+            if (ev.key === 'Escape') {
+                ev.target.textContent = savedValueOpinionGroups;
+                ev.target.blur();
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                ev.target.blur();
+            }
+        }
+    });
+</script>
+                        </div>
+
+                        <div class="box-content" style="margin-top: 30px;">
+                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 10px;">New Opinion Group</h4>
+                            <form action="/admin/create_opinion_group" method="POST">
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">Name</span>
+                                        <span class="right"><input type="text" name="name" class="input" required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Lower Bound</span>
+                                        <span class="right"><input type="number" name="lower_bound" class="input" min="0" max="1" step="0.01" value="0" required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Upper Bound</span>
+                                        <span class="right"><input type="number" name="upper_bound" class="input" min="0" max="1" step="0.01" value="1" required></span>
+                                    </div>
+                                </div>
+                                <div class="button-wrap">
+                                    <button class="button is-solid primary-button is-fullwidth">
+                                        Create
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Opinion Distributions Box -->
+                    <div class="misc-compact-box" id="box-opinion-distributions">
+                        <h3>Opinion Distributions</h3>
+
+                        <div class="box-content">
+                            <div id="opinion_distributions_table"></div>
+
+                            <script src="{{ url_for('static', filename='assets/vendor/js/gridjs.umd.js') }}"></script>
+                            <script>
+    const tableDivOpinionDistributions = document.getElementById('opinion_distributions_table');
+
+    const updateUrlOpinionDistributions = (prev, query) => {
+        return prev + (prev.indexOf('?') >= 0 ? '&' : '?') + new URLSearchParams(query).toString();
+    };
+
+    const editableCellAttributesOpinionDistributions = (data, row, col) => {
+        if (row && col.id === 'name') {
+            return {
+                contentEditable: 'true',
+                'data-element-id': row.cells[0].data,
+                'data-column-id': 'name'
+            };
+        } else {
+            return {};
+        }
+    };
+
+    const gridOpinionDistributions = new gridjs.Grid({
+        columns: [
+            { id: 'id', hidden: true },
+            {
+                id: 'name',
+                name: 'Name',
+                attributes: editableCellAttributesOpinionDistributions
+            },
+            {
+                id: 'distribution_type',
+                name: 'Distribution Type',
+                width: '20%'
+            },
+            {
+                id: 'parameters',
+                name: 'Parameters',
+                width: '40%',
+                formatter: (cell) => {
+                    try {
+                        const params = JSON.parse(cell);
+                        return gridjs.html(`<small><code>${JSON.stringify(params, null, 0)}</code></small>`);
+                    } catch {
+                        return cell;
+                    }
+                }
+            },
+            {
+                name: 'Actions',
+                attributes: () => ({ style: 'text-align: center;' }),
+                formatter: (cell, row) => {
+                    return gridjs.h(
+                        'div',
+                        { style: 'display: flex; justify-content: center;' },
+                        gridjs.h(
+                            'button',
+                            {
+                                className: 'btn btn-sm btn-danger',
+                                onClick: () => {
+                                    const id = row.cells[0].data;
+                                    fetch(`/admin/delete_opinion_distribution/${id}`, {
+                                        method: 'DELETE',
+                                    }).then(res => {
+                                        if (res.ok) {
+                                            gridOpinionDistributions.forceRender();
+                                        } else {
+                                            alert("Failed to delete opinion distribution.");
+                                        }
+                                    });
+                                }
+                            },
+                            'Delete'
+                        )
+                    );
+                }
+            }
+        ],
+        server: {
+            url: '/admin/opinion_distributions_data',
+            then: results => results.data,
+            total: results => results.total,
+        },
+        search: {
+            enabled: true,
+            server: {
+                url: (prev, search) => updateUrlOpinionDistributions(prev, { search }),
+            },
+        },
+        sort: {
+            enabled: true,
+            multiColumn: true,
+            server: {
+                url: (prev, columns) => {
+                    const columnIds = ['id', 'name', 'distribution_type', 'parameters'];
+                    const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
+                    return updateUrlOpinionDistributions(prev, { sort });
+                },
+            },
+        },
+        pagination: {
+            limit: 5,
+            enabled: true,
+            server: {
+                url: (prev, page, limit) => updateUrlOpinionDistributions(prev, { start: page * limit, length: limit }),
+            },
+        },
+    });
+
+    gridOpinionDistributions.render(tableDivOpinionDistributions);
+
+    // Inline editing for name only
+    let savedValueOpinionDistributions;
+
+    tableDivOpinionDistributions.addEventListener('focusin', ev => {
+        if (ev.target.tagName === 'TD') {
+            savedValueOpinionDistributions = ev.target.textContent;
+        }
+    });
+
+    tableDivOpinionDistributions.addEventListener('focusout', ev => {
+        if (ev.target.tagName === 'TD' && ev.target.dataset.elementId) {
+            if (savedValueOpinionDistributions !== ev.target.textContent) {
+                fetch('/admin/opinion_distributions_data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: ev.target.dataset.elementId,
+                        [ev.target.dataset.columnId]: ev.target.textContent
+                    }),
+                });
+            }
+            savedValueOpinionDistributions = undefined;
+        }
+    });
+
+    tableDivOpinionDistributions.addEventListener('keydown', ev => {
+        if (ev.target.tagName === 'TD') {
+            if (ev.key === 'Escape') {
+                ev.target.textContent = savedValueOpinionDistributions;
+                ev.target.blur();
+            } else if (ev.key === 'Enter') {
+                ev.preventDefault();
+                ev.target.blur();
+            }
+        }
+    });
+</script>
+                        </div>
+
+                        <div class="box-content" style="margin-top: 30px;">
+                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 10px;">New Opinion Distribution</h4>
+                            <form action="/admin/create_opinion_distribution" method="POST" id="opinion-dist-form">
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">Name</span>
+                                        <span class="right"><input type="text" name="name" id="dist-name" class="input" required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Distribution Type</span>
+                                        <span class="right">
+                                            <select name="distribution_type" id="dist-type" class="input" onchange="updateDistributionParams()" required>
+                                                <option value="">Select...</option>
+                                                <option value="uniform">Uniform</option>
+                                                <option value="beta">Beta</option>
+                                                <option value="normal">Normal</option>
+                                                <option value="exponential">Exponential</option>
+                                                <option value="gamma">Gamma</option>
+                                                <option value="binomial">Binomial</option>
+                                                <option value="poisson">Poisson</option>
+                                                <option value="lognormal">Log-Normal</option>
+                                            </select>
+                                        </span>
+                                    </div>
+                                    <div id="dist-params-container" style="display: none;">
+                                        <!-- Dynamic parameters will be inserted here -->
+                                    </div>
+                                </div>
+                                <input type="hidden" name="parameters" id="dist-params-json">
+                                <div class="button-wrap">
+                                    <button type="submit" class="button is-solid primary-button is-fullwidth">
+                                        Create
+                                    </button>
+                                </div>
+                            </form>
+
+                            <script>
+                                const distributionParams = {
+                                    'uniform': [
+                                        { name: 'low', label: 'Low', type: 'number', step: '0.01', default: '0' },
+                                        { name: 'high', label: 'High', type: 'number', step: '0.01', default: '1' }
+                                    ],
+                                    'beta': [
+                                        { name: 'a', label: 'Alpha (a)', type: 'number', step: '0.1', default: '2' },
+                                        { name: 'b', label: 'Beta (b)', type: 'number', step: '0.1', default: '5' }
+                                    ],
+                                    'normal': [
+                                        { name: 'loc', label: 'Mean (μ)', type: 'number', step: '0.01', default: '0.5' },
+                                        { name: 'scale', label: 'Std Dev (σ)', type: 'number', step: '0.01', default: '0.1' }
+                                    ],
+                                    'exponential': [
+                                        { name: 'scale', label: 'Scale (1/λ)', type: 'number', step: '0.01', default: '1' }
+                                    ],
+                                    'gamma': [
+                                        { name: 'shape', label: 'Shape (k)', type: 'number', step: '0.1', default: '2' },
+                                        { name: 'scale', label: 'Scale (θ)', type: 'number', step: '0.01', default: '1' }
+                                    ],
+                                    'binomial': [
+                                        { name: 'n', label: 'Trials (n)', type: 'number', step: '1', default: '10' },
+                                        { name: 'p', label: 'Probability (p)', type: 'number', step: '0.01', default: '0.5', min: '0', max: '1' }
+                                    ],
+                                    'poisson': [
+                                        { name: 'lam', label: 'Lambda (λ)', type: 'number', step: '0.1', default: '3' }
+                                    ],
+                                    'lognormal': [
+                                        { name: 'mean', label: 'Mean', type: 'number', step: '0.01', default: '0' },
+                                        { name: 'sigma', label: 'Sigma (σ)', type: 'number', step: '0.01', default: '1' }
+                                    ]
+                                };
+
+                                function updateDistributionParams() {
+                                    const distType = document.getElementById('dist-type').value;
+                                    const container = document.getElementById('dist-params-container');
+                                    
+                                    if (!distType || !distributionParams[distType]) {
+                                        container.style.display = 'none';
+                                        container.innerHTML = '';
+                                        return;
+                                    }
+                                    
+                                    container.style.display = 'block';
+                                    container.innerHTML = '';
+                                    
+                                    const params = distributionParams[distType];
+                                    params.forEach(param => {
+                                        const line = document.createElement('div');
+                                        line.className = 'box-line';
+                                        line.innerHTML = `
+                                            <span class="left">${param.label}</span>
+                                            <span class="right">
+                                                <input type="${param.type}" 
+                                                       class="input dist-param" 
+                                                       data-param-name="${param.name}" 
+                                                       step="${param.step}" 
+                                                       value="${param.default}"
+                                                       ${param.min !== undefined ? 'min="' + param.min + '"' : ''}
+                                                       ${param.max !== undefined ? 'max="' + param.max + '"' : ''}
+                                                       required>
+                                            </span>
+                                        `;
+                                        container.appendChild(line);
+                                    });
+                                }
+
+                                document.getElementById('opinion-dist-form').addEventListener('submit', function(e) {
+                                    const distType = document.getElementById('dist-type').value;
+                                    const params = {};
+                                    let hasError = false;
+                                    
+                                    document.querySelectorAll('.dist-param').forEach(input => {
+                                        const paramName = input.dataset.paramName;
+                                        const value = parseFloat(input.value);
+                                        if (isNaN(value)) {
+                                            alert(`Invalid value for ${paramName}: must be a valid number`);
+                                            hasError = true;
+                                            return;
+                                        }
+                                        params[paramName] = value;
+                                    });
+                                    
+                                    if (hasError) {
+                                        e.preventDefault();
+                                        return false;
+                                    }
+                                    
+                                    document.getElementById('dist-params-json').value = JSON.stringify(params);
+                                });
+                            </script>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- End Opinion Dynamics Tab -->
 
             <script>
                 function switchMiscTab(tabName) {

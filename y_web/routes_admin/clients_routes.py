@@ -38,6 +38,8 @@ from y_web.models import (
     Exp_Topic,
     Exps,
     Follow_Recsys,
+    OpinionDistribution,
+    OpinionGroup,
     Page,
     Page_Population,
     Population,
@@ -1746,15 +1748,45 @@ def opinion_configuration(idexp):
     segment_values = {k: sorted(list(v)) for k, v in segment_values.items()}
     print(f"Extracted segment values: {segment_values}")
 
-    # Define available distribution types
-    distributions = [
-        "Uniform",
-        "Normal (μ=0.5, σ=0.2)",
-        "Bimodal (peaks at 0.2 and 0.8)",
-        "Left-skewed (μ=0.3)",
-        "Right-skewed (μ=0.7)",
-        "Polarized (0 or 1)",
-    ]
+    # Fetch available distribution types from the OpinionDistribution table
+    opinion_distributions = OpinionDistribution.query.all()
+    
+    # Create a list of distribution dictionaries with name, type, and parameters
+    distributions = []
+    for dist in opinion_distributions:
+        try:
+            params = json.loads(dist.parameters)
+            distributions.append({
+                'id': dist.id,
+                'name': dist.name,
+                'type': dist.distribution_type,
+                'parameters': params
+            })
+        except json.JSONDecodeError:
+            print(f"Warning: Invalid JSON parameters for distribution {dist.name}")
+            continue
+    
+    # Extract just the names for the dropdown
+    distribution_names = [d['name'] for d in distributions]
+
+    # Fetch opinion groups from the database
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+    
+    # Create bins and labels from opinion groups
+    # If no groups exist, use default bins
+    if opinion_groups:
+        # Create bins from group boundaries
+        bins = []
+        labels = []
+        for group in opinion_groups:
+            bins.append(group.lower_bound)
+            labels.append(group.name)
+        # Add the upper bound of the last group
+        bins.append(opinion_groups[-1].upper_bound)
+    else:
+        # Default to 5 bins if no groups defined
+        bins = [0.0, 0.25, 0.5, 0.75, 1.0]
+        labels = ['0.0', '0.25', '0.5', '0.75']
 
     # Define available segmentation dimensions
     segmentation_options = [
@@ -1770,6 +1802,10 @@ def opinion_configuration(idexp):
         client=client,
         topics=topics,
         distributions=distributions,
+        distribution_names=distribution_names,
+        opinion_groups=opinion_groups,
+        bins=bins,
+        labels=labels,
         segmentation_options=segmentation_options,
         segment_values=segment_values,
         llm_agents_enabled=(

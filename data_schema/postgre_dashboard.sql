@@ -728,3 +728,40 @@ CREATE TABLE watchdog_settings (
     run_interval_minutes INTEGER NOT NULL DEFAULT 15,
     last_run             TIMESTAMP DEFAULT NULL
 );
+
+-- -----------------------------
+-- Opinion Dynamics
+-- -----------------------------
+CREATE TABLE opinion_groups (
+    id          SERIAL PRIMARY KEY,
+    name        VARCHAR(100) NOT NULL,
+    lower_bound DOUBLE PRECISION NOT NULL,
+    upper_bound DOUBLE PRECISION NOT NULL
+);
+
+CREATE TABLE opinion_distributions (
+    id                SERIAL PRIMARY KEY,
+    name              VARCHAR(100) NOT NULL,
+    distribution_type VARCHAR(50) NOT NULL,
+    parameters        TEXT NOT NULL
+);
+
+-- -----------------------------
+-- Populate Opinion Groups with defaults
+-- -----------------------------
+INSERT INTO opinion_groups (name, lower_bound, upper_bound) VALUES
+    ('Strongly against', 0.0, 0.2),
+    ('Against', 0.2, 0.4),
+    ('Neutral', 0.4, 0.6),
+    ('In favor', 0.6, 0.8),
+    ('Strongly in favor', 0.8, 1.0);
+
+-- -----------------------------
+-- Populate Opinion Distributions with defaults
+-- -----------------------------
+INSERT INTO opinion_distributions (name, distribution_type, parameters) VALUES
+    ('Uniform', 'uniform', '{"low": 0, "high": 1}'),
+    ('Normal (μ=0.5, σ=0.25)', 'normal', '{"loc": 0.5, "scale": 0.25}'),
+    ('U-shaped', 'beta', '{"a": 0.5, "b": 0.5}'),
+    ('Left-skewed (μ=0.3)', 'beta', '{"a": 0.5, "b": 2}'),
+    ('Right-skewed (μ=0.7)', 'beta', '{"a": 2, "b": 0.5}');
