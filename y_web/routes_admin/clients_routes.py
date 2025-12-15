@@ -359,6 +359,20 @@ def create_client():
     crecsys = request.form.get("recsys_type")
     frecsys = request.form.get("frecsys_type")
 
+    # Get agent archetype values (optional, with defaults)
+    archetype_validator = float(request.form.get("archetype_validator", "52")) / 100.0
+    archetype_broadcaster = float(request.form.get("archetype_broadcaster", "20")) / 100.0
+    archetype_explorer = float(request.form.get("archetype_explorer", "28")) / 100.0
+    trans_val_val = float(request.form.get("trans_val_val", "85.3")) / 100.0
+    trans_val_broad = float(request.form.get("trans_val_broad", "8.1")) / 100.0
+    trans_val_expl = float(request.form.get("trans_val_expl", "6.6")) / 100.0
+    trans_broad_broad = float(request.form.get("trans_broad_broad", "72.9")) / 100.0
+    trans_broad_val = float(request.form.get("trans_broad_val", "19.5")) / 100.0
+    trans_broad_expl = float(request.form.get("trans_broad_expl", "7.5")) / 100.0
+    trans_expl_expl = float(request.form.get("trans_expl_expl", "49.0")) / 100.0
+    trans_expl_val = float(request.form.get("trans_expl_val", "36.4")) / 100.0
+    trans_expl_broad = float(request.form.get("trans_expl_broad", "14.6")) / 100.0
+
     # Validate simulation parameters
     errors = []
     # Validate numeric fields
@@ -511,6 +525,18 @@ def create_client():
         crecsys=crecsys,
         frecsys=frecsys,
         status=0,
+        archetype_validator=archetype_validator,
+        archetype_broadcaster=archetype_broadcaster,
+        archetype_explorer=archetype_explorer,
+        trans_val_val=trans_val_val,
+        trans_val_broad=trans_val_broad,
+        trans_val_expl=trans_val_expl,
+        trans_broad_broad=trans_broad_broad,
+        trans_broad_val=trans_broad_val,
+        trans_broad_expl=trans_broad_expl,
+        trans_expl_expl=trans_expl_expl,
+        trans_expl_val=trans_expl_val,
+        trans_expl_broad=trans_expl_broad,
     )
 
     db.session.add(client)

@@ -970,6 +970,155 @@
                                     </details>
                                     </div><!-- End section-activity-rates -->
 
+                                    <div id="section-agent-archetypes" class="tutorial-section">
+                                    <div class="form-section-header">Agent Archetypes and Transitions <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div class="form-section-description">
+                                        Configure the behavioral archetypes and transition probabilities for agents. Default values are based on
+                                        <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a>.
+                                    </div>
+
+                                    <details style="margin-bottom: 20px;">
+                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
+                                            <span>Click to expand/collapse archetype configuration</span>
+                                        </summary>
+                                        <div style="padding: 15px 0; margin-top: 10px;">
+
+                                            <style>
+                                                .archetype-boxes {
+                                                    display: grid;
+                                                    grid-template-columns: repeat(3, 1fr);
+                                                    gap: 12px;
+                                                    margin-bottom: 20px;
+                                                }
+                                                .archetype-box {
+                                                    background: #f9fafb;
+                                                    border: 1px solid #e5e7eb;
+                                                    border-radius: 6px;
+                                                    padding: 12px;
+                                                }
+                                                .archetype-box h4 {
+                                                    font-size: 0.85em;
+                                                    font-weight: 600;
+                                                    color: #374151;
+                                                    margin-bottom: 6px;
+                                                }
+                                                .archetype-box p {
+                                                    font-size: 0.75em;
+                                                    color: #6b7280;
+                                                    line-height: 1.3;
+                                                    margin-bottom: 8px;
+                                                }
+                                                .archetype-box input {
+                                                    width: 70px;
+                                                    padding: 4px 8px;
+                                                    text-align: center;
+                                                    font-size: 0.85em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 4px;
+                                                }
+                                                .archetype-box input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                                .transition-table-compact {
+                                                    width: 100%;
+                                                    border-collapse: collapse;
+                                                    font-size: 0.75em;
+                                                    margin-top: 16px;
+                                                }
+                                                .transition-table-compact th,
+                                                .transition-table-compact td {
+                                                    padding: 4px 6px;
+                                                    text-align: center;
+                                                    border: 1px solid #e5e7eb;
+                                                }
+                                                .transition-table-compact th {
+                                                    background-color: #f9fafb;
+                                                    color: #374151;
+                                                    font-weight: 600;
+                                                    font-size: 0.7em;
+                                                }
+                                                .transition-table-compact td:first-child {
+                                                    background-color: #f9fafb;
+                                                    font-weight: 500;
+                                                    text-align: left;
+                                                    color: #374151;
+                                                    font-size: 0.7em;
+                                                }
+                                                .transition-table-compact input {
+                                                    width: 50px;
+                                                    padding: 3px 4px;
+                                                    text-align: center;
+                                                    font-size: 0.75em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 3px;
+                                                }
+                                                .transition-table-compact input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                            </style>
+
+                                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Archetype Distribution (%)</h4>
+                                            <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Define the percentage of agents in each behavioral archetype (must sum to 100%).</p>
+                                            
+                                            <div class="archetype-boxes">
+                                                <div class="archetype-box">
+                                                    <h4>The Validator</h4>
+                                                    <p>Active Audience - ~70% of activity is validating others</p>
+                                                    <input type="number" name="archetype_validator" value="52" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                                <div class="archetype-box">
+                                                    <h4>The Broadcaster</h4>
+                                                    <p>Content Creator - ~75% of actions are posts/comments</p>
+                                                    <input type="number" name="archetype_broadcaster" value="20" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                                <div class="archetype-box">
+                                                    <h4>The Explorer</h4>
+                                                    <p>Network Growth - Focused on expanding social graph</p>
+                                                    <input type="number" name="archetype_explorer" value="28" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                            </div>
+
+                                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px; margin-top: 16px;">Transition Probabilities (%)</h4>
+                                            <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Probability that an agent transitions from one archetype to another (each row must sum to 100%).</p>
+                                            
+                                            <table class="transition-table-compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align: left;">From / To</th>
+                                                        <th>Validator</th>
+                                                        <th>Broadcaster</th>
+                                                        <th>Explorer</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>Validator</td>
+                                                        <td><input type="number" name="trans_val_val" value="85.3" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" name="trans_val_broad" value="8.1" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" name="trans_val_expl" value="6.6" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Broadcaster</td>
+                                                        <td><input type="number" name="trans_broad_val" value="19.5" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" name="trans_broad_broad" value="72.9" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" name="trans_broad_expl" value="7.5" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Explorer</td>
+                                                        <td><input type="number" name="trans_expl_val" value="36.4" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" name="trans_expl_broad" value="14.6" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" name="trans_expl_expl" value="49.0" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                    </div><!-- End section-agent-archetypes -->
+
                                 </div>
                                 <div class="button-wrap">
                                     <button id="create_client_button" class="button is-solid primary-button is-fullwidth" disabled>
@@ -1049,6 +1198,15 @@
                                 <b>Hourly Activity Rates (Optional)</b><br>
                                 Customize agent activity patterns by hour.<br><br>
                                 Default values are based on real-world Bluesky data. Leave empty to use defaults.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Agent Archetypes and Transitions (Optional)</b><br>
+                                Configure behavioral archetypes and transition probabilities for agents.<br><br>
+                                <em>The Validator:</em> Active Audience (~70% validation activity)<br>
+                                <em>The Broadcaster:</em> Content Creator (~75% posts/comments)<br>
+                                <em>The Explorer:</em> Network Growth (focused on connections)<br><br>
+                                Default values (52-20-28) are based on real-world Bluesky data.
                             </p>
 
                         </div>
