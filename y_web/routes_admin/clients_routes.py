@@ -1750,28 +1750,30 @@ def opinion_configuration(idexp):
 
     # Fetch available distribution types from the OpinionDistribution table
     opinion_distributions = OpinionDistribution.query.all()
-    
+
     # Create a list of distribution dictionaries with name, type, and parameters
     distributions = []
     for dist in opinion_distributions:
         try:
             params = json.loads(dist.parameters)
-            distributions.append({
-                'id': dist.id,
-                'name': dist.name,
-                'type': dist.distribution_type,
-                'parameters': params
-            })
+            distributions.append(
+                {
+                    "id": dist.id,
+                    "name": dist.name,
+                    "type": dist.distribution_type,
+                    "parameters": params,
+                }
+            )
         except json.JSONDecodeError:
             print(f"Warning: Invalid JSON parameters for distribution {dist.name}")
             continue
-    
+
     # Extract just the names for the dropdown
-    distribution_names = [d['name'] for d in distributions]
+    distribution_names = [d["name"] for d in distributions]
 
     # Fetch opinion groups from the database
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-    
+
     # Create bins and labels from opinion groups
     # If no groups exist, use default bins
     if opinion_groups:
@@ -1786,7 +1788,7 @@ def opinion_configuration(idexp):
     else:
         # Default to 5 bins if no groups defined
         bins = [0.0, 0.25, 0.5, 0.75, 1.0]
-        labels = ['0.0', '0.25', '0.5', '0.75']
+        labels = ["0.0", "0.25", "0.5", "0.75"]
 
     # Define available segmentation dimensions
     segmentation_options = [

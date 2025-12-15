@@ -86,36 +86,44 @@ def migrate_sqlite(db_path):
         # Populate default distributions if table was just created
         if distributions_created:
             default_distributions = [
-                ('Uniform', 'uniform', json.dumps({'low': 0, 'high': 1})),
-                ('Normal (μ=0.5, σ=0.25)', 'normal', json.dumps({'loc': 0.5, 'scale': 0.25})),
-                ('U-shaped', 'beta', json.dumps({'a': 0.5, 'b': 0.5})),
-                ('Left-skewed (μ=0.3)', 'beta', json.dumps({'a': 0.5, 'b': 2})),
-                ('Right-skewed (μ=0.7)', 'beta', json.dumps({'a': 2, 'b': 0.5})),
+                ("Uniform", "uniform", json.dumps({"low": 0, "high": 1})),
+                (
+                    "Normal (μ=0.5, σ=0.25)",
+                    "normal",
+                    json.dumps({"loc": 0.5, "scale": 0.25}),
+                ),
+                ("U-shaped", "beta", json.dumps({"a": 0.5, "b": 0.5})),
+                ("Left-skewed (μ=0.3)", "beta", json.dumps({"a": 0.5, "b": 2})),
+                ("Right-skewed (μ=0.7)", "beta", json.dumps({"a": 2, "b": 0.5})),
             ]
-            
+
             for name, dist_type, params in default_distributions:
                 cursor.execute(
                     "INSERT INTO opinion_distributions (name, distribution_type, parameters) VALUES (?, ?, ?)",
-                    (name, dist_type, params)
+                    (name, dist_type, params),
                 )
-            print(f"✓ Populated {len(default_distributions)} default distributions in SQLite database")
+            print(
+                f"✓ Populated {len(default_distributions)} default distributions in SQLite database"
+            )
 
         # Populate default opinion groups if tables were just created
         if not groups_exists:
             default_groups = [
-                ('Strongly against', 0.0, 0.2),
-                ('Against', 0.2, 0.4),
-                ('Neutral', 0.4, 0.6),
-                ('In favor', 0.6, 0.8),
-                ('Strongly in favor', 0.8, 1.0),
+                ("Strongly against", 0.0, 0.2),
+                ("Against", 0.2, 0.4),
+                ("Neutral", 0.4, 0.6),
+                ("In favor", 0.6, 0.8),
+                ("Strongly in favor", 0.8, 1.0),
             ]
-            
+
             for name, lower, upper in default_groups:
                 cursor.execute(
                     "INSERT INTO opinion_groups (name, lower_bound, upper_bound) VALUES (?, ?, ?)",
-                    (name, lower, upper)
+                    (name, lower, upper),
                 )
-            print(f"✓ Populated {len(default_groups)} default opinion groups in SQLite database")
+            print(
+                f"✓ Populated {len(default_groups)} default opinion groups in SQLite database"
+            )
 
         conn.commit()
         conn.close()
@@ -208,36 +216,44 @@ def migrate_postgresql(host, port, database, user, password):
         # Populate default distributions if table was just created
         if distributions_created:
             default_distributions = [
-                ('Uniform', 'uniform', json.dumps({'low': 0, 'high': 1})),
-                ('Normal (μ=0.5, σ=0.25)', 'normal', json.dumps({'loc': 0.5, 'scale': 0.25})),
-                ('U-shaped', 'beta', json.dumps({'a': 0.5, 'b': 0.5})),
-                ('Left-skewed (μ=0.3)', 'beta', json.dumps({'a': 0.5, 'b': 2})),
-                ('Right-skewed (μ=0.7)', 'beta', json.dumps({'a': 2, 'b': 0.5})),
+                ("Uniform", "uniform", json.dumps({"low": 0, "high": 1})),
+                (
+                    "Normal (μ=0.5, σ=0.25)",
+                    "normal",
+                    json.dumps({"loc": 0.5, "scale": 0.25}),
+                ),
+                ("U-shaped", "beta", json.dumps({"a": 0.5, "b": 0.5})),
+                ("Left-skewed (μ=0.3)", "beta", json.dumps({"a": 0.5, "b": 2})),
+                ("Right-skewed (μ=0.7)", "beta", json.dumps({"a": 2, "b": 0.5})),
             ]
-            
+
             for name, dist_type, params in default_distributions:
                 cursor.execute(
                     "INSERT INTO opinion_distributions (name, distribution_type, parameters) VALUES (%s, %s, %s)",
-                    (name, dist_type, params)
+                    (name, dist_type, params),
                 )
-            print(f"✓ Populated {len(default_distributions)} default distributions in PostgreSQL database")
+            print(
+                f"✓ Populated {len(default_distributions)} default distributions in PostgreSQL database"
+            )
 
         # Populate default opinion groups if tables were just created
         if not groups_exists:
             default_groups = [
-                ('Strongly against', 0.0, 0.2),
-                ('Against', 0.2, 0.4),
-                ('Neutral', 0.4, 0.6),
-                ('In favor', 0.6, 0.8),
-                ('Strongly in favor', 0.8, 1.0),
+                ("Strongly against", 0.0, 0.2),
+                ("Against", 0.2, 0.4),
+                ("Neutral", 0.4, 0.6),
+                ("In favor", 0.6, 0.8),
+                ("Strongly in favor", 0.8, 1.0),
             ]
-            
+
             for name, lower, upper in default_groups:
                 cursor.execute(
                     "INSERT INTO opinion_groups (name, lower_bound, upper_bound) VALUES (%s, %s, %s)",
-                    (name, lower, upper)
+                    (name, lower, upper),
                 )
-            print(f"✓ Populated {len(default_groups)} default opinion groups in PostgreSQL database")
+            print(
+                f"✓ Populated {len(default_groups)} default opinion groups in PostgreSQL database"
+            )
 
         conn.commit()
         conn.close()

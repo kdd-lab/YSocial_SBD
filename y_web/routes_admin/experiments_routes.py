@@ -5305,33 +5305,62 @@ def update_opinion_group():
         try:
             lower_bound = float(data["lower_bound"])
             if not (0 <= lower_bound <= 1):
-                return jsonify({"success": False, "message": "Lower bound must be in [0, 1]"}), 400
+                return (
+                    jsonify(
+                        {"success": False, "message": "Lower bound must be in [0, 1]"}
+                    ),
+                    400,
+                )
             group.lower_bound = lower_bound
         except ValueError:
-            return jsonify({"success": False, "message": "Invalid lower_bound value"}), 400
+            return (
+                jsonify({"success": False, "message": "Invalid lower_bound value"}),
+                400,
+            )
     if "upper_bound" in data:
         try:
             upper_bound = float(data["upper_bound"])
             if not (0 <= upper_bound <= 1):
-                return jsonify({"success": False, "message": "Upper bound must be in [0, 1]"}), 400
+                return (
+                    jsonify(
+                        {"success": False, "message": "Upper bound must be in [0, 1]"}
+                    ),
+                    400,
+                )
             group.upper_bound = upper_bound
         except ValueError:
-            return jsonify({"success": False, "message": "Invalid upper_bound value"}), 400
+            return (
+                jsonify({"success": False, "message": "Invalid upper_bound value"}),
+                400,
+            )
 
     # Validate that lower_bound <= upper_bound
     if group.lower_bound > group.upper_bound:
-        return jsonify({"success": False, "message": "Lower bound must be <= upper bound"}), 400
+        return (
+            jsonify(
+                {"success": False, "message": "Lower bound must be <= upper bound"}
+            ),
+            400,
+        )
 
     # Check for overlaps with other existing groups
     existing_groups = OpinionGroup.query.filter(OpinionGroup.id != group_id).all()
     for existing in existing_groups:
         # Check if the updated group overlaps with any other existing group
         # Two ranges [a1, a2] and [b1, b2] overlap if: a1 < b2 AND b1 < a2
-        if group.lower_bound < existing.upper_bound and existing.lower_bound < group.upper_bound:
-            return jsonify({
-                "success": False,
-                "message": f"Overlaps with '{existing.name}' [{existing.lower_bound}, {existing.upper_bound}]"
-            }), 400
+        if (
+            group.lower_bound < existing.upper_bound
+            and existing.lower_bound < group.upper_bound
+        ):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": f"Overlaps with '{existing.name}' [{existing.lower_bound}, {existing.upper_bound}]",
+                    }
+                ),
+                400,
+            )
 
     db.session.commit()
     return jsonify({"success": True})
@@ -5373,7 +5402,7 @@ def create_opinion_group():
                 f"Opinion group overlaps with existing group '{existing.name}' "
                 f"[{existing.lower_bound}, {existing.upper_bound}]. "
                 "Groups must not overlap.",
-                "error"
+                "error",
             )
             return redirect(request.referrer)
 
@@ -5468,7 +5497,10 @@ def update_opinion_distribution():
     dist = OpinionDistribution.query.filter_by(id=dist_id).first()
 
     if not dist:
-        return jsonify({"success": False, "message": "Opinion distribution not found"}), 404
+        return (
+            jsonify({"success": False, "message": "Opinion distribution not found"}),
+            404,
+        )
 
     # Update fields if provided
     if "name" in data:
@@ -5504,7 +5536,9 @@ def create_opinion_distribution():
     return redirect(request.referrer)
 
 
-@experiments.route("/admin/delete_opinion_distribution/<int:dist_id>", methods=["DELETE"])
+@experiments.route(
+    "/admin/delete_opinion_distribution/<int:dist_id>", methods=["DELETE"]
+)
 @login_required
 def delete_opinion_distribution(dist_id):
     """Delete opinion distribution."""
@@ -5512,7 +5546,10 @@ def delete_opinion_distribution(dist_id):
 
     dist = OpinionDistribution.query.filter_by(id=dist_id).first()
     if not dist:
-        return jsonify({"success": False, "message": "Opinion distribution not found"}), 404
+        return (
+            jsonify({"success": False, "message": "Opinion distribution not found"}),
+            404,
+        )
 
     db.session.delete(dist)
     db.session.commit()
