@@ -647,6 +647,30 @@ def create_client():
                 "share_link": float(share_link) if share_link is not None else 0,
             },
             "emotion_annotation": emotion_annotation,
+            "agent_archetypes": {
+                "distribution": {
+                    "validator": archetype_validator,
+                    "broadcaster": archetype_broadcaster,
+                    "explorer": archetype_explorer
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": trans_val_val,
+                        "broadcaster": trans_val_broad,
+                        "explorer": trans_val_expl
+                    },
+                    "broadcaster": {
+                        "validator": trans_broad_val,
+                        "broadcaster": trans_broad_broad,
+                        "explorer": trans_broad_expl
+                    },
+                    "explorer": {
+                        "validator": trans_expl_val,
+                        "broadcaster": trans_expl_broad,
+                        "explorer": trans_expl_expl
+                    }
+                }
+            },
         },
         "posts": {
             "visibility_rounds": int(visibility_rounds),
@@ -704,30 +728,6 @@ def create_client():
                 "ag": ["critical/judgmental", "friendly/compassionate"],
                 "ne": ["resilient/confident", "sensitive/nervous"],
             },
-        },
-        "agent_archetypes": {
-            "distribution": {
-                "validator": 0.52,
-                "broadcaster": 0.20,
-                "explorer": 0.28
-            },
-            "transitions": {
-                "validator": {
-                    "validator": 0.853,
-                    "broadcaster": 0.081,
-                    "explorer": 0.066
-                },
-                "broadcaster": {
-                    "validator": 0.195,
-                    "broadcaster": 0.729,
-                    "explorer": 0.075
-                },
-                "explorer": {
-                    "validator": 0.364,
-                    "broadcaster": 0.146,
-                    "explorer": 0.490
-                }
-            }
         },
     }
 
