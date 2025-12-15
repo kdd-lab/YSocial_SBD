@@ -1587,21 +1587,25 @@ def update_agent_archetypes(uid):
     """Update agent archetypes and transition probabilities."""
     check_privileges(current_user.username)
 
-    # Get data from form
-    archetype_validator = float(request.form.get("archetype_validator")) / 100.0
-    archetype_broadcaster = float(request.form.get("archetype_broadcaster")) / 100.0
-    archetype_explorer = float(request.form.get("archetype_explorer")) / 100.0
+    # Get data from form with validation
+    try:
+        archetype_validator = float(request.form.get("archetype_validator", "0")) / 100.0
+        archetype_broadcaster = float(request.form.get("archetype_broadcaster", "0")) / 100.0
+        archetype_explorer = float(request.form.get("archetype_explorer", "0")) / 100.0
 
-    # Get transition probabilities
-    trans_val_val = float(request.form.get("trans_val_val")) / 100.0
-    trans_val_broad = float(request.form.get("trans_val_broad")) / 100.0
-    trans_val_expl = float(request.form.get("trans_val_expl")) / 100.0
-    trans_broad_broad = float(request.form.get("trans_broad_broad")) / 100.0
-    trans_broad_val = float(request.form.get("trans_broad_val")) / 100.0
-    trans_broad_expl = float(request.form.get("trans_broad_expl")) / 100.0
-    trans_expl_expl = float(request.form.get("trans_expl_expl")) / 100.0
-    trans_expl_val = float(request.form.get("trans_expl_val")) / 100.0
-    trans_expl_broad = float(request.form.get("trans_expl_broad")) / 100.0
+        # Get transition probabilities
+        trans_val_val = float(request.form.get("trans_val_val", "0")) / 100.0
+        trans_val_broad = float(request.form.get("trans_val_broad", "0")) / 100.0
+        trans_val_expl = float(request.form.get("trans_val_expl", "0")) / 100.0
+        trans_broad_broad = float(request.form.get("trans_broad_broad", "0")) / 100.0
+        trans_broad_val = float(request.form.get("trans_broad_val", "0")) / 100.0
+        trans_broad_expl = float(request.form.get("trans_broad_expl", "0")) / 100.0
+        trans_expl_expl = float(request.form.get("trans_expl_expl", "0")) / 100.0
+        trans_expl_val = float(request.form.get("trans_expl_val", "0")) / 100.0
+        trans_expl_broad = float(request.form.get("trans_expl_broad", "0")) / 100.0
+    except (ValueError, TypeError) as e:
+        flash(f"Invalid input values: {str(e)}", "error")
+        return redirect(request.referrer)
 
     # Validate that percentages sum to approximately 100%
     archetype_sum = archetype_validator + archetype_broadcaster + archetype_explorer
@@ -1691,7 +1695,8 @@ def update_agent_archetypes(uid):
             }
             
             # Save the new configuration
-            json.dump(config, open(path, "w"), indent=4)
+            with open(path, "w") as f:
+                json.dump(config, f, indent=4)
     else:
         flash("Configuration file not found.", "error")
 
@@ -1768,7 +1773,8 @@ def reset_agent_archetypes(uid):
             }
             
             # Save the new configuration
-            json.dump(config, open(path, "w"), indent=4)
+            with open(path, "w") as f:
+                json.dump(config, f, indent=4)
     else:
         flash("Configuration file not found.", "error")
 
