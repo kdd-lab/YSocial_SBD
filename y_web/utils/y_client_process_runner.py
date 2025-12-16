@@ -5,7 +5,9 @@ This script is invoked as a subprocess to run client simulations.
 It's designed to be called by start_client using subprocess.Popen.
 """
 import argparse
+import json
 import math
+import os
 import random
 import re
 import sys
@@ -82,10 +84,6 @@ def start_client_process(exp, cli, population, resume=True, db_type="sqlite"):
     Start client simulation without pushing Flask app context.
     Independent of the main Flask runtime.
     """
-    import json
-    import os
-    import sys
-
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -406,7 +404,7 @@ def sample_agents(agents, expected_active_users, archetypes=None):
     return sagents
 
 
-def process_agent(g, archetypes, cl, exp, tid, daily_active_dict):
+def process_agent(g, archetypes, cl, exp, tid):
     """
     Process a single agent's actions for one time slot.
 
@@ -415,18 +413,12 @@ def process_agent(g, archetypes, cl, exp, tid, daily_active_dict):
     :param cl: Client instance
     :param exp: Experiment instance
     :param tid: Current time ID
-    :param daily_active_dict: Dictionary to track daily active agents
     :return: Tuple of (agent_name, success_flag)
     """
-    import random
-    import sys
-    import traceback
 
     try:
         # Import FakeAgent if needed (only for microblogging)
         if exp.platform_type == "microblogging":
-            import os
-
             from y_web.utils.path_utils import get_base_path
 
             base_path = get_base_path()
@@ -506,8 +498,6 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     """
     Run the simulation
     """
-    import os
-
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -596,9 +586,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit all agent processing tasks
                 future_to_agent = {
-                    executor.submit(
-                        process_agent, g, archetypes, cl, exp, tid, daily_active
-                    ): g
+                    executor.submit(process_agent, g, archetypes, cl, exp, tid): g
                     for g in sagents
                 }
 
