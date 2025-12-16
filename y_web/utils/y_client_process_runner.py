@@ -580,6 +580,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             # Process agents in parallel (FakeAgent was imported at function start)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit all agent processing tasks with thread-local random instances
+                # Create properly seeded Random instances for thread safety
                 future_to_agent = {
                     executor.submit(
                         process_agent,
@@ -589,7 +590,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                         exp,
                         tid,
                         FakeAgent,
-                        random.Random(),
+                        random.Random(random.randint(0, 2**32 - 1)),
                     ): g
                     for g in sagents
                 }
