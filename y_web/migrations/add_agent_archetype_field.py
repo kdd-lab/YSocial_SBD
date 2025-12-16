@@ -1,5 +1,5 @@
 """
-Database migration script to add archetype field to agents table (dashboard db) 
+Database migration script to add archetype field to agents table (dashboard db)
 and user_mgmt table (server db).
 
 This script adds the 'archetype' field with NULL as default value to:
@@ -85,8 +85,12 @@ def migrate_sqlite_server(db_path, quiet=False):
 
         if "archetype" not in columns:
             if not quiet:
-                print("Adding 'archetype' column to user_mgmt table in server database...")
-            cursor.execute("ALTER TABLE user_mgmt ADD COLUMN archetype TEXT DEFAULT NULL")
+                print(
+                    "Adding 'archetype' column to user_mgmt table in server database..."
+                )
+            cursor.execute(
+                "ALTER TABLE user_mgmt ADD COLUMN archetype TEXT DEFAULT NULL"
+            )
             conn.commit()
             if not quiet:
                 print("✓ Successfully added 'archetype' column to user_mgmt table")
@@ -158,14 +162,18 @@ def migrate_postgresql_dashboard(db_config):
         cursor = conn.cursor()
 
         # Check if column already exists
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'agents' AND column_name = 'archetype'
-        """)
+        """
+        )
 
         if cursor.fetchone() is None:
-            print("Adding 'archetype' column to agents table in PostgreSQL dashboard...")
+            print(
+                "Adding 'archetype' column to agents table in PostgreSQL dashboard..."
+            )
             cursor.execute("ALTER TABLE agents ADD COLUMN archetype TEXT DEFAULT NULL")
             conn.commit()
             print("✓ Successfully added 'archetype' column to agents table")
@@ -199,15 +207,21 @@ def migrate_postgresql_server(db_config):
         cursor = conn.cursor()
 
         # Check if column already exists
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'user_mgmt' AND column_name = 'archetype'
-        """)
+        """
+        )
 
         if cursor.fetchone() is None:
-            print("Adding 'archetype' column to user_mgmt table in PostgreSQL server...")
-            cursor.execute("ALTER TABLE user_mgmt ADD COLUMN archetype TEXT DEFAULT NULL")
+            print(
+                "Adding 'archetype' column to user_mgmt table in PostgreSQL server..."
+            )
+            cursor.execute(
+                "ALTER TABLE user_mgmt ADD COLUMN archetype TEXT DEFAULT NULL"
+            )
             conn.commit()
             print("✓ Successfully added 'archetype' column to user_mgmt table")
         else:
@@ -221,7 +235,12 @@ def migrate_postgresql_server(db_config):
         return False
 
 
-def run_migration(dashboard_db_path=None, server_db_path=None, pg_dashboard_config=None, pg_server_config=None):
+def run_migration(
+    dashboard_db_path=None,
+    server_db_path=None,
+    pg_dashboard_config=None,
+    pg_server_config=None,
+):
     """
     Run the migration on all specified databases.
 
@@ -247,7 +266,7 @@ def run_migration(dashboard_db_path=None, server_db_path=None, pg_dashboard_conf
             success = False
         print()
 
-    # Migrate SQLite server database  
+    # Migrate SQLite server database
     if server_db_path:
         print("--- SQLite Server Database ---")
         if not migrate_sqlite_server(server_db_path):
@@ -283,16 +302,19 @@ def run_migration(dashboard_db_path=None, server_db_path=None, pg_dashboard_conf
 if __name__ == "__main__":
     # This script can be run standalone for manual migration
     if len(sys.argv) < 2:
-        print("Usage: python add_agent_archetype_field.py <dashboard_db_path> [server_db_path]")
-        print("Example: python add_agent_archetype_field.py data_schema/database_dashboard.db data_schema/database_clean_server.db")
+        print(
+            "Usage: python add_agent_archetype_field.py <dashboard_db_path> [server_db_path]"
+        )
+        print(
+            "Example: python add_agent_archetype_field.py data_schema/database_dashboard.db data_schema/database_clean_server.db"
+        )
         sys.exit(1)
 
     dashboard_path = sys.argv[1] if len(sys.argv) > 1 else None
     server_path = sys.argv[2] if len(sys.argv) > 2 else None
 
     success = run_migration(
-        dashboard_db_path=dashboard_path,
-        server_db_path=server_path
+        dashboard_db_path=dashboard_path, server_db_path=server_path
     )
 
     sys.exit(0 if success else 1)

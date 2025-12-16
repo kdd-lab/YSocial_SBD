@@ -834,30 +834,33 @@ def create_app(db_type="sqlite", desktop_mode=False):
         try:
             if db_type == "sqlite":
                 from y_web.migrations.add_agent_archetype_field import (
+                    migrate_experiment_databases,
                     migrate_sqlite_dashboard,
                     migrate_sqlite_server,
-                    migrate_experiment_databases,
                 )
 
                 dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
                 if dashboard_db_path:
                     migrate_sqlite_dashboard(dashboard_db_path)
-                
+
                 # Migrate the dummy server database
                 dummy_db_path = app.config.get("DUMMY_DB_PATH")
                 if dummy_db_path:
                     migrate_sqlite_server(dummy_db_path, quiet=True)
-                
+
                 # Migrate all existing experiment databases
                 from y_web.utils.path_utils import get_writable_path
+
                 BASE_DIR = get_writable_path()
                 experiments_dir = os.path.join(BASE_DIR, "y_web", "experiments")
                 if os.path.exists(experiments_dir):
                     print("Migrating existing experiment databases...")
-                    success, total = migrate_experiment_databases(experiments_dir, quiet=False)
+                    success, total = migrate_experiment_databases(
+                        experiments_dir, quiet=False
+                    )
                     if total > 0:
                         print(f"✓ Migrated {success}/{total} experiment databases")
-                
+
             elif db_type == "postgresql":
                 from y_web.migrations.add_agent_archetype_field import (
                     migrate_postgresql_dashboard,
@@ -870,7 +873,7 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 pg_database = os.getenv("PG_DBNAME", "dashboard")
                 pg_user = os.getenv("PG_USER", "postgres")
                 pg_password = os.getenv("PG_PASSWORD", "")
-                
+
                 if pg_password:
                     dashboard_config = {
                         "host": pg_host,
@@ -880,7 +883,7 @@ def create_app(db_type="sqlite", desktop_mode=False):
                         "password": pg_password,
                     }
                     migrate_postgresql_dashboard(dashboard_config)
-                    
+
                     # Note: Server database migration will happen per experiment
                     # The schema files are already updated for new installations
         except Exception as e:

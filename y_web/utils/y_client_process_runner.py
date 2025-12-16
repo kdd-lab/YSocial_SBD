@@ -409,14 +409,14 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     """
     Run the simulation
     """
+    import os
+
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
     from y_web import create_app  # only to reuse URI config
     from y_web.models import Client_Execution
     from y_web.utils.path_utils import get_base_path
-
-    import os
 
     base_path = get_base_path()
     if exp.platform_type == "microblogging":
@@ -494,7 +494,11 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                 if archetypes["enabled"]:
                     # filtering the actions based on the archetype
                     if g.archetype == "validator":
-                        acts = [a for a, v in cl.actions_likelihood.items() if v > 0 and a in ["READ", "SHARE", "SEARCH"]]
+                        acts = [
+                            a
+                            for a, v in cl.actions_likelihood.items()
+                            if v > 0 and a in ["READ", "SHARE", "SEARCH"]
+                        ]
                         if exp.platform_type == "microblogging":
                             g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
                     elif g.archetype == "broadcaster":
@@ -537,7 +541,9 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                             if not archetypes["enabled"]:
                                 g.reply(tid=tid)
                             else:
-                                if g.archetype == "broadcaster":  # only broadcasters reply
+                                if (
+                                    g.archetype == "broadcaster"
+                                ):  # only broadcasters reply
                                     g.reply(tid=tid)
 
                         # select action to be performed
@@ -689,7 +695,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                     choice = random.choices(
                         population=list(probabilities.keys()),
                         weights=list(probabilities.values()),
-                        k=1
+                        k=1,
                     )[0]
                     agent.archetype = choice
 
