@@ -337,20 +337,68 @@ def get_users_per_hour(population, agents, session):
     return hours_to_users
 
 
-def sample_agents(agents, expected_active_users):
-    weights = [a.daily_activity_level for a in agents]
-    # normalize weights to sum to 1
-    weights = [w / sum(weights) for w in weights]
+def sample_agents(agents, expected_active_users, archetypes=None):
+    """
+    Sample agents based on their daily activity level and archetype distribution.
+    If archetypes are enabled, sample according to the specified distribution.
+    Otherwise, sample based solely on daily activity levels.
 
-    try:
-        sagents = np.random.choice(
-            agents,
-            size=expected_active_users,
-            p=weights,
-            replace=False,
-        )
-    except Exception:
-        sagents = np.random.choice(agents, size=expected_active_users, replace=False)
+    :param agents:
+    :param expected_active_users:
+    :param archetypes:
+    :return:
+    """
+    sagents = []
+
+    if archetypes['enabled']:
+        candidates_per_archetype = {}
+        weights_per_archetype = {}
+        # identify the percentages of each archetype
+        user_types = {}
+        for k, v in archetypes['distribution'].items():
+            user_types[k] = int(v * expected_active_users)
+
+        for a in agents:
+            if a.archetype not in candidates_per_archetype:
+                candidates_per_archetype[a.archetype] = []
+                weights_per_archetype[a.archetype] = []
+            candidates_per_archetype[a.archetype].append(a)
+            weights_per_archetype[a.archetype].append(a.daily_activity_level)
+
+        for atype, count in user_types.items():
+            if atype in candidates_per_archetype:
+                cands = candidates_per_archetype[atype]
+                wts = weights_per_archetype[atype]
+                # normalize weights
+                wts = [w / sum(wts) for w in wts]
+                try:
+                    sampled = np.random.choice(
+                        cands,
+                        size=min(count, len(cands)),
+                        p=wts,
+                        replace=False,
+                    )
+                except Exception:
+                    sampled = np.random.choice(
+                        cands,
+                        size=min(count, len(cands)),
+                        replace=False,
+                    )
+                sagents.extend(sampled)
+    else:
+        weights = [a.daily_activity_level for a in agents]
+        # normalize weights to sum to 1
+        weights = [w / sum(weights) for w in weights]
+
+        try:
+            sagents = np.random.choice(
+                agents,
+                size=expected_active_users,
+                p=weights,
+                replace=False,
+            )
+        except Exception:
+            sagents = np.random.choice(agents, size=expected_active_users, replace=False)
 
     return sagents
 
@@ -382,6 +430,8 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     page_agents = [p for p in cl.agents.agents if p.is_page]
 
     hour_to_page = get_users_per_hour(population, page_agents, session)
+
+    archetypes = cl.config['agent_archetypes']
 
     for d1 in range(total_days):
         common_agents = [p for p in cl.agents.agents if not p.is_page]
@@ -419,7 +469,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
 
             # get the daily activities of each agent
             try:
-                sagents = sample_agents(hour_to_users[h], expected_active_users)
+                sagents = sample_agents(hour_to_users[h], expected_active_users, archetypes)
             except Exception as e:
                 print(f"Error sampling agents: {e}", file=sys.stderr)
                 sagents = []
