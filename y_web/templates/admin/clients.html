@@ -977,7 +977,17 @@
                                         <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a>.
                                     </div>
 
-                                    <details style="margin-bottom: 20px;">
+                                    <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                        <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em; font-weight: 500; color: #374151;">
+                                            <input type="checkbox" id="enable_archetypes" name="enable_archetypes" checked style="margin-right: 8px; cursor: pointer;">
+                                            <span>Enable Agent Archetypes Distribution</span>
+                                        </label>
+                                        <p style="font-size: 0.8em; color: #6b7280; margin: 8px 0 0 28px; line-height: 1.4;">
+                                            When disabled, all agents will be able to perform all actions without archetype restrictions.
+                                        </p>
+                                    </div>
+
+                                    <details style="margin-bottom: 20px;" id="archetype-details">
                                         <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
                                             <span>Click to expand/collapse archetype configuration</span>
                                         </summary>
@@ -1211,9 +1221,10 @@
                             <p>
                                 <b>Agent Archetypes and Transitions (Optional)</b><br>
                                 Configure behavioral archetypes and transition probabilities for agents.<br><br>
+                                <em>Enable/Disable Toggle:</em> When disabled, all agents can perform all actions without archetype restrictions.<br><br>
                                 <em>The Validator:</em> Active Audience (~70% validation activity)<br>
                                 <em>The Broadcaster:</em> Content Creator (~75% posts/comments)<br>
-                                <em>The Explorer:</em> Network Growth (focused on connections)<br><br>
+                                <em>The Explorer:</em> Network Growth (focused on connections, enabled only when follow probabilities > 0)<br><br>
                                 Default values (52-20-28) are based on real-world Bluesky data.
                             </p>
 
@@ -1667,6 +1678,32 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial check on page load
     updateExplorerArchetype();
+    
+    // Handle archetype toggle
+    const archetypeToggle = document.getElementById('enable_archetypes');
+    const archetypeDetails = document.getElementById('archetype-details');
+    
+    function updateArchetypeToggle() {
+        if (!archetypeToggle || !archetypeDetails) return;
+        
+        if (archetypeToggle.checked) {
+            // Enable archetypes
+            archetypeDetails.style.opacity = '1';
+            archetypeDetails.style.pointerEvents = 'auto';
+        } else {
+            // Disable archetypes
+            archetypeDetails.style.opacity = '0.5';
+            archetypeDetails.style.pointerEvents = 'none';
+            // Close the details if open
+            archetypeDetails.open = false;
+        }
+    }
+    
+    if (archetypeToggle) {
+        archetypeToggle.addEventListener('change', updateArchetypeToggle);
+        // Initial state
+        updateArchetypeToggle();
+    }
 });
                                             </script>
 {% include "admin/tutorials/clients_tutorial.html" %}

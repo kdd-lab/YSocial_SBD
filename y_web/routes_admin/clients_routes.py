@@ -359,6 +359,9 @@ def create_client():
     crecsys = request.form.get("recsys_type")
     frecsys = request.form.get("frecsys_type")
 
+    # Get agent archetype enabled status
+    enable_archetypes = request.form.get("enable_archetypes") == "on"
+    
     # Get agent archetype values (optional, with defaults)
     try:
         archetype_validator = float(request.form.get("archetype_validator", "52")) / 100.0
@@ -648,6 +651,7 @@ def create_client():
             },
             "emotion_annotation": emotion_annotation,
             "agent_archetypes": {
+                "enabled": enable_archetypes,
                 "distribution": {
                     "validator": archetype_validator,
                     "broadcaster": archetype_broadcaster,
