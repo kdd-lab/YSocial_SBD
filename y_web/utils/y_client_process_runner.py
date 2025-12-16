@@ -500,6 +500,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     from y_web.utils.path_utils import get_base_path
 
     base_path = get_base_path()
+    FakeAgent = None
     if exp.platform_type == "microblogging":
         sys.path.append(os.path.join(base_path, "external", "YClient"))
         from y_client.classes import FakeAgent
@@ -576,16 +577,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                 len(sagents), 10
             )  # Cap at 10 workers to avoid resource exhaustion
 
-            # Get FakeAgent class if needed (avoid sys.path race condition)
-            FakeAgent = None
-            if exp.platform_type == "microblogging":
-                try:
-                    from y_client.classes import FakeAgent
-                except ImportError:
-                    # FakeAgent not available, will use None
-                    pass
-
-            # Process agents in parallel
+            # Process agents in parallel (FakeAgent was imported at function start)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 # Submit all agent processing tasks with thread-local random instances
                 future_to_agent = {
