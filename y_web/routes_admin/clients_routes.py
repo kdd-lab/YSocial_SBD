@@ -836,8 +836,50 @@ def create_client():
     # get the agent details
     agents = [Agent.query.filter_by(id=a.agent_id).first() for a in agents]
 
+    # Assign archetypes to agents based on distribution probabilities
+    num_agents = len(agents)
+    archetype_assignments = []
+    
+    if enable_archetypes and num_agents > 0:
+        # Build list of active archetypes and their probabilities
+        active_archetypes = []
+        active_probabilities = []
+        
+        if archetype_validator > 0:
+            active_archetypes.append("validator")
+            active_probabilities.append(archetype_validator)
+        
+        if archetype_broadcaster > 0:
+            active_archetypes.append("broadcaster")
+            active_probabilities.append(archetype_broadcaster)
+        
+        if archetype_explorer > 0:
+            active_archetypes.append("explorer")
+            active_probabilities.append(archetype_explorer)
+        
+        # Normalize probabilities if they don't sum to 1
+        if len(active_probabilities) > 0:
+            total_prob = sum(active_probabilities)
+            if total_prob > 0:
+                active_probabilities = [p / total_prob for p in active_probabilities]
+                # Assign archetypes to agents using numpy random choice
+                archetype_assignments = np.random.choice(
+                    active_archetypes, 
+                    size=num_agents, 
+                    p=active_probabilities
+                ).tolist()
+            else:
+                # If all probabilities are 0, assign None
+                archetype_assignments = [None] * num_agents
+        else:
+            # No active archetypes
+            archetype_assignments = [None] * num_agents
+    else:
+        # Archetypes disabled, assign None to all agents
+        archetype_assignments = [None] * num_agents
+
     res = {"agents": []}
-    for a in agents:
+    for idx, a in enumerate(agents):
         custom_prompt = Agent_Profile.query.filter_by(agent_id=a.id).first()
 
         if custom_prompt:
@@ -895,6 +937,7 @@ def create_client():
                 "daily_activity_level": a.daily_activity_level,
                 "profession": a.profession,
                 "activity_profile": activity_profile_name,
+                "archetype": archetype_assignments[idx],
                 "opinions": (
                     {i: random.random() for i in ints[0]} if opinions_enabled else None
                 ),  # @todo: check initial opinions
