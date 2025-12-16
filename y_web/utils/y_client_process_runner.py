@@ -404,7 +404,7 @@ def sample_agents(agents, expected_active_users, archetypes=None):
     return sagents
 
 
-def process_agent(g, archetypes, cl, exp, tid):
+def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
     """
     Process a single agent's actions for one time slot.
 
@@ -413,18 +413,12 @@ def process_agent(g, archetypes, cl, exp, tid):
     :param cl: Client instance
     :param exp: Experiment instance
     :param tid: Current time ID
+    :param FakeAgent: FakeAgent class (for microblogging) or None
+    :param local_random: Thread-local random.Random instance for thread safety
     :return: Tuple of (agent_name, success_flag)
     """
 
     try:
-        # Import FakeAgent if needed (only for microblogging)
-        if exp.platform_type == "microblogging":
-            from y_web.utils.path_utils import get_base_path
-
-            base_path = get_base_path()
-            sys.path.append(os.path.join(base_path, "external", "YClient"))
-            from y_client.classes import FakeAgent
-
         if archetypes["enabled"]:
             # filtering the actions based on the archetype
             if g.archetype == "validator":
@@ -451,14 +445,14 @@ def process_agent(g, archetypes, cl, exp, tid):
             rounds = 0
         else:
             lower = max(int(g.round_actions) - 2, 1)
-            rounds = random.randint(lower, int(g.round_actions))
+            rounds = local_random.randint(lower, int(g.round_actions))
             # Round_actions max is set for each agent by sampling from a user defined distribution.
             # Execute at least "lower" actions per user (to guarantee the activity level distribution).
 
         for _ in range(rounds):
             # sample two elements from a list with replacement
             if len(acts) > 1:
-                candidates = random.choices(
+                candidates = local_random.choices(
                     acts,
                     k=2,
                     weights=[cl.actions_likelihood[a] for a in acts],
@@ -582,19 +576,38 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                 len(sagents), 10
             )  # Cap at 10 workers to avoid resource exhaustion
 
+            # Get FakeAgent class if needed (avoid sys.path race condition)
+            FakeAgent = None
+            if exp.platform_type == "microblogging":
+                try:
+                    from y_client.classes import FakeAgent
+                except ImportError:
+                    # FakeAgent not available, will use None
+                    pass
+
             # Process agents in parallel
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all agent processing tasks
+                # Submit all agent processing tasks with thread-local random instances
                 future_to_agent = {
-                    executor.submit(process_agent, g, archetypes, cl, exp, tid): g
+                    executor.submit(
+                        process_agent,
+                        g,
+                        archetypes,
+                        cl,
+                        exp,
+                        tid,
+                        FakeAgent,
+                        random.Random(),
+                    ): g
                     for g in sagents
                 }
 
                 # Collect results as they complete
+                # Track all agents in daily_active, not just successful ones (preserves original behavior)
                 for future in as_completed(future_to_agent):
                     agent_name, success = future.result()
-                    if success:
-                        daily_active[agent_name] = None
+                    # Add to daily_active regardless of success to maintain original behavior
+                    daily_active[agent_name] = None
 
             # increment slot
             cl.sim_clock.increment_slot()
