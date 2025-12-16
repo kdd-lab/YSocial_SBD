@@ -337,20 +337,70 @@ def get_users_per_hour(population, agents, session):
     return hours_to_users
 
 
-def sample_agents(agents, expected_active_users):
-    weights = [a.daily_activity_level for a in agents]
-    # normalize weights to sum to 1
-    weights = [w / sum(weights) for w in weights]
+def sample_agents(agents, expected_active_users, archetypes=None):
+    """
+    Sample agents based on their daily activity level and archetype distribution.
+    If archetypes are enabled, sample according to the specified distribution.
+    Otherwise, sample based solely on daily activity levels.
 
-    try:
-        sagents = np.random.choice(
-            agents,
-            size=expected_active_users,
-            p=weights,
-            replace=False,
-        )
-    except Exception:
-        sagents = np.random.choice(agents, size=expected_active_users, replace=False)
+    :param agents:
+    :param expected_active_users:
+    :param archetypes:
+    :return:
+    """
+    sagents = []
+
+    if archetypes["enabled"]:
+        candidates_per_archetype = {}
+        weights_per_archetype = {}
+        # identify the percentages of each archetype
+        user_types = {}
+        for k, v in archetypes["distribution"].items():
+            user_types[k] = max(int(v * expected_active_users), 1)
+
+        for a in agents:
+            if a.archetype not in candidates_per_archetype:
+                candidates_per_archetype[a.archetype] = []
+                weights_per_archetype[a.archetype] = []
+            candidates_per_archetype[a.archetype].append(a)
+            weights_per_archetype[a.archetype].append(a.daily_activity_level)
+
+        for atype, count in user_types.items():
+            if atype in candidates_per_archetype:
+                cands = candidates_per_archetype[atype]
+                wts = weights_per_archetype[atype]
+                # normalize weights
+                wts = [w / sum(wts) for w in wts]
+                try:
+                    sampled = np.random.choice(
+                        cands,
+                        size=min(count, len(cands)),
+                        p=wts,
+                        replace=False,
+                    )
+                except Exception:
+                    sampled = np.random.choice(
+                        cands,
+                        size=min(count, len(cands)),
+                        replace=False,
+                    )
+                sagents.extend(sampled)
+    else:
+        weights = [a.daily_activity_level for a in agents]
+        # normalize weights to sum to 1
+        weights = [w / sum(weights) for w in weights]
+
+        try:
+            sagents = np.random.choice(
+                agents,
+                size=expected_active_users,
+                p=weights,
+                replace=False,
+            )
+        except Exception:
+            sagents = np.random.choice(
+                agents, size=expected_active_users, replace=False
+            )
 
     return sagents
 
@@ -364,6 +414,14 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
 
     from y_web import create_app  # only to reuse URI config
     from y_web.models import Client_Execution
+    from y_web.utils.path_utils import get_base_path
+
+    import os
+
+    base_path = get_base_path()
+    if exp.platform_type == "microblogging":
+        sys.path.append(os.path.join(base_path, "external", "YClient"))
+        from y_client.classes import FakeAgent
 
     # Create app only to get DB URI, but don't push its context
     app2 = create_app(db_type)
@@ -382,6 +440,8 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     page_agents = [p for p in cl.agents.agents if p.is_page]
 
     hour_to_page = get_users_per_hour(population, page_agents, session)
+
+    archetypes = cl.agent_archetypes
 
     for d1 in range(total_days):
         common_agents = [p for p in cl.agents.agents if not p.is_page]
@@ -407,7 +467,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if platform_type == "microblogging":
                 # pages post all the time their activity profile is active
                 for page in active_pages:
-                    page.select_action(
+                    page.select_action_lite(
                         tid=tid,
                         actions=[],
                         max_length_thread_reading=cl.max_length_thread_reading,
@@ -417,9 +477,11 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if len(cl.agents.agents) == 0:
                 break
 
-            # get the daily activities of each agent
+            # get the daily activities of each agent (stratified on archetypes if enabled)
             try:
-                sagents = sample_agents(hour_to_users[h], expected_active_users)
+                sagents = sample_agents(
+                    hour_to_users[h], expected_active_users, archetypes
+                )
             except Exception as e:
                 print(f"Error sampling agents: {e}", file=sys.stderr)
                 sagents = []
@@ -428,7 +490,22 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             random.shuffle(sagents)
 
             for g in sagents:
-                acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+
+                if archetypes["enabled"]:
+                    # filtering the actions based on the archetype
+                    if g.archetype == "validator":
+                        acts = [a for a, v in cl.actions_likelihood.items() if v > 0 and a in ["READ", "SHARE", "SEARCH"]]
+                        if exp.platform_type == "microblogging":
+                            g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+                    elif g.archetype == "broadcaster":
+                        acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+                    elif g.archetype == "explorer":
+                        acts = ["FOLLOW"]
+                        if exp.platform_type == "microblogging":
+                            g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+
+                else:
+                    acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
 
                 daily_active[g.name] = None
 
@@ -444,18 +521,24 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
 
                 for _ in range(rounds):
                     # sample two elements from a list with replacement
-
-                    candidates = random.choices(
-                        acts,
-                        k=2,
-                        weights=[cl.actions_likelihood[a] for a in acts],
-                    )
-                    candidates.append("NONE")
+                    if len(acts) > 1:
+                        candidates = random.choices(
+                            acts,
+                            k=2,
+                            weights=[cl.actions_likelihood[a] for a in acts],
+                        )
+                        candidates.append("NONE")
+                    else:
+                        candidates = acts + ["NONE"]
 
                     try:
                         # reply to received mentions
                         if g not in cl.pages:
-                            g.reply(tid=tid)
+                            if not archetypes["enabled"]:
+                                g.reply(tid=tid)
+                            else:
+                                if g.archetype == "broadcaster":  # only broadcasters reply
+                                    g.reply(tid=tid)
 
                         # select action to be performed
                         g.select_action(
@@ -596,6 +679,19 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                     )
                 ):
                     cl.add_agent()
+
+        # change the archetypes if enabled
+        if d1 % 7 == 0 and d1 > 0:  # weekly changes
+            if archetypes["enabled"]:
+                for agent in cl.agents.agents:
+                    current_archetype = agent.archetype
+                    probabilities = archetypes["transitions"][current_archetype]
+                    choice = random.choices(
+                        population=list(probabilities.keys()),
+                        weights=list(probabilities.values()),
+                        k=1
+                    )[0]
+                    agent.archetype = choice
 
         # saving "living" agents at the end of the day
         cl.save_agents(agent_file)

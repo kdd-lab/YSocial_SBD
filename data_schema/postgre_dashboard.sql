@@ -141,7 +141,8 @@ CREATE TABLE agents (
     profile_pic          TEXT DEFAULT '',
     daily_activity_level INTEGER DEFAULT 1,
     profession           TEXT,
-    activity_profile     INTEGER REFERENCES activity_profiles(id)
+    activity_profile     INTEGER REFERENCES activity_profiles(id),
+    archetype            TEXT DEFAULT NULL
 );
 
 CREATE TABLE agent_profile (
@@ -218,7 +219,19 @@ CREATE TABLE client (
     share_link                          REAL DEFAULT 0,
     crecsys                             TEXT,
     frecsys                             TEXT,
-    pid                                 INTEGER DEFAULT NULL
+    pid                                 INTEGER DEFAULT NULL,
+    archetype_validator                 REAL DEFAULT 0.52,
+    archetype_broadcaster               REAL DEFAULT 0.20,
+    archetype_explorer                  REAL DEFAULT 0.28,
+    trans_val_val                       REAL DEFAULT 0.853,
+    trans_val_broad                     REAL DEFAULT 0.081,
+    trans_val_expl                      REAL DEFAULT 0.066,
+    trans_broad_broad                   REAL DEFAULT 0.729,
+    trans_broad_val                     REAL DEFAULT 0.195,
+    trans_broad_expl                    REAL DEFAULT 0.075,
+    trans_expl_expl                     REAL DEFAULT 0.490,
+    trans_expl_val                      REAL DEFAULT 0.364,
+    trans_expl_broad                    REAL DEFAULT 0.146
 );
 
 CREATE TABLE client_execution (

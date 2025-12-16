@@ -58,7 +58,8 @@ CREATE TABLE user_mgmt (
     left_on              INTEGER,
     daily_activity_level INTEGER DEFAULT 1,
     profession           TEXT,
-    activity_profile     TEXT
+    activity_profile     TEXT,
+    archetype            TEXT DEFAULT NULL
 );
 
 -- -----------------------------

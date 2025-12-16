@@ -970,6 +970,173 @@
                                     </details>
                                     </div><!-- End section-activity-rates -->
 
+                                    <div id="section-agent-archetypes" class="tutorial-section">
+                                    <div class="form-section-header">Agent Archetypes and Transitions <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div class="form-section-description">
+                                        Configure the behavioral archetypes and transition probabilities for agents. Default values are based on
+                                        <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a>.
+                                    </div>
+
+                                    <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                        <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em; font-weight: 500; color: #374151;">
+                                            <input type="checkbox" id="enable_archetypes" name="enable_archetypes" checked style="margin-right: 8px; cursor: pointer;">
+                                            <span>Enable Agent Archetypes Distribution</span>
+                                        </label>
+                                        <p style="font-size: 0.8em; color: #6b7280; margin: 8px 0 0 28px; line-height: 1.4;">
+                                            When disabled, all agents will be able to perform all actions without archetype restrictions.
+                                        </p>
+                                    </div>
+
+                                    <details style="margin-bottom: 20px;" id="archetype-details">
+                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
+                                            <span>Click to expand/collapse archetype configuration</span>
+                                        </summary>
+                                        <div style="padding: 15px 0; margin-top: 10px;">
+
+                                            <style>
+                                                .archetype-boxes {
+                                                    display: grid;
+                                                    grid-template-columns: repeat(3, 1fr);
+                                                    gap: 12px;
+                                                    margin-bottom: 20px;
+                                                }
+                                                .archetype-box {
+                                                    background: #f9fafb;
+                                                    border: 1px solid #e5e7eb;
+                                                    border-radius: 6px;
+                                                    padding: 12px;
+                                                }
+                                                .archetype-box h4 {
+                                                    font-size: 0.85em;
+                                                    font-weight: 600;
+                                                    color: #374151;
+                                                    margin-bottom: 6px;
+                                                }
+                                                .archetype-box p {
+                                                    font-size: 0.75em;
+                                                    color: #6b7280;
+                                                    line-height: 1.3;
+                                                    margin-bottom: 8px;
+                                                }
+                                                .archetype-box input {
+                                                    width: 70px;
+                                                    padding: 4px 8px;
+                                                    text-align: center;
+                                                    font-size: 0.85em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 4px;
+                                                }
+                                                .archetype-box input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                                .transition-table-compact {
+                                                    width: 100%;
+                                                    border-collapse: collapse;
+                                                    font-size: 0.75em;
+                                                    margin-top: 16px;
+                                                }
+                                                .transition-table-compact th,
+                                                .transition-table-compact td {
+                                                    padding: 4px 6px;
+                                                    text-align: center;
+                                                    border: 1px solid #e5e7eb;
+                                                }
+                                                .transition-table-compact th {
+                                                    background-color: #f9fafb;
+                                                    color: #374151;
+                                                    font-weight: 600;
+                                                    font-size: 0.7em;
+                                                }
+                                                .transition-table-compact td:first-child {
+                                                    background-color: #f9fafb;
+                                                    font-weight: 500;
+                                                    text-align: left;
+                                                    color: #374151;
+                                                    font-size: 0.7em;
+                                                }
+                                                .transition-table-compact input {
+                                                    width: 50px;
+                                                    padding: 3px 4px;
+                                                    text-align: center;
+                                                    font-size: 0.75em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 3px;
+                                                }
+                                                .transition-table-compact input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                                .archetype-box.disabled {
+                                                    opacity: 0.5;
+                                                    background: #f3f4f6;
+                                                }
+                                                .archetype-box.disabled input {
+                                                    background: #e5e7eb;
+                                                    cursor: not-allowed;
+                                                }
+                                            </style>
+
+                                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Archetype Distribution (%)</h4>
+                                            <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Define the percentage of agents in each behavioral archetype (must sum to 100%).</p>
+                                            
+                                            <div class="archetype-boxes">
+                                                <div class="archetype-box" id="archetype-validator-box">
+                                                    <h4>The Validator</h4>
+                                                    <p>Active Audience - ~70% of activity is validating others</p>
+                                                    <input type="number" id="archetype_validator" name="archetype_validator" value="52" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                                <div class="archetype-box" id="archetype-broadcaster-box">
+                                                    <h4>The Broadcaster</h4>
+                                                    <p>Content Creator - ~75% of actions are posts/comments</p>
+                                                    <input type="number" id="archetype_broadcaster" name="archetype_broadcaster" value="20" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                                <div class="archetype-box" id="archetype-explorer-box">
+                                                    <h4>The Explorer</h4>
+                                                    <p>Network Growth - Focused on expanding social graph</p>
+                                                    <input type="number" id="archetype_explorer" name="archetype_explorer" value="28" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                            </div>
+
+                                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px; margin-top: 16px;">Transition Probabilities (%)</h4>
+                                            <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Probability that an agent transitions from one archetype to another (each row must sum to 100%).</p>
+                                            
+                                            <table class="transition-table-compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align: left;">From / To</th>
+                                                        <th>Validator</th>
+                                                        <th>Broadcaster</th>
+                                                        <th>Explorer</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>Validator</td>
+                                                        <td><input type="number" id="trans_val_val" name="trans_val_val" value="85.3" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_val_broad" name="trans_val_broad" value="8.1" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_val_expl" name="trans_val_expl" value="6.6" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Broadcaster</td>
+                                                        <td><input type="number" id="trans_broad_val" name="trans_broad_val" value="19.5" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_broad_broad" name="trans_broad_broad" value="72.9" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_broad_expl" name="trans_broad_expl" value="7.5" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Explorer</td>
+                                                        <td><input type="number" id="trans_expl_val" name="trans_expl_val" value="36.4" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_expl_broad" name="trans_expl_broad" value="14.6" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_expl_expl" name="trans_expl_expl" value="49.0" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                    </div><!-- End section-agent-archetypes -->
+
                                 </div>
                                 <div class="button-wrap">
                                     <button id="create_client_button" class="button is-solid primary-button is-fullwidth" disabled>
@@ -1049,6 +1216,16 @@
                                 <b>Hourly Activity Rates (Optional)</b><br>
                                 Customize agent activity patterns by hour.<br><br>
                                 Default values are based on real-world Bluesky data. Leave empty to use defaults.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Agent Archetypes and Transitions (Optional)</b><br>
+                                Configure behavioral archetypes and transition probabilities for agents.<br><br>
+                                <em>Enable/Disable Toggle:</em> When disabled, all agents can perform all actions without archetype restrictions.<br><br>
+                                <em>The Validator:</em> Active Audience (~70% validation activity)<br>
+                                <em>The Broadcaster:</em> Content Creator (~75% posts/comments)<br>
+                                <em>The Explorer:</em> Network Growth (focused on connections, enabled only when follow probabilities > 0)<br><br>
+                                Default values (52-20-28) are based on real-world Bluesky data.
                             </p>
 
                         </div>
@@ -1342,6 +1519,191 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial state
     updateNetworkInputStates();
+    
+    // Handle Explorer archetype based on follow probabilities
+    function updateExplorerArchetype() {
+        const dailyFollow = document.querySelector('input[name="probability_of_daily_follow"]');
+        const secondaryFollow = document.querySelector('input[name="probability_of_secondary_follow"]');
+        const explorerBox = document.getElementById('archetype-explorer-box');
+        const explorerInput = document.getElementById('archetype_explorer');
+        const validatorInput = document.getElementById('archetype_validator');
+        const broadcasterInput = document.getElementById('archetype_broadcaster');
+        
+        // Get transition probability inputs
+        const transValExpl = document.getElementById('trans_val_expl');
+        const transBroadExpl = document.getElementById('trans_broad_expl');
+        const transExplVal = document.getElementById('trans_expl_val');
+        const transExplBroad = document.getElementById('trans_expl_broad');
+        const transExplExpl = document.getElementById('trans_expl_expl');
+        const transValVal = document.getElementById('trans_val_val');
+        const transValBroad = document.getElementById('trans_val_broad');
+        const transBroadVal = document.getElementById('trans_broad_val');
+        const transBroadBroad = document.getElementById('trans_broad_broad');
+        
+        if (!dailyFollow || !secondaryFollow || !explorerBox || !explorerInput) return;
+        
+        const dailyFollowValue = parseFloat(dailyFollow.value) || 0;
+        const secondaryFollowValue = parseFloat(secondaryFollow.value) || 0;
+        
+        // Check if both probabilities are zero
+        if (dailyFollowValue === 0 && secondaryFollowValue === 0) {
+            // Disable Explorer
+            explorerBox.classList.add('disabled');
+            explorerInput.disabled = true;
+            explorerInput.readOnly = true;
+            
+            // Move Explorer's percentage to Validator
+            const explorerValue = parseFloat(explorerInput.value) || 0;
+            if (explorerValue > 0) {
+                const currentValidator = parseFloat(validatorInput.value) || 0;
+                validatorInput.value = (currentValidator + explorerValue).toFixed(1);
+            }
+            explorerInput.value = '0';
+            
+            // Redistribute transition probabilities
+            // Set all Explorer-related transitions to 0
+            transValExpl.value = '0';
+            transValExpl.disabled = true;
+            transValExpl.readOnly = true;
+            
+            transBroadExpl.value = '0';
+            transBroadExpl.disabled = true;
+            transBroadExpl.readOnly = true;
+            
+            transExplVal.value = '0';
+            transExplVal.disabled = true;
+            transExplVal.readOnly = true;
+            
+            transExplBroad.value = '0';
+            transExplBroad.disabled = true;
+            transExplBroad.readOnly = true;
+            
+            transExplExpl.value = '0';
+            transExplExpl.disabled = true;
+            transExplExpl.readOnly = true;
+            
+            // Redistribute Validator->Explorer to Validator->Broadcaster
+            // Original: val->val=85.3, val->broad=8.1, val->expl=6.6
+            // New: redistribute 6.6 proportionally between val->val and val->broad
+            const valToVal = parseFloat(transValVal.value) || 85.3;
+            const valToBroad = parseFloat(transValBroad.value) || 8.1;
+            const valToExpl = 6.6; // redistributing this
+            const total = valToVal + valToBroad;
+            if (total > 0) {
+                transValVal.value = (valToVal + valToExpl * (valToVal / total)).toFixed(1);
+                transValBroad.value = (valToBroad + valToExpl * (valToBroad / total)).toFixed(1);
+            } else {
+                // Fallback: split equally
+                transValVal.value = (valToVal + valToExpl / 2).toFixed(1);
+                transValBroad.value = (valToBroad + valToExpl / 2).toFixed(1);
+            }
+            
+            // Redistribute Broadcaster->Explorer to Broadcaster->Validator
+            // Original: broad->val=19.5, broad->broad=72.9, broad->expl=7.5
+            const broadToVal = parseFloat(transBroadVal.value) || 19.5;
+            const broadToBroad = parseFloat(transBroadBroad.value) || 72.9;
+            const broadToExpl = 7.5; // redistributing this
+            const broadTotal = broadToVal + broadToBroad;
+            if (broadTotal > 0) {
+                transBroadVal.value = (broadToVal + broadToExpl * (broadToVal / broadTotal)).toFixed(1);
+                transBroadBroad.value = (broadToBroad + broadToExpl * (broadToBroad / broadTotal)).toFixed(1);
+            } else {
+                // Fallback: split equally
+                transBroadVal.value = (broadToVal + broadToExpl / 2).toFixed(1);
+                transBroadBroad.value = (broadToBroad + broadToExpl / 2).toFixed(1);
+            }
+            
+        } else {
+            // Enable Explorer
+            explorerBox.classList.remove('disabled');
+            explorerInput.disabled = false;
+            explorerInput.readOnly = false;
+            
+            // Restore default values if currently 0
+            if (parseFloat(explorerInput.value) === 0) {
+                // Restore defaults
+                const currentValidator = parseFloat(validatorInput.value) || 80;
+                const explorerDefault = 28;
+                
+                // If validator was increased to 80 (52+28), restore original values
+                if (currentValidator >= 80) {
+                    validatorInput.value = '52';
+                    explorerInput.value = '28';
+                } else {
+                    explorerInput.value = '28';
+                }
+            }
+            
+            // Re-enable transition probability inputs
+            transValExpl.disabled = false;
+            transValExpl.readOnly = false;
+            transValExpl.value = '6.6';
+            
+            transBroadExpl.disabled = false;
+            transBroadExpl.readOnly = false;
+            transBroadExpl.value = '7.5';
+            
+            transExplVal.disabled = false;
+            transExplVal.readOnly = false;
+            transExplVal.value = '36.4';
+            
+            transExplBroad.disabled = false;
+            transExplBroad.readOnly = false;
+            transExplBroad.value = '14.6';
+            
+            transExplExpl.disabled = false;
+            transExplExpl.readOnly = false;
+            transExplExpl.value = '49.0';
+            
+            // Restore original transition values
+            transValVal.value = '85.3';
+            transValBroad.value = '8.1';
+            transBroadVal.value = '19.5';
+            transBroadBroad.value = '72.9';
+        }
+    }
+    
+    // Set up listeners for probability fields
+    const dailyFollowInput = document.querySelector('input[name="probability_of_daily_follow"]');
+    const secondaryFollowInput = document.querySelector('input[name="probability_of_secondary_follow"]');
+    
+    if (dailyFollowInput) {
+        dailyFollowInput.addEventListener('change', updateExplorerArchetype);
+        dailyFollowInput.addEventListener('input', updateExplorerArchetype);
+    }
+    if (secondaryFollowInput) {
+        secondaryFollowInput.addEventListener('change', updateExplorerArchetype);
+        secondaryFollowInput.addEventListener('input', updateExplorerArchetype);
+    }
+    
+    // Initial check on page load
+    updateExplorerArchetype();
+    
+    // Handle archetype toggle
+    const archetypeToggle = document.getElementById('enable_archetypes');
+    const archetypeDetails = document.getElementById('archetype-details');
+    
+    function updateArchetypeToggle() {
+        if (!archetypeToggle || !archetypeDetails) return;
+        
+        if (archetypeToggle.checked) {
+            // Enable archetypes
+            archetypeDetails.style.opacity = '1';
+            archetypeDetails.style.pointerEvents = 'auto';
+        } else {
+            // Disable archetypes
+            archetypeDetails.style.opacity = '0.5';
+            archetypeDetails.style.pointerEvents = 'none';
+            // Close the details if open
+            archetypeDetails.open = false;
+        }
+    }
+    
+    if (archetypeToggle) {
+        archetypeToggle.addEventListener('change', updateArchetypeToggle);
+        // Initial state
+        updateArchetypeToggle();
+    }
 });
                                             </script>
 {% include "admin/tutorials/clients_tutorial.html" %}

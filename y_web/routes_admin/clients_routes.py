@@ -359,6 +359,31 @@ def create_client():
     crecsys = request.form.get("recsys_type")
     frecsys = request.form.get("frecsys_type")
 
+    # Get agent archetype enabled status
+    enable_archetypes = request.form.get("enable_archetypes") == "on"
+
+    # Get agent archetype values (optional, with defaults)
+    try:
+        archetype_validator = (
+            float(request.form.get("archetype_validator", "52")) / 100.0
+        )
+        archetype_broadcaster = (
+            float(request.form.get("archetype_broadcaster", "20")) / 100.0
+        )
+        archetype_explorer = float(request.form.get("archetype_explorer", "28")) / 100.0
+        trans_val_val = float(request.form.get("trans_val_val", "85.3")) / 100.0
+        trans_val_broad = float(request.form.get("trans_val_broad", "8.1")) / 100.0
+        trans_val_expl = float(request.form.get("trans_val_expl", "6.6")) / 100.0
+        trans_broad_broad = float(request.form.get("trans_broad_broad", "72.9")) / 100.0
+        trans_broad_val = float(request.form.get("trans_broad_val", "19.5")) / 100.0
+        trans_broad_expl = float(request.form.get("trans_broad_expl", "7.5")) / 100.0
+        trans_expl_expl = float(request.form.get("trans_expl_expl", "49.0")) / 100.0
+        trans_expl_val = float(request.form.get("trans_expl_val", "36.4")) / 100.0
+        trans_expl_broad = float(request.form.get("trans_expl_broad", "14.6")) / 100.0
+    except (ValueError, TypeError) as e:
+        flash(f"Invalid archetype values: {str(e)}", "error")
+        return redirect(request.referrer)
+
     # Validate simulation parameters
     errors = []
     # Validate numeric fields
@@ -511,6 +536,18 @@ def create_client():
         crecsys=crecsys,
         frecsys=frecsys,
         status=0,
+        archetype_validator=archetype_validator,
+        archetype_broadcaster=archetype_broadcaster,
+        archetype_explorer=archetype_explorer,
+        trans_val_val=trans_val_val,
+        trans_val_broad=trans_val_broad,
+        trans_val_expl=trans_val_expl,
+        trans_broad_broad=trans_broad_broad,
+        trans_broad_val=trans_broad_val,
+        trans_broad_expl=trans_broad_expl,
+        trans_expl_expl=trans_expl_expl,
+        trans_expl_val=trans_expl_val,
+        trans_expl_broad=trans_expl_broad,
     )
 
     db.session.add(client)
@@ -617,6 +654,31 @@ def create_client():
                 "share_link": float(share_link) if share_link is not None else 0,
             },
             "emotion_annotation": emotion_annotation,
+            "agent_archetypes": {
+                "enabled": enable_archetypes,
+                "distribution": {
+                    "validator": archetype_validator,
+                    "broadcaster": archetype_broadcaster,
+                    "explorer": archetype_explorer,
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": trans_val_val,
+                        "broadcaster": trans_val_broad,
+                        "explorer": trans_val_expl,
+                    },
+                    "broadcaster": {
+                        "validator": trans_broad_val,
+                        "broadcaster": trans_broad_broad,
+                        "explorer": trans_broad_expl,
+                    },
+                    "explorer": {
+                        "validator": trans_expl_val,
+                        "broadcaster": trans_expl_broad,
+                        "explorer": trans_expl_expl,
+                    },
+                },
+            },
         },
         "posts": {
             "visibility_rounds": int(visibility_rounds),
@@ -774,8 +836,50 @@ def create_client():
     # get the agent details
     agents = [Agent.query.filter_by(id=a.agent_id).first() for a in agents]
 
+    # Assign archetypes to agents based on distribution probabilities
+    num_agents = len(agents)
+    archetype_assignments = []
+    
+    if enable_archetypes and num_agents > 0:
+        # Build list of active archetypes and their probabilities
+        active_archetypes = []
+        active_probabilities = []
+        
+        if archetype_validator > 0:
+            active_archetypes.append("validator")
+            active_probabilities.append(archetype_validator)
+        
+        if archetype_broadcaster > 0:
+            active_archetypes.append("broadcaster")
+            active_probabilities.append(archetype_broadcaster)
+        
+        if archetype_explorer > 0:
+            active_archetypes.append("explorer")
+            active_probabilities.append(archetype_explorer)
+        
+        # Normalize probabilities if they don't sum to 1
+        if len(active_probabilities) > 0:
+            total_prob = sum(active_probabilities)
+            if total_prob > 0:
+                active_probabilities = [p / total_prob for p in active_probabilities]
+                # Assign archetypes to agents using numpy random choice
+                archetype_assignments = np.random.choice(
+                    active_archetypes, 
+                    size=num_agents, 
+                    p=active_probabilities
+                ).tolist()
+            else:
+                # If all probabilities are 0, assign None
+                archetype_assignments = [None] * num_agents
+        else:
+            # No active archetypes
+            archetype_assignments = [None] * num_agents
+    else:
+        # Archetypes disabled, assign None to all agents
+        archetype_assignments = [None] * num_agents
+
     res = {"agents": []}
-    for a in agents:
+    for idx, a in enumerate(agents):
         custom_prompt = Agent_Profile.query.filter_by(agent_id=a.id).first()
 
         if custom_prompt:
@@ -833,6 +937,7 @@ def create_client():
                 "daily_activity_level": a.daily_activity_level,
                 "profession": a.profession,
                 "activity_profile": activity_profile_name,
+                "archetype": archetype_assignments[idx],
                 "opinions": (
                     {i: random.random() for i in ints[0]} if opinions_enabled else None
                 ),  # @todo: check initial opinions
@@ -1554,6 +1659,223 @@ def reset_agents_activity(uid):
     else:
         flash("Configuration file not found.", "error")
 
+    return redirect(request.referrer)
+
+
+@clientsr.route("/admin/update_agent_archetypes/<int:uid>", methods=["POST"])
+@login_required
+def update_agent_archetypes(uid):
+    """Update agent archetypes and transition probabilities."""
+    check_privileges(current_user.username)
+
+    # Get data from form with validation
+    try:
+        archetype_validator = (
+            float(request.form.get("archetype_validator", "0")) / 100.0
+        )
+        archetype_broadcaster = (
+            float(request.form.get("archetype_broadcaster", "0")) / 100.0
+        )
+        archetype_explorer = float(request.form.get("archetype_explorer", "0")) / 100.0
+
+        # Get transition probabilities
+        trans_val_val = float(request.form.get("trans_val_val", "0")) / 100.0
+        trans_val_broad = float(request.form.get("trans_val_broad", "0")) / 100.0
+        trans_val_expl = float(request.form.get("trans_val_expl", "0")) / 100.0
+        trans_broad_broad = float(request.form.get("trans_broad_broad", "0")) / 100.0
+        trans_broad_val = float(request.form.get("trans_broad_val", "0")) / 100.0
+        trans_broad_expl = float(request.form.get("trans_broad_expl", "0")) / 100.0
+        trans_expl_expl = float(request.form.get("trans_expl_expl", "0")) / 100.0
+        trans_expl_val = float(request.form.get("trans_expl_val", "0")) / 100.0
+        trans_expl_broad = float(request.form.get("trans_expl_broad", "0")) / 100.0
+    except (ValueError, TypeError) as e:
+        flash(f"Invalid input values: {str(e)}", "error")
+        return redirect(request.referrer)
+
+    # Validate that percentages sum to approximately 100%
+    archetype_sum = archetype_validator + archetype_broadcaster + archetype_explorer
+    if abs(archetype_sum - 1.0) > 0.01:
+        flash(
+            f"Archetype percentages must sum to 100% (current sum: {archetype_sum * 100:.1f}%)",
+            "error",
+        )
+        return redirect(request.referrer)
+
+    # Validate transition probabilities sum to 100% for each row
+    val_sum = trans_val_val + trans_val_broad + trans_val_expl
+    broad_sum = trans_broad_broad + trans_broad_val + trans_broad_expl
+    expl_sum = trans_expl_expl + trans_expl_val + trans_expl_broad
+
+    if abs(val_sum - 1.0) > 0.01:
+        flash(
+            f"Validator transition probabilities must sum to 100% (current sum: {val_sum * 100:.1f}%)",
+            "error",
+        )
+        return redirect(request.referrer)
+    if abs(broad_sum - 1.0) > 0.01:
+        flash(
+            f"Broadcaster transition probabilities must sum to 100% (current sum: {broad_sum * 100:.1f}%)",
+            "error",
+        )
+        return redirect(request.referrer)
+    if abs(expl_sum - 1.0) > 0.01:
+        flash(
+            f"Explorer transition probabilities must sum to 100% (current sum: {expl_sum * 100:.1f}%)",
+            "error",
+        )
+        return redirect(request.referrer)
+
+    # Get client details
+    client = Client.query.filter_by(id=uid).first()
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(request.referrer)
+
+    # Update client with new values
+    client.archetype_validator = archetype_validator
+    client.archetype_broadcaster = archetype_broadcaster
+    client.archetype_explorer = archetype_explorer
+    client.trans_val_val = trans_val_val
+    client.trans_val_broad = trans_val_broad
+    client.trans_val_expl = trans_val_expl
+    client.trans_broad_broad = trans_broad_broad
+    client.trans_broad_val = trans_broad_val
+    client.trans_broad_expl = trans_broad_expl
+    client.trans_expl_expl = trans_expl_expl
+    client.trans_expl_val = trans_expl_val
+    client.trans_expl_broad = trans_expl_broad
+
+    db.session.commit()
+
+    # Update client configuration JSON file
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    population = Population.query.filter_by(id=client.population_id).first()
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
+    exp_folder = experiment.db_name.split(os.sep)[1]
+
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
+
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            config = json.load(f)
+
+            # Add agent archetypes section if not present
+            if "agent_archetypes" not in config:
+                config["agent_archetypes"] = {}
+
+            config["agent_archetypes"] = {
+                "distribution": {
+                    "validator": archetype_validator,
+                    "broadcaster": archetype_broadcaster,
+                    "explorer": archetype_explorer,
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": trans_val_val,
+                        "broadcaster": trans_val_broad,
+                        "explorer": trans_val_expl,
+                    },
+                    "broadcaster": {
+                        "validator": trans_broad_val,
+                        "broadcaster": trans_broad_broad,
+                        "explorer": trans_broad_expl,
+                    },
+                    "explorer": {
+                        "validator": trans_expl_val,
+                        "broadcaster": trans_expl_broad,
+                        "explorer": trans_expl_expl,
+                    },
+                },
+            }
+
+            # Save the new configuration
+            with open(path, "w") as f:
+                json.dump(config, f, indent=4)
+    else:
+        flash("Configuration file not found.", "error")
+
+    flash("Agent archetypes updated successfully.", "success")
+    return redirect(request.referrer)
+
+
+@clientsr.route("/admin/reset_agent_archetypes/<int:uid>")
+@login_required
+def reset_agent_archetypes(uid):
+    """Reset agent archetypes and transitions to default Bluesky values."""
+    check_privileges(current_user.username)
+
+    # Get client details
+    client = Client.query.filter_by(id=uid).first()
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(request.referrer)
+
+    # Reset to default Bluesky values
+    client.archetype_validator = 0.52
+    client.archetype_broadcaster = 0.20
+    client.archetype_explorer = 0.28
+    client.trans_val_val = 0.853
+    client.trans_val_broad = 0.081
+    client.trans_val_expl = 0.066
+    client.trans_broad_broad = 0.729
+    client.trans_broad_val = 0.195
+    client.trans_broad_expl = 0.075
+    client.trans_expl_expl = 0.490
+    client.trans_expl_val = 0.364
+    client.trans_expl_broad = 0.146
+
+    db.session.commit()
+
+    # Update client configuration JSON file
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    population = Population.query.filter_by(id=client.population_id).first()
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
+    exp_folder = experiment.db_name.split(os.sep)[1]
+
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
+
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            config = json.load(f)
+
+            config["agent_archetypes"] = {
+                "distribution": {
+                    "validator": 0.52,
+                    "broadcaster": 0.20,
+                    "explorer": 0.28,
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": 0.853,
+                        "broadcaster": 0.081,
+                        "explorer": 0.066,
+                    },
+                    "broadcaster": {
+                        "validator": 0.195,
+                        "broadcaster": 0.729,
+                        "explorer": 0.075,
+                    },
+                    "explorer": {
+                        "validator": 0.364,
+                        "broadcaster": 0.146,
+                        "explorer": 0.490,
+                    },
+                },
+            }
+
+            # Save the new configuration
+            with open(path, "w") as f:
+                json.dump(config, f, indent=4)
+    else:
+        flash("Configuration file not found.", "error")
+
+    flash("Agent archetypes reset to default values.", "success")
     return redirect(request.referrer)
 
 
