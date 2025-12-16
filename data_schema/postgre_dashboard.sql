@@ -141,7 +141,8 @@ CREATE TABLE agents (
     profile_pic          TEXT DEFAULT '',
     daily_activity_level INTEGER DEFAULT 1,
     profession           TEXT,
-    activity_profile     INTEGER REFERENCES activity_profiles(id)
+    activity_profile     INTEGER REFERENCES activity_profiles(id),
+    archetype            TEXT DEFAULT NULL
 );
 
 CREATE TABLE agent_profile (

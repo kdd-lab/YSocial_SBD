@@ -828,6 +828,50 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run agent archetypes migration: {e}")
 
+        # Run agent archetype field migration (for agents and user_mgmt tables)
+        try:
+            if db_type == "sqlite":
+                from y_web.migrations.add_agent_archetype_field import (
+                    migrate_sqlite_dashboard,
+                    migrate_sqlite_server,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_sqlite_dashboard(dashboard_db_path)
+                
+                # Migrate server database (experiments databases)
+                # Note: Server databases are created per experiment, so we'll migrate them on the fly
+                # when experiments are accessed. The schema files are already updated.
+                
+            elif db_type == "postgresql":
+                from y_web.migrations.add_agent_archetype_field import (
+                    migrate_postgresql_dashboard,
+                    migrate_postgresql_server,
+                )
+
+                # Get PostgreSQL connection details for dashboard
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                
+                if pg_password:
+                    dashboard_config = {
+                        "host": pg_host,
+                        "port": pg_port,
+                        "database": pg_database,
+                        "user": pg_user,
+                        "password": pg_password,
+                    }
+                    migrate_postgresql_dashboard(dashboard_config)
+                    
+                    # Note: Server database migration will happen per experiment
+                    # The schema files are already updated for new installations
+        except Exception as e:
+            print(f"Failed to run agent archetype field migration: {e}")
+
         # Ensure all tables defined in models exist (including release_info)
         # This creates any missing tables that are defined in models.py
         try:

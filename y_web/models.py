@@ -583,6 +583,7 @@ class Agent(db.Model):
     activity_profile = db.Column(
         db.Integer, db.ForeignKey("activity_profiles.id"), nullable=True
     )
+    archetype = db.Column(db.String(50), nullable=True, default=None)
 
 
 class Agent_Population(db.Model):
