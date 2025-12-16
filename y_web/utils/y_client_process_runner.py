@@ -11,6 +11,7 @@ import re
 import sys
 import traceback
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 
@@ -405,6 +406,102 @@ def sample_agents(agents, expected_active_users, archetypes=None):
     return sagents
 
 
+def process_agent(g, archetypes, cl, exp, tid, daily_active_dict):
+    """
+    Process a single agent's actions for one time slot.
+
+    :param g: The agent to process
+    :param archetypes: Archetype configuration
+    :param cl: Client instance
+    :param exp: Experiment instance
+    :param tid: Current time ID
+    :param daily_active_dict: Dictionary to track daily active agents
+    :return: Tuple of (agent_name, success_flag)
+    """
+    import random
+    import sys
+    import traceback
+
+    try:
+        # Import FakeAgent if needed (only for microblogging)
+        if exp.platform_type == "microblogging":
+            import os
+
+            from y_web.utils.path_utils import get_base_path
+
+            base_path = get_base_path()
+            sys.path.append(os.path.join(base_path, "external", "YClient"))
+            from y_client.classes import FakeAgent
+
+        if archetypes["enabled"]:
+            # filtering the actions based on the archetype
+            if g.archetype == "validator":
+                acts = [
+                    a
+                    for a, v in cl.actions_likelihood.items()
+                    if v > 0 and a in ["READ", "SHARE", "SEARCH"]
+                ]
+                if exp.platform_type == "microblogging":
+                    g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+            elif g.archetype == "broadcaster":
+                acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+            elif g.archetype == "explorer":
+                acts = ["FOLLOW"]
+                if exp.platform_type == "microblogging":
+                    g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+
+        else:
+            acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+
+        # Get a random integer within g.round_actions.
+        # If g.is_page == 1, then rounds = 0 (the page does not perform actions)
+        if g.is_page == 1:
+            rounds = 0
+        else:
+            lower = max(int(g.round_actions) - 2, 1)
+            rounds = random.randint(lower, int(g.round_actions))
+            # Round_actions max is set for each agent by sampling from a user defined distribution.
+            # Execute at least "lower" actions per user (to guarantee the activity level distribution).
+
+        for _ in range(rounds):
+            # sample two elements from a list with replacement
+            if len(acts) > 1:
+                candidates = random.choices(
+                    acts,
+                    k=2,
+                    weights=[cl.actions_likelihood[a] for a in acts],
+                )
+                candidates.append("NONE")
+            else:
+                candidates = acts + ["NONE"]
+
+            try:
+                # reply to received mentions
+                if g not in cl.pages:
+                    if not archetypes["enabled"]:
+                        g.reply(tid=tid)
+                    else:
+                        if g.archetype == "broadcaster":  # only broadcasters reply
+                            g.reply(tid=tid)
+
+                # select action to be performed
+                g.select_action(
+                    tid=tid,
+                    actions=candidates,
+                    max_length_thread_reading=cl.max_length_thread_reading,
+                )
+            except Exception as e:
+                print(f"Error ({g.name}): {e}")
+                print(traceback.format_exc())
+                pass
+
+        return (g.name, True)
+    except Exception as e:
+        print(f"Error processing agent {g.name}: {e}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
+        return (g.name, False)
+
+
 def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     """
     Run the simulation
@@ -489,73 +586,27 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             # shuffle agents
             random.shuffle(sagents)
 
-            for g in sagents:
+            # Process agents in parallel using ThreadPoolExecutor
+            # Use max_workers based on available CPUs, but cap it for resource management
+            max_workers = min(
+                len(sagents), 10
+            )  # Cap at 10 workers to avoid resource exhaustion
 
-                if archetypes["enabled"]:
-                    # filtering the actions based on the archetype
-                    if g.archetype == "validator":
-                        acts = [
-                            a
-                            for a, v in cl.actions_likelihood.items()
-                            if v > 0 and a in ["READ", "SHARE", "SEARCH"]
-                        ]
-                        if exp.platform_type == "microblogging":
-                            g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
-                    elif g.archetype == "broadcaster":
-                        acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
-                    elif g.archetype == "explorer":
-                        acts = ["FOLLOW"]
-                        if exp.platform_type == "microblogging":
-                            g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+            # Process agents in parallel
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all agent processing tasks
+                future_to_agent = {
+                    executor.submit(
+                        process_agent, g, archetypes, cl, exp, tid, daily_active
+                    ): g
+                    for g in sagents
+                }
 
-                else:
-                    acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
-
-                daily_active[g.name] = None
-
-                # Get a random integer within g.round_actions.
-                # If g.is_page == 1, then rounds = 0 (the page does not perform actions)
-                if g.is_page == 1:
-                    rounds = 0
-                else:
-                    lower = max(int(g.round_actions) - 2, 1)
-                    rounds = random.randint(lower, int(g.round_actions))
-                    # Round_actions max is set for each agent by sampling from a user defined distribution.
-                    # Execute at least "lower" actions per user (to guarantee the activity level distribution).
-
-                for _ in range(rounds):
-                    # sample two elements from a list with replacement
-                    if len(acts) > 1:
-                        candidates = random.choices(
-                            acts,
-                            k=2,
-                            weights=[cl.actions_likelihood[a] for a in acts],
-                        )
-                        candidates.append("NONE")
-                    else:
-                        candidates = acts + ["NONE"]
-
-                    try:
-                        # reply to received mentions
-                        if g not in cl.pages:
-                            if not archetypes["enabled"]:
-                                g.reply(tid=tid)
-                            else:
-                                if (
-                                    g.archetype == "broadcaster"
-                                ):  # only broadcasters reply
-                                    g.reply(tid=tid)
-
-                        # select action to be performed
-                        g.select_action(
-                            tid=tid,
-                            actions=candidates,
-                            max_length_thread_reading=cl.max_length_thread_reading,
-                        )
-                    except Exception as e:
-                        print(f"Error ({g.name}): {e}")
-                        print(traceback.format_exc())
-                        pass
+                # Collect results as they complete
+                for future in as_completed(future_to_agent):
+                    agent_name, success = future.result()
+                    if success:
+                        daily_active[agent_name] = None
 
             # increment slot
             cl.sim_clock.increment_slot()
