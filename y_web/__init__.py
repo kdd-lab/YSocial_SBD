@@ -302,6 +302,8 @@ def create_app(db_type="sqlite", desktop_mode=False):
     """
     import os
 
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
     app = Flask(__name__, static_url_path="/static")
 
     app.config["SECRET_KEY"] = "4323432nldsf"
