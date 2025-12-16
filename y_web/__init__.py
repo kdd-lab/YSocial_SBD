@@ -834,15 +834,27 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 from y_web.migrations.add_agent_archetype_field import (
                     migrate_sqlite_dashboard,
                     migrate_sqlite_server,
+                    migrate_experiment_databases,
                 )
 
                 dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
                 if dashboard_db_path:
                     migrate_sqlite_dashboard(dashboard_db_path)
                 
-                # Migrate server database (experiments databases)
-                # Note: Server databases are created per experiment, so we'll migrate them on the fly
-                # when experiments are accessed. The schema files are already updated.
+                # Migrate the dummy server database
+                dummy_db_path = app.config.get("DUMMY_DB_PATH")
+                if dummy_db_path:
+                    migrate_sqlite_server(dummy_db_path, quiet=True)
+                
+                # Migrate all existing experiment databases
+                from y_web.utils.path_utils import get_writable_path
+                BASE_DIR = get_writable_path()
+                experiments_dir = os.path.join(BASE_DIR, "y_web", "experiments")
+                if os.path.exists(experiments_dir):
+                    print("Migrating existing experiment databases...")
+                    success, total = migrate_experiment_databases(experiments_dir, quiet=False)
+                    if total > 0:
+                        print(f"✓ Migrated {success}/{total} experiment databases")
                 
             elif db_type == "postgresql":
                 from y_web.migrations.add_agent_archetype_field import (

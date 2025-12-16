@@ -59,18 +59,20 @@ def migrate_sqlite_dashboard(db_path):
         return False
 
 
-def migrate_sqlite_server(db_path):
+def migrate_sqlite_server(db_path, quiet=False):
     """
     Add archetype column to user_mgmt table in SQLite server database.
 
     Args:
         db_path: Path to the SQLite server database file
+        quiet: If True, suppress output messages
 
     Returns:
         bool: True if successful, False otherwise
     """
     if not os.path.exists(db_path):
-        print(f"Server database file not found: {db_path}")
+        if not quiet:
+            print(f"Server database file not found: {db_path}")
         return False
 
     try:
@@ -82,19 +84,59 @@ def migrate_sqlite_server(db_path):
         columns = [column[1] for column in cursor.fetchall()]
 
         if "archetype" not in columns:
-            print("Adding 'archetype' column to user_mgmt table in server database...")
+            if not quiet:
+                print("Adding 'archetype' column to user_mgmt table in server database...")
             cursor.execute("ALTER TABLE user_mgmt ADD COLUMN archetype TEXT DEFAULT NULL")
             conn.commit()
-            print("✓ Successfully added 'archetype' column to user_mgmt table")
+            if not quiet:
+                print("✓ Successfully added 'archetype' column to user_mgmt table")
         else:
-            print("✓ Column 'archetype' already exists in user_mgmt table")
+            if not quiet:
+                print("✓ Column 'archetype' already exists in user_mgmt table")
 
         conn.close()
         return True
 
     except sqlite3.Error as e:
-        print(f"Error migrating server database: {e}")
+        if not quiet:
+            print(f"Error migrating server database: {e}")
         return False
+
+
+def migrate_experiment_databases(experiments_dir, quiet=False):
+    """
+    Migrate all experiment databases in the experiments directory.
+
+    Args:
+        experiments_dir: Path to the experiments directory
+        quiet: If True, suppress output messages
+
+    Returns:
+        tuple: (success_count, total_count)
+    """
+    if not os.path.exists(experiments_dir):
+        if not quiet:
+            print(f"Experiments directory not found: {experiments_dir}")
+        return (0, 0)
+
+    success_count = 0
+    total_count = 0
+
+    # Find all experiment databases
+    for root, dirs, files in os.walk(experiments_dir):
+        for file in files:
+            if file == "database_server.db":
+                db_path = os.path.join(root, file)
+                total_count += 1
+                if not quiet:
+                    print(f"Migrating experiment database: {db_path}")
+                if migrate_sqlite_server(db_path, quiet=True):
+                    success_count += 1
+
+    if not quiet and total_count > 0:
+        print(f"✓ Migrated {success_count}/{total_count} experiment databases")
+
+    return (success_count, total_count)
 
 
 def migrate_postgresql_dashboard(db_config):
