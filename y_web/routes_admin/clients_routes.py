@@ -2185,8 +2185,12 @@ def set_opinion_distributions():
     elif update_rule == "llm_evaluation":
         # Collect LLM evaluation parameters
         llm_cold_start = request.form.get("llm_cold_start", "neutral")
+        llm_evaluation_scope = request.form.get("llm_evaluation_scope", "interlocutor_only")
 
-        opinion_dynamics["parameters"] = {"cold_start": llm_cold_start}
+        opinion_dynamics["parameters"] = {
+            "cold_start": llm_cold_start,
+            "evaluation_scope": llm_evaluation_scope,
+        }
 
     # Add opinion groups from database
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()

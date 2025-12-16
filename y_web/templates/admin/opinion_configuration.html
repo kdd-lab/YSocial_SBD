@@ -335,13 +335,24 @@
                                 <div id="llm-evaluation-params" style="display: none; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
                                     <div style="font-weight: 600; margin-bottom: 10px; font-size: 0.9em;">LLM Evaluation Parameters</div>
                                     
-                                    <div>
-                                        <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Cold Start Strategy</label>
-                                        <select class="input" name="llm_cold_start" style="font-size: 0.9em; padding: 6px; max-width: 300px;">
-                                            <option value="neutral">Neutral (0.5)</option>
-                                            <option value="inherited">Inherited</option>
-                                            <option value="weighted">Weighted on Profile Similarity</option>
-                                        </select>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Cold Start Strategy</label>
+                                            <select class="input" name="llm_cold_start" style="font-size: 0.9em; padding: 6px;">
+                                                <option value="neutral">Neutral (0.5)</option>
+                                                <option value="inherited">Inherited</option>
+                                                <option value="weighted">Weighted on Profile Similarity</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div>
+                                            <label class="label" style="font-size: 0.85em; margin-bottom: 4px;">Evaluation Scope</label>
+                                            <select class="input" name="llm_evaluation_scope" style="font-size: 0.9em; padding: 6px;">
+                                                <option value="interlocutor_only">Interlocutor Only</option>
+                                                <option value="interlocutor_and_friends">Interlocutor + First-Order Friends</option>
+                                            </select>
+                                            <small style="color: #6b7280; font-size: 0.8em;">Choose whether to consider only the interlocutor's opinion or also first-order friends' opinions</small>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
