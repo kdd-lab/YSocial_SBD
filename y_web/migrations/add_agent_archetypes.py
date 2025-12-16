@@ -44,17 +44,11 @@ def migrate_sqlite(db_path):
 
         columns_to_add = []
         if "archetype_validator" not in columns:
-            columns_to_add.append(
-                ("archetype_validator", "REAL DEFAULT 0.52")
-            )
+            columns_to_add.append(("archetype_validator", "REAL DEFAULT 0.52"))
         if "archetype_broadcaster" not in columns:
-            columns_to_add.append(
-                ("archetype_broadcaster", "REAL DEFAULT 0.20")
-            )
+            columns_to_add.append(("archetype_broadcaster", "REAL DEFAULT 0.20"))
         if "archetype_explorer" not in columns:
-            columns_to_add.append(
-                ("archetype_explorer", "REAL DEFAULT 0.28")
-            )
+            columns_to_add.append(("archetype_explorer", "REAL DEFAULT 0.28"))
 
         # Transition probabilities (3x3 matrix)
         # From Validator
@@ -64,7 +58,7 @@ def migrate_sqlite(db_path):
             columns_to_add.append(("trans_val_broad", "REAL DEFAULT 0.081"))
         if "trans_val_expl" not in columns:
             columns_to_add.append(("trans_val_expl", "REAL DEFAULT 0.066"))
-        
+
         # From Broadcaster
         if "trans_broad_broad" not in columns:
             columns_to_add.append(("trans_broad_broad", "REAL DEFAULT 0.729"))
@@ -72,7 +66,7 @@ def migrate_sqlite(db_path):
             columns_to_add.append(("trans_broad_val", "REAL DEFAULT 0.195"))
         if "trans_broad_expl" not in columns:
             columns_to_add.append(("trans_broad_expl", "REAL DEFAULT 0.075"))
-        
+
         # From Explorer
         if "trans_expl_expl" not in columns:
             columns_to_add.append(("trans_expl_expl", "REAL DEFAULT 0.490"))
@@ -83,7 +77,9 @@ def migrate_sqlite(db_path):
 
         if columns_to_add:
             for column_name, column_type in columns_to_add:
-                cursor.execute(f"ALTER TABLE client ADD COLUMN {column_name} {column_type}")
+                cursor.execute(
+                    f"ALTER TABLE client ADD COLUMN {column_name} {column_type}"
+                )
                 print(f"✓ Added column '{column_name}' to client table")
         else:
             print("○ All agent archetype columns already exist in client table")
@@ -135,17 +131,11 @@ def migrate_postgresql(host, port, database, user, password):
 
         columns_to_add = []
         if "archetype_validator" not in existing_columns:
-            columns_to_add.append(
-                ("archetype_validator", "REAL DEFAULT 0.52")
-            )
+            columns_to_add.append(("archetype_validator", "REAL DEFAULT 0.52"))
         if "archetype_broadcaster" not in existing_columns:
-            columns_to_add.append(
-                ("archetype_broadcaster", "REAL DEFAULT 0.20")
-            )
+            columns_to_add.append(("archetype_broadcaster", "REAL DEFAULT 0.20"))
         if "archetype_explorer" not in existing_columns:
-            columns_to_add.append(
-                ("archetype_explorer", "REAL DEFAULT 0.28")
-            )
+            columns_to_add.append(("archetype_explorer", "REAL DEFAULT 0.28"))
 
         # Transition probabilities (3x3 matrix)
         # From Validator
@@ -155,7 +145,7 @@ def migrate_postgresql(host, port, database, user, password):
             columns_to_add.append(("trans_val_broad", "REAL DEFAULT 0.081"))
         if "trans_val_expl" not in existing_columns:
             columns_to_add.append(("trans_val_expl", "REAL DEFAULT 0.066"))
-        
+
         # From Broadcaster
         if "trans_broad_broad" not in existing_columns:
             columns_to_add.append(("trans_broad_broad", "REAL DEFAULT 0.729"))
@@ -163,7 +153,7 @@ def migrate_postgresql(host, port, database, user, password):
             columns_to_add.append(("trans_broad_val", "REAL DEFAULT 0.195"))
         if "trans_broad_expl" not in existing_columns:
             columns_to_add.append(("trans_broad_expl", "REAL DEFAULT 0.075"))
-        
+
         # From Explorer
         if "trans_expl_expl" not in existing_columns:
             columns_to_add.append(("trans_expl_expl", "REAL DEFAULT 0.490"))
@@ -174,7 +164,9 @@ def migrate_postgresql(host, port, database, user, password):
 
         if columns_to_add:
             for column_name, column_type in columns_to_add:
-                cursor.execute(f"ALTER TABLE client ADD COLUMN {column_name} {column_type}")
+                cursor.execute(
+                    f"ALTER TABLE client ADD COLUMN {column_name} {column_type}"
+                )
                 print(f"✓ Added column '{column_name}' to client table")
         else:
             print("○ All agent archetype columns already exist in client table")

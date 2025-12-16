@@ -361,11 +361,15 @@ def create_client():
 
     # Get agent archetype enabled status
     enable_archetypes = request.form.get("enable_archetypes") == "on"
-    
+
     # Get agent archetype values (optional, with defaults)
     try:
-        archetype_validator = float(request.form.get("archetype_validator", "52")) / 100.0
-        archetype_broadcaster = float(request.form.get("archetype_broadcaster", "20")) / 100.0
+        archetype_validator = (
+            float(request.form.get("archetype_validator", "52")) / 100.0
+        )
+        archetype_broadcaster = (
+            float(request.form.get("archetype_broadcaster", "20")) / 100.0
+        )
         archetype_explorer = float(request.form.get("archetype_explorer", "28")) / 100.0
         trans_val_val = float(request.form.get("trans_val_val", "85.3")) / 100.0
         trans_val_broad = float(request.form.get("trans_val_broad", "8.1")) / 100.0
@@ -655,25 +659,25 @@ def create_client():
                 "distribution": {
                     "validator": archetype_validator,
                     "broadcaster": archetype_broadcaster,
-                    "explorer": archetype_explorer
+                    "explorer": archetype_explorer,
                 },
                 "transitions": {
                     "validator": {
                         "validator": trans_val_val,
                         "broadcaster": trans_val_broad,
-                        "explorer": trans_val_expl
+                        "explorer": trans_val_expl,
                     },
                     "broadcaster": {
                         "validator": trans_broad_val,
                         "broadcaster": trans_broad_broad,
-                        "explorer": trans_broad_expl
+                        "explorer": trans_broad_expl,
                     },
                     "explorer": {
                         "validator": trans_expl_val,
                         "broadcaster": trans_expl_broad,
-                        "explorer": trans_expl_expl
-                    }
-                }
+                        "explorer": trans_expl_expl,
+                    },
+                },
             },
         },
         "posts": {
@@ -1623,8 +1627,12 @@ def update_agent_archetypes(uid):
 
     # Get data from form with validation
     try:
-        archetype_validator = float(request.form.get("archetype_validator", "0")) / 100.0
-        archetype_broadcaster = float(request.form.get("archetype_broadcaster", "0")) / 100.0
+        archetype_validator = (
+            float(request.form.get("archetype_validator", "0")) / 100.0
+        )
+        archetype_broadcaster = (
+            float(request.form.get("archetype_broadcaster", "0")) / 100.0
+        )
         archetype_explorer = float(request.form.get("archetype_explorer", "0")) / 100.0
 
         # Get transition probabilities
@@ -1644,7 +1652,10 @@ def update_agent_archetypes(uid):
     # Validate that percentages sum to approximately 100%
     archetype_sum = archetype_validator + archetype_broadcaster + archetype_explorer
     if abs(archetype_sum - 1.0) > 0.01:
-        flash(f"Archetype percentages must sum to 100% (current sum: {archetype_sum * 100:.1f}%)", "error")
+        flash(
+            f"Archetype percentages must sum to 100% (current sum: {archetype_sum * 100:.1f}%)",
+            "error",
+        )
         return redirect(request.referrer)
 
     # Validate transition probabilities sum to 100% for each row
@@ -1653,13 +1664,22 @@ def update_agent_archetypes(uid):
     expl_sum = trans_expl_expl + trans_expl_val + trans_expl_broad
 
     if abs(val_sum - 1.0) > 0.01:
-        flash(f"Validator transition probabilities must sum to 100% (current sum: {val_sum * 100:.1f}%)", "error")
+        flash(
+            f"Validator transition probabilities must sum to 100% (current sum: {val_sum * 100:.1f}%)",
+            "error",
+        )
         return redirect(request.referrer)
     if abs(broad_sum - 1.0) > 0.01:
-        flash(f"Broadcaster transition probabilities must sum to 100% (current sum: {broad_sum * 100:.1f}%)", "error")
+        flash(
+            f"Broadcaster transition probabilities must sum to 100% (current sum: {broad_sum * 100:.1f}%)",
+            "error",
+        )
         return redirect(request.referrer)
     if abs(expl_sum - 1.0) > 0.01:
-        flash(f"Explorer transition probabilities must sum to 100% (current sum: {expl_sum * 100:.1f}%)", "error")
+        flash(
+            f"Explorer transition probabilities must sum to 100% (current sum: {expl_sum * 100:.1f}%)",
+            "error",
+        )
         return redirect(request.referrer)
 
     # Get client details
@@ -1681,7 +1701,7 @@ def update_agent_archetypes(uid):
     client.trans_expl_expl = trans_expl_expl
     client.trans_expl_val = trans_expl_val
     client.trans_expl_broad = trans_expl_broad
-    
+
     db.session.commit()
 
     # Update client configuration JSON file
@@ -1698,36 +1718,36 @@ def update_agent_archetypes(uid):
     if os.path.exists(path):
         with open(path, "r") as f:
             config = json.load(f)
-            
+
             # Add agent archetypes section if not present
             if "agent_archetypes" not in config:
                 config["agent_archetypes"] = {}
-            
+
             config["agent_archetypes"] = {
                 "distribution": {
                     "validator": archetype_validator,
                     "broadcaster": archetype_broadcaster,
-                    "explorer": archetype_explorer
+                    "explorer": archetype_explorer,
                 },
                 "transitions": {
                     "validator": {
                         "validator": trans_val_val,
                         "broadcaster": trans_val_broad,
-                        "explorer": trans_val_expl
+                        "explorer": trans_val_expl,
                     },
                     "broadcaster": {
                         "validator": trans_broad_val,
                         "broadcaster": trans_broad_broad,
-                        "explorer": trans_broad_expl
+                        "explorer": trans_broad_expl,
                     },
                     "explorer": {
                         "validator": trans_expl_val,
                         "broadcaster": trans_expl_broad,
-                        "explorer": trans_expl_expl
-                    }
-                }
+                        "explorer": trans_expl_expl,
+                    },
+                },
             }
-            
+
             # Save the new configuration
             with open(path, "w") as f:
                 json.dump(config, f, indent=4)
@@ -1763,7 +1783,7 @@ def reset_agent_archetypes(uid):
     client.trans_expl_expl = 0.490
     client.trans_expl_val = 0.364
     client.trans_expl_broad = 0.146
-    
+
     db.session.commit()
 
     # Update client configuration JSON file
@@ -1780,32 +1800,32 @@ def reset_agent_archetypes(uid):
     if os.path.exists(path):
         with open(path, "r") as f:
             config = json.load(f)
-            
+
             config["agent_archetypes"] = {
                 "distribution": {
                     "validator": 0.52,
                     "broadcaster": 0.20,
-                    "explorer": 0.28
+                    "explorer": 0.28,
                 },
                 "transitions": {
                     "validator": {
                         "validator": 0.853,
                         "broadcaster": 0.081,
-                        "explorer": 0.066
+                        "explorer": 0.066,
                     },
                     "broadcaster": {
                         "validator": 0.195,
                         "broadcaster": 0.729,
-                        "explorer": 0.075
+                        "explorer": 0.075,
                     },
                     "explorer": {
                         "validator": 0.364,
                         "broadcaster": 0.146,
-                        "explorer": 0.490
-                    }
-                }
+                        "explorer": 0.490,
+                    },
+                },
             }
-            
+
             # Save the new configuration
             with open(path, "w") as f:
                 json.dump(config, f, indent=4)
