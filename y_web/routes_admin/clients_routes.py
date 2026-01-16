@@ -329,8 +329,7 @@ def generate_hpc_client_config(
 
 def create_hpc_client(exp, name, descr, population_id, form_data):
     """Create an HPC client with comprehensive configuration from form and server config."""
-    from y_web.utils.path_utils import get_writable_path
-    from y_web.utils.resource_utils import get_resource_path
+    from y_web.utils.path_utils import get_writable_path, get_resource_path
     import json
     import shutil
     

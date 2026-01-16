@@ -683,9 +683,13 @@
                                             if (backend === 'vllm') {
                                                 vllmFields.style.display = 'block';
                                                 ollamaFields.style.display = 'none';
+                                                // vLLM doesn't need model fetching, enable submit button
+                                                updateFormButtonStateForBackend('vllm');
                                             } else {
                                                 vllmFields.style.display = 'none';
                                                 ollamaFields.style.display = 'block';
+                                                // Ollama requires model fetching
+                                                updateFormButtonStateForBackend('ollama');
                                             }
                                         }
                                         // Initialize on page load
@@ -1417,16 +1421,44 @@
 let llmModelsFetched = false;
 let llmModelSelected = false;
 
-// Check if form should be enabled
+// Check if form should be enabled based on backend selection
+function updateFormButtonStateForBackend(backend) {
+    const submitButton = document.getElementById('create_client_button');
+    if (submitButton) {
+        if (backend === 'vllm') {
+            // vLLM doesn't require model fetching, enable button immediately
+            {% if llm_agents_enabled %}
+            submitButton.disabled = false;
+            {% else %}
+            submitButton.disabled = false;
+            {% endif %}
+        } else {
+            // Ollama requires model fetching and selection
+            {% if llm_agents_enabled %}
+            submitButton.disabled = !(llmModelsFetched && llmModelSelected);
+            {% else %}
+            submitButton.disabled = false;
+            {% endif %}
+        }
+    }
+}
+
+// Check if form should be enabled (for Ollama mode)
 function updateFormButtonState() {
     const submitButton = document.getElementById('create_client_button');
     if (submitButton) {
-        {% if llm_agents_enabled %}
-        submitButton.disabled = !(llmModelsFetched && llmModelSelected);
-        {% else %}
-        // When LLM agents are disabled, form can be submitted without LLM validation
-        submitButton.disabled = false;
-        {% endif %}
+        const backend = document.getElementById('llm_backend')?.value || 'ollama';
+        if (backend === 'vllm') {
+            // vLLM mode - always enabled
+            submitButton.disabled = false;
+        } else {
+            // Ollama mode - check if models fetched
+            {% if llm_agents_enabled %}
+            submitButton.disabled = !(llmModelsFetched && llmModelSelected);
+            {% else %}
+            submitButton.disabled = false;
+            {% endif %}
+        }
     }
 }
 
