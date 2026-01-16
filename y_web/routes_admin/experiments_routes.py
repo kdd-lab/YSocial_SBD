@@ -1160,6 +1160,145 @@ def upload_database():
     return settings()
 
 
+def generate_standard_config(
+    platform_type,
+    exp_name,
+    host,
+    port,
+    perspective_api,
+    sentiment_annotation,
+    emotion_annotation,
+    opinions_enabled,
+    db_uri,
+    topics,
+    data_path,
+):
+    """Generate config file for Standard simulator type."""
+    return {
+        "platform_type": platform_type,
+        "name": exp_name,
+        "host": host,
+        "port": port,
+        "debug": "False",
+        "reset_db": "False",
+        "modules": ["news", "voting", "image"],
+        "perspective_api": (
+            perspective_api if perspective_api and len(perspective_api) > 0 else None
+        ),
+        "sentiment_annotation": sentiment_annotation,
+        "emotion_annotation": emotion_annotation,
+        "opinions_enabled": opinions_enabled,
+        "database_uri": db_uri,
+        "topics": [t.strip() for t in topics if t.strip()],
+        "data_path": data_path,
+    }
+
+
+def generate_hpc_config(
+    exp_name,
+    platform_type,
+    db_type,
+    db_uri,
+    redis_enabled,
+    redis_host,
+    redis_port,
+    redis_password,
+    redis_sliding_window_days,
+    perspective_api,
+    sentiment_annotation,
+    emotion_annotation,
+    topics,
+    data_path,
+    db_config_dict=None,
+):
+    """Generate config file for HPC simulator type."""
+    # Build database configuration section
+    database_config = {
+        "type": db_type,
+    }
+    
+    if db_type == "sqlite":
+        database_config["sqlite"] = {
+            "filename": "simulation.db"
+        }
+    elif db_type == "postgresql":
+        if db_config_dict:
+            database_config["postgresql"] = db_config_dict
+        else:
+            # Fallback defaults
+            database_config["postgresql"] = {
+                "host": "localhost",
+                "port": 5432,
+                "database": "ysimulator",
+                "username": "postgres",
+                "password": "password"
+            }
+    
+    return {
+        "server_name": exp_name,
+        "namespace": exp_name,
+        "address": "auto",
+        "port": None,
+        "database": database_config,
+        "min_to_start": 1,
+        "timeout_seconds": 180,
+        "redis": {
+            "enabled": redis_enabled,
+            "host": redis_host,
+            "port": redis_port,
+            "db": 0,
+            "password": redis_password,
+            "sliding_window_days": redis_sliding_window_days,
+        },
+        "posts": {
+            "visibility_rounds": 36
+        },
+        "recommendations": {
+            "default_limit": 5
+        },
+        "simulation": {
+            "agent_archetypes": {
+                "enabled": True,
+                "distribution": {
+                    "validator": 0.33,
+                    "broadcaster": 0.33,
+                    "explorer": 0.34
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": 0.85,
+                        "broadcaster": 0.1,
+                        "explorer": 0.05
+                    },
+                    "broadcaster": {
+                        "validator": 0.1,
+                        "broadcaster": 0.8,
+                        "explorer": 0.1
+                    },
+                    "explorer": {
+                        "validator": 0.05,
+                        "broadcaster": 0.1,
+                        "explorer": 0.85
+                    }
+                }
+            }
+        },
+        "logging": {
+            "enable_server_log": True,
+            "enable_actor_log": True,
+            "enable_request_log": True,
+            "enable_console_log": True
+        },
+        "platform_type": platform_type,
+        "perspective_api": perspective_api,
+        "sentiment_annotation": sentiment_annotation,
+        "emotion_annotation": emotion_annotation,
+        "database_uri": db_uri,
+        "topics": [t.strip() for t in topics if t.strip()],
+        "data_path": data_path,
+    }
+
+
 @experiments.route("/admin/create_experiment", methods=["POST", "GET"])
 @login_required
 def create_experiment():
@@ -1171,14 +1310,12 @@ def create_experiment():
     platform_type = request.form.get("platform_type")
     simulator_type = request.form.get("simulator_type", "Standard")  # Default to Standard
     
-    # TODO: Redis configuration parameters for HPC simulator
-    # When simulator_type == "HPC", capture Redis settings:
-    # - redis_enabled = request.form.get("redis_enabled") == "true"
-    # - redis_host = request.form.get("redis_host", "localhost")
-    # - redis_port = int(request.form.get("redis_port", "6379"))
-    # - redis_password = request.form.get("redis_password", None)
-    # - redis_sliding_window_days = int(request.form.get("redis_sliding_window_days", "2"))
-    # These need to be written to different config file structure for HPC experiments
+    # Redis configuration parameters for HPC simulator
+    redis_enabled = request.form.get("redis_enabled") == "true"
+    redis_host = request.form.get("redis_host", "localhost")
+    redis_port = int(request.form.get("redis_port", "6379")) if request.form.get("redis_port") else 6379
+    redis_password = request.form.get("redis_password") if request.form.get("redis_password") else None
+    redis_sliding_window_days = int(request.form.get("redis_sliding_window_days", "2")) if request.form.get("redis_sliding_window_days") else 2
 
     # Use fixed host value
     host = "127.0.0.1"
@@ -1325,23 +1462,60 @@ def create_experiment():
     else:
         raise NotImplementedError(f"Unsupported platform {platform_type}")
 
-    config = {
-        "platform_type": platform_type,
-        "name": exp_name,
-        "host": host,
-        "port": port,
-        "debug": "False",
-        "reset_db": "False",
-        "modules": ["news", "voting", "image"],
-        "perspective_api": (
-            perspective_api if perspective_api and len(perspective_api) > 0 else None
-        ),
-        "sentiment_annotation": sentiment_annotation,
-        "emotion_annotation": emotion_annotation,
-        "opinions_enabled": opinions_enabled,
-        "database_uri": db_uri,
-        "topics": [t.strip() for t in topics if t.strip()],
-    }
+    # Generate data_path
+    data_path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}"
+    
+    # Generate config based on simulator type
+    if simulator_type == "HPC":
+        # For HPC, extract PostgreSQL connection details if using postgresql
+        db_config_dict = None
+        if db_type == "postgresql":
+            from urllib.parse import urlparse
+            parsed_uri = urlparse(current_app.config["SQLALCHEMY_DATABASE_URI"])
+            db_config_dict = {
+                "host": parsed_uri.hostname or "localhost",
+                "port": parsed_uri.port or 5432,
+                "database": f"experiments_{uid}".replace("-", "_"),
+                "username": parsed_uri.username or "postgres",
+                "password": parsed_uri.password or "password"
+            }
+        
+        config = generate_hpc_config(
+            exp_name=exp_name,
+            platform_type=platform_type,
+            db_type=db_type,
+            db_uri=db_uri,
+            redis_enabled=redis_enabled,
+            redis_host=redis_host,
+            redis_port=redis_port,
+            redis_password=redis_password,
+            redis_sliding_window_days=redis_sliding_window_days,
+            perspective_api=(
+                perspective_api if perspective_api and len(perspective_api) > 0 else None
+            ),
+            sentiment_annotation=sentiment_annotation,
+            emotion_annotation=emotion_annotation,
+            topics=topics,
+            data_path=data_path,
+            db_config_dict=db_config_dict,
+        )
+    else:
+        # Standard simulator
+        config = generate_standard_config(
+            platform_type=platform_type,
+            exp_name=exp_name,
+            host=host,
+            port=port,
+            perspective_api=(
+                perspective_api if perspective_api and len(perspective_api) > 0 else None
+            ),
+            sentiment_annotation=sentiment_annotation,
+            emotion_annotation=emotion_annotation,
+            opinions_enabled=opinions_enabled,
+            db_uri=db_uri,
+            topics=topics,
+            data_path=data_path,
+        )
 
     with open(
         f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
