@@ -368,6 +368,14 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     )
     attention_window = int(form_data.get("attention_window", "336"))
     visibility_rounds = int(form_data.get("visibility_rounds", "36"))
+    batch_size = int(form_data.get("batch_size", "100"))
+
+    # Follow action decay parameters
+    follow_decay_enabled = form_data.get("follow_decay_enabled") == "on"
+    follow_decay_function = form_data.get("follow_decay_function", "exponential")
+    follow_decay_half_life = int(form_data.get("follow_decay_half_life", "168"))
+    follow_decay_rate = float(form_data.get("follow_decay_rate", "0.01"))
+    follow_decay_min_ratio = float(form_data.get("follow_decay_min_ratio", "0.1"))
 
     # Action likelihoods
     post = float(form_data.get("post", "3.0"))
@@ -579,13 +587,13 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         "probability_of_daily_follow": probability_of_daily_follow,
         "probability_of_secondary_follow": probability_of_secondary_follow,
         "follow_action_decay": {
-            "enabled": False,
-            "decay_function": "exponential",
-            "half_life_rounds": 168,
-            "decay_rate": 0.01,
-            "min_probability_ratio": 0.1,
+            "enabled": follow_decay_enabled,
+            "decay_function": follow_decay_function,
+            "half_life_rounds": follow_decay_half_life,
+            "decay_rate": follow_decay_rate,
+            "min_probability_ratio": follow_decay_min_ratio,
         },
-        "batch_size": 100,
+        "batch_size": batch_size,
         "churn": {
             "enabled": True,
             "churn_probability": 0.01,
