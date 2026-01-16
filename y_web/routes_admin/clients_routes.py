@@ -301,6 +301,10 @@ def generate_hpc_client_config(
     simulation_config,
     agents_config,
     logging_config,
+    enable_sentiment,
+    emotion_annotation,
+    enable_toxicity,
+    perspective_api_key,
 ):
     """Generate client configuration for HPC simulator type."""
     config = {
@@ -315,6 +319,10 @@ def generate_hpc_client_config(
         "simulation": simulation_config,
         "agents": agents_config,
         "logging": logging_config,
+        "enable_sentiment": enable_sentiment,
+        "emotion_annotation": emotion_annotation,
+        "enable_toxicity": enable_toxicity,
+        "perspective_api_key": perspective_api_key,
     }
     return config
 
@@ -569,6 +577,10 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         simulation_config=simulation_config,
         agents_config=agents_config,
         logging_config=logging_config,
+        enable_sentiment=enable_sentiment,
+        emotion_annotation=emotion_annotation,
+        enable_toxicity=enable_toxicity,
+        perspective_api_key=perspective_api_key,
     )
     
     # Save config file using standard naming pattern
