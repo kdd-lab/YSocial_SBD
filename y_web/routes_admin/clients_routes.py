@@ -413,9 +413,35 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # Extract LLM backend
     llm_backend = form_data.get("llm_backend", "vllm")
+    
+    # Check if LLM agents are enabled
+    llm_agents_enabled = bool(exp.llm_agents_enabled) if hasattr(exp, 'llm_agents_enabled') else True
 
-    # Build LLM config based on backend
-    if llm_backend == "vllm":
+    # Build LLM config based on backend and LLM agents enabled status
+    if not llm_agents_enabled:
+        # LLM agents not enabled - set empty/null values for all features
+        llm_config = {
+            "backend": None,
+            "model": None,
+            "temperature": None,
+            "max_tokens": None,
+            "max_model_len": None,
+            "tensor_parallel_size": None,
+            "gpu_memory_utilization": None,
+            "enable_flashattention": None,
+            "num_actors": None,
+            "gpu_per_actor": None,
+            "reuse_actors": None,
+            "actor_name_prefix": None,
+        }
+        llm_v_config = {
+            "model": None,
+            "temperature": None,
+            "max_tokens": None,
+            "max_model_len": None,
+            "gpu_memory_utilization": None,
+        }
+    elif llm_backend == "vllm":
         llm_config = {
             "backend": "vllm",
             "model": form_data.get("llm_model", "AMead10/Llama-3.2-3B-Instruct-AWQ"),
