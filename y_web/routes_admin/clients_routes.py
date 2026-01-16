@@ -2861,77 +2861,171 @@ def set_opinion_distributions():
         flash(f"Error saving population file: {str(e)}", "error")
         return redirect(url_for("experiments.experiment_details", uid=idexp))
 
-    # Update client configuration JSON with opinion dynamics settings
-    # Get opinion update rule from form
-    update_rule = request.form.get("update_rule", "bounded_confidence")
+    # Check if this is an HPC experiment
+    is_hpc = exp.simulator_type == "HPC" if hasattr(exp, "simulator_type") else False
+    
+    # Check if opinions are enabled for the experiment
+    annotations = (
+        {an.strip(): None for an in exp.annotations.split(",")}
+        if exp.annotations and exp.annotations.strip()
+        else {}
+    )
+    opinions_enabled = "opinions" in annotations
 
-    # Build opinion dynamics configuration based on selected rule
-    opinion_dynamics = {"model_name": update_rule, "parameters": {}}
+    # Build opinion dynamics configuration for HPC clients
+    if is_hpc:
+        if opinions_enabled:
+            # Get opinion update rule from form
+            update_rule = request.form.get("update_rule", "bounded_confidence")
+            
+            # Build HPC-specific opinion dynamics configuration
+            opinion_dynamics = {
+                "enabled": True,
+                "model_name": update_rule
+            }
+            
+            if update_rule == "bounded_confidence":
+                # Collect bounded confidence parameters
+                bc_epsilon = request.form.get("bc_epsilon", "0.25")
+                bc_mu = request.form.get("bc_mu", "0.5")
+                bc_theta = request.form.get("bc_theta", "0.0")
+                bc_cold_start = request.form.get("bc_cold_start", "neutral")
+                
+                opinion_dynamics["parameters"] = {
+                    "epsilon": float(bc_epsilon),
+                    "mu": float(bc_mu),
+                    "theta": float(bc_theta),
+                    "cold_start": bc_cold_start,
+                }
+            elif update_rule == "llm_evaluation":
+                # Collect LLM evaluation parameters
+                llm_cold_start = request.form.get("llm_cold_start", "neutral")
+                llm_evaluation_scope = request.form.get(
+                    "llm_evaluation_scope", "neighbors"
+                )
+                
+                opinion_dynamics["note"] = "Uses LLM-based opinion evaluation with natural language reasoning. Requires LLM agents."
+                opinion_dynamics["parameters"] = {
+                    "evaluation_scope": llm_evaluation_scope,
+                    "cold_start": llm_cold_start,
+                    "note": f"evaluation_scope='{llm_evaluation_scope}' considers opinions of followed users. cold_start='{llm_cold_start}' initializes new opinions at 0.5."
+                }
+            
+            # Add opinion groups from database
+            opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+            opinion_groups_dict = {}
+            for group in opinion_groups:
+                opinion_groups_dict[group.name.rstrip()] = [
+                    group.lower_bound,
+                    group.upper_bound,
+                ]
+            
+            opinion_dynamics["opinion_groups"] = opinion_groups_dict
+        else:
+            # Opinion dynamics disabled for HPC
+            opinion_dynamics = {
+                "enabled": False,
+                "note": "Opinion dynamics disabled for this experiment. No opinion evolution occurs during simulation."
+            }
+        
+        # Load and update HPC client configuration JSON file
+        client_config_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"client_{client.name}-{population.name}.json",
+        )
+        
+        if os.path.exists(client_config_file):
+            try:
+                with open(client_config_file, "r") as f:
+                    client_config = json.load(f)
+                
+                # Add opinion_dynamics at root level for HPC clients
+                client_config["opinion_dynamics"] = opinion_dynamics
+                
+                # Save updated configuration
+                with open(client_config_file, "w") as f:
+                    json.dump(client_config, f, indent=4)
+                
+                flash("Opinion dynamics configuration saved successfully.", "success")
+            except Exception as e:
+                flash(f"Error updating client configuration: {str(e)}", "warning")
+        else:
+            flash(f"Client configuration file not found: {client_config_file}", "warning")
+    else:
+        # Standard client configuration (original behavior)
+        # Get opinion update rule from form
+        update_rule = request.form.get("update_rule", "bounded_confidence")
 
-    if update_rule == "bounded_confidence":
-        # Collect bounded confidence parameters
-        bc_epsilon = request.form.get("bc_epsilon", "0.25")
-        bc_mu = request.form.get("bc_mu", "0.5")
-        bc_theta = request.form.get("bc_theta", "0")
-        bc_cold_start = request.form.get("bc_cold_start", "neutral")
+        # Build opinion dynamics configuration based on selected rule
+        opinion_dynamics = {"model_name": update_rule, "parameters": {}}
 
-        opinion_dynamics["parameters"] = {
-            "epsilon": float(bc_epsilon),
-            "mu": float(bc_mu),
-            "theta": float(bc_theta),
-            "cold_start": bc_cold_start,
-        }
-    elif update_rule == "llm_evaluation":
-        # Collect LLM evaluation parameters
-        llm_cold_start = request.form.get("llm_cold_start", "neutral")
-        llm_evaluation_scope = request.form.get(
-            "llm_evaluation_scope", "interlocutor_only"
+        if update_rule == "bounded_confidence":
+            # Collect bounded confidence parameters
+            bc_epsilon = request.form.get("bc_epsilon", "0.25")
+            bc_mu = request.form.get("bc_mu", "0.5")
+            bc_theta = request.form.get("bc_theta", "0")
+            bc_cold_start = request.form.get("bc_cold_start", "neutral")
+
+            opinion_dynamics["parameters"] = {
+                "epsilon": float(bc_epsilon),
+                "mu": float(bc_mu),
+                "theta": float(bc_theta),
+                "cold_start": bc_cold_start,
+            }
+        elif update_rule == "llm_evaluation":
+            # Collect LLM evaluation parameters
+            llm_cold_start = request.form.get("llm_cold_start", "neutral")
+            llm_evaluation_scope = request.form.get(
+                "llm_evaluation_scope", "interlocutor_only"
+            )
+
+            opinion_dynamics["parameters"] = {
+                "cold_start": llm_cold_start,
+                "evaluation_scope": llm_evaluation_scope,
+            }
+
+        # Add opinion groups from database
+        opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+        opinion_groups_dict = {}
+        for group in opinion_groups:
+            opinion_groups_dict[group.name.rstrip()] = [
+                group.lower_bound,
+                group.upper_bound,
+            ]
+
+        opinion_dynamics["opinion_groups"] = opinion_groups_dict
+
+        # Load and update client configuration JSON file
+        client_config_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"client_{client.name}-{population.name}.json",
         )
 
-        opinion_dynamics["parameters"] = {
-            "cold_start": llm_cold_start,
-            "evaluation_scope": llm_evaluation_scope,
-        }
+        if os.path.exists(client_config_file):
+            try:
+                with open(client_config_file, "r") as f:
+                    client_config = json.load(f)
 
-    # Add opinion groups from database
-    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-    opinion_groups_dict = {}
-    for group in opinion_groups:
-        opinion_groups_dict[group.name.rstrip()] = [
-            group.lower_bound,
-            group.upper_bound,
-        ]
+                # Add opinion_dynamics to simulation section
+                if "simulation" not in client_config:
+                    client_config["simulation"] = {}
 
-    opinion_dynamics["opinion_groups"] = opinion_groups_dict
+                client_config["simulation"]["opinion_dynamics"] = opinion_dynamics
 
-    # Load and update client configuration JSON file
-    client_config_file = os.path.join(
-        writable_base,
-        "y_web",
-        "experiments",
-        exp_folder,
-        f"client_{client.name}-{population.name}.json",
-    )
+                # Save updated configuration
+                with open(client_config_file, "w") as f:
+                    json.dump(client_config, f, indent=4)
 
-    if os.path.exists(client_config_file):
-        try:
-            with open(client_config_file, "r") as f:
-                client_config = json.load(f)
-
-            # Add opinion_dynamics to simulation section
-            if "simulation" not in client_config:
-                client_config["simulation"] = {}
-
-            client_config["simulation"]["opinion_dynamics"] = opinion_dynamics
-
-            # Save updated configuration
-            with open(client_config_file, "w") as f:
-                json.dump(client_config, f, indent=4)
-
-            flash("Opinion dynamics configuration saved successfully.", "success")
-        except Exception as e:
-            flash(f"Error updating client configuration: {str(e)}", "warning")
-    else:
-        flash(f"Client configuration file not found: {client_config_file}", "warning")
+                flash("Opinion dynamics configuration saved successfully.", "success")
+            except Exception as e:
+                flash(f"Error updating client configuration: {str(e)}", "warning")
+        else:
+            flash(f"Client configuration file not found: {client_config_file}", "warning")
 
     return redirect(url_for("experiments.experiment_details", uid=idexp))
