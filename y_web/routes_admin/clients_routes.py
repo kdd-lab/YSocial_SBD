@@ -306,7 +306,13 @@ def generate_hpc_client_config(
     enable_toxicity,
     perspective_api_key,
 ):
-    """Generate client configuration for HPC simulator type."""
+    """Generate client configuration for HPC simulator type.
+    
+    Args:
+        client_name: Name of the client
+        namespace: Experiment name (not db_name)
+        ...
+    """
     config = {
         "client_name": client_name,
         "namespace": namespace,
@@ -2381,13 +2387,24 @@ def opinion_configuration(idexp):
     else:
         exp_folder = exp.db_name.removeprefix("experiments_")
 
-    population_file = os.path.join(
-        writable_base,
-        "y_web",
-        "experiments",
-        exp_folder,
-        f"{population.name.replace(' ', '')}.json",
-    )
+    # For HPC experiments, look for client_{client.name}-{population.name}.json
+    # For standard experiments, look for {population.name}.json
+    if exp.simulator_type == "HPC":
+        population_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"client_{client.name}-{population.name.replace(' ', '')}.json",
+        )
+    else:
+        population_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"{population.name.replace(' ', '')}.json",
+        )
 
     # Load age classes from database to map individual ages to age groups
     age_classes = AgeClass.query.all()
