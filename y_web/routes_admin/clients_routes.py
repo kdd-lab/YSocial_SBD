@@ -474,8 +474,9 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     # Get experiment topics
     topics = Exp_Topic.query.filter_by(exp_id=exp.idexp).all()
     topics_ids = [t.topic_id for t in topics]
-    topics = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
-    discussion_topics = [t.name for t in topics]
+    topics_objs = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    discussion_topics = [t.name for t in topics_objs]
+    topics = discussion_topics  # Use topic names (strings) for JSON serialization
     
     # Read server config to get shared values
     if "database_server.db" in exp.db_name:
