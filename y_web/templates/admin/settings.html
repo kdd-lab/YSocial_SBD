@@ -1260,84 +1260,32 @@
                                     <div class="box-line">
                                         <span class="left">Simulator Type</span>
                                         <span class="right" style="width: 70%;">
-                                            <div class="select">
-                                                <select name="simulator_type" style="width: 100%">
-                                                    <option value="Standard" selected>Standard</option>
-                                                    <option value="HPC">HPC (Experimental)</option>
-                                                </select>
-                                            </div>
-                                        </span>
-                                    </div>
-
-                                    <div class="box-line" style="display: flex; align-items: flex-start;">
-                                        <span class="left" style="flex-shrink: 0;"></span>
-                                        <span class="right" style="width: 70%;">
-                                            <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 12px 16px; border-radius: 6px; font-size: 0.85em; line-height: 1.5; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                                <div style="display: flex; align-items: flex-start; gap: 10px;">
-                                                    <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.3em; flex-shrink: 0; margin-top: 2px;"></i>
-                                                    <div>
-                                                        <strong style="color: #e65100; display: block; margin-bottom: 4px;">HPC Simulator</strong>
-                                                        <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
+                                            <div style="display: flex; gap: 12px; align-items: flex-start;">
+                                                <div class="select" style="flex: 0 0 200px;">
+                                                    <select id="simulator_type_select" name="simulator_type" style="width: 100%">
+                                                        <option value="Standard" selected>Standard</option>
+                                                        <option value="HPC">HPC (Experimental)</option>
+                                                    </select>
+                                                </div>
+                                                <!-- HPC Info Box (shown inline when HPC is selected) -->
+                                                <div id="hpc-info-inline" style="display: none; flex: 1; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 10px 12px; border-radius: 6px; font-size: 0.8em; line-height: 1.4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                                                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                                        <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.2em; flex-shrink: 0; margin-top: 1px;"></i>
+                                                        <div>
+                                                            <strong style="color: #e65100; display: block; margin-bottom: 2px; font-size: 0.95em;">HPC Simulator</strong>
+                                                            <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </span>
-                                    </div>
-
-                                    <!-- Redis Configuration Box (shown only for HPC) -->
-                                    <div id="redis-config-box" class="box-line" style="display: none; flex-direction: column; align-items: flex-start;">
-                                        <div style="width: 100%; display: flex; align-items: flex-start;">
-                                            <span class="left" style="flex-shrink: 0;"></span>
-                                            <span class="right" style="width: 70%;">
-                                                <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-top: 8px;">
-                                                    <!-- Collapsible Header -->
-                                                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 12px;" onclick="toggleRedisDetails()">
-                                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                                            <i class="mdi mdi-database" style="color: #6c757d; font-size: 1.2em;"></i>
-                                                            <strong style="color: #495057; font-size: 0.95em;">Redis Configuration</strong>
-                                                        </div>
-                                                        <i id="redis-toggle-icon" class="mdi mdi-chevron-down" style="color: #6c757d; font-size: 1.3em; transition: transform 0.3s;"></i>
-                                                    </div>
-
-                                                    <!-- Collapsible Content -->
-                                                    <div id="redis-details" style="display: none;">
-                                                        <div style="margin-bottom: 12px;">
-                                                            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                                                <input type="checkbox" id="redis_enabled" name="redis_enabled" value="true" style="width: auto;">
-                                                                <span style="font-size: 0.9em; color: #495057; font-weight: 500;">Enable Redis</span>
-                                                            </label>
-                                                        </div>
-
-                                                        <div style="margin-bottom: 12px;">
-                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Host</label>
-                                                            <input type="text" name="redis_host" value="localhost" class="input" style="width: 100%; font-size: 0.9em;">
-                                                        </div>
-
-                                                        <div style="margin-bottom: 12px;">
-                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Port</label>
-                                                            <input type="number" name="redis_port" value="6379" class="input" style="width: 100%; font-size: 0.9em;" min="1" max="65535">
-                                                        </div>
-
-                                                        <div style="margin-bottom: 12px;">
-                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Password <span style="color: #6c757d; font-weight: normal;">(optional)</span></label>
-                                                            <input type="password" name="redis_password" value="" placeholder="Leave empty for no password" class="input" style="width: 100%; font-size: 0.9em;">
-                                                        </div>
-
-                                                        <div style="margin-bottom: 0;">
-                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Sliding Window Days</label>
-                                                            <input type="number" name="redis_sliding_window_days" value="2" class="input" style="width: 100%; font-size: 0.9em;" min="1" max="365">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </span>
-                                        </div>
                                     </div>
 
                                     <div class="box-line">
                                         <span class="left">Platform Type</span>
                                         <span class="right" style="width: 70%;">
                                             <div class="select">
-                                                <select name="platform_type" style="width: 100%">
+                                                <select id="platform_type_select" name="platform_type" style="width: 100%">
                                                     <option value="microblogging">Microblogging (i.e., X/BlueSky)</option>
                                                     <option value="forum" disabled>Forum (i.e., Reddit)</option>
                                                 </select>
@@ -1466,6 +1414,41 @@
                                         <span class="right" style="width: 70%;"><input type="text" name="perspective_api"
                                                                                        class="input"
                                                                                        value=""></span>
+                                    </div>
+
+                                    <!-- Redis Configuration Box (shown only for HPC) -->
+                                    <div id="redis-config-box" class="box-line" style="display: none;">
+                                        <span class="left">Redis Configuration</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+                                                <div style="margin-bottom: 16px;">
+                                                    <label style="display: flex; align-items: center; gap: 8px;">
+                                                        <input type="checkbox" id="redis_enabled" name="redis_enabled" value="true" style="width: auto;">
+                                                        <span style="font-size: 0.9em; color: #374151; font-weight: 500;">Enable Redis</span>
+                                                    </label>
+                                                </div>
+
+                                                <div style="margin-bottom: 12px;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Host</label>
+                                                    <input type="text" name="redis_host" value="localhost" class="input" style="width: 100%;">
+                                                </div>
+
+                                                <div style="margin-bottom: 12px;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Port</label>
+                                                    <input type="number" name="redis_port" value="6379" class="input" style="width: 100%;" min="1" max="65535">
+                                                </div>
+
+                                                <div style="margin-bottom: 12px;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Password <span style="color: #6b7280; font-weight: normal;">(optional)</span></label>
+                                                    <input type="password" name="redis_password" value="" placeholder="Leave empty for no password" class="input" style="width: 100%;">
+                                                </div>
+
+                                                <div style="margin-bottom: 0;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Sliding Window Days</label>
+                                                    <input type="number" name="redis_sliding_window_days" value="2" class="input" style="width: 100%;" min="1" max="365">
+                                                </div>
+                                            </div>
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="button-wrap">
@@ -1657,31 +1640,48 @@
                                 }
                             });
 
-                            // Handle Simulator Type change to show/hide Redis configuration
-                            const simulatorTypeSelect = document.querySelector('select[name="simulator_type"]');
+                            // Handle Simulator Type change
+                            const simulatorTypeSelect = document.getElementById('simulator_type_select');
+                            const hpcInfoInline = document.getElementById('hpc-info-inline');
                             const redisConfigBox = document.getElementById('redis-config-box');
+                            const platformTypeSelect = document.getElementById('platform_type_select');
 
-                            simulatorTypeSelect.addEventListener('change', function() {
-                                if (this.value === 'HPC') {
+                            function updateSimulatorTypeUI() {
+                                const isHPC = simulatorTypeSelect.value === 'HPC';
+                                
+                                // Show/hide HPC info box inline
+                                if (isHPC) {
+                                    hpcInfoInline.style.display = 'block';
                                     redisConfigBox.style.display = 'flex';
+                                    
+                                    // Filter platform type to show only microblogging for HPC
+                                    platformTypeSelect.value = 'microblogging';
+                                    // Hide forum option for HPC
+                                    Array.from(platformTypeSelect.options).forEach(option => {
+                                        if (option.value === 'forum') {
+                                            option.style.display = 'none';
+                                        }
+                                    });
                                 } else {
+                                    hpcInfoInline.style.display = 'none';
                                     redisConfigBox.style.display = 'none';
+                                    
+                                    // Show all platform type options for Standard
+                                    Array.from(platformTypeSelect.options).forEach(option => {
+                                        option.style.display = '';
+                                    });
                                 }
-                            });
+                            }
+
+                            simulatorTypeSelect.addEventListener('change', updateSimulatorTypeUI);
+                            
+                            // Initialize on page load
+                            updateSimulatorTypeUI();
                         });
 
-                        // Toggle Redis configuration details (collapsible)
+                        // Toggle Redis configuration details (collapsible) - REMOVED as it's no longer collapsible
                         function toggleRedisDetails() {
-                            const details = document.getElementById('redis-details');
-                            const icon = document.getElementById('redis-toggle-icon');
-                            
-                            if (details.style.display === 'none' || details.style.display === '') {
-                                details.style.display = 'block';
-                                icon.style.transform = 'rotate(180deg)';
-                            } else {
-                                details.style.display = 'none';
-                                icon.style.transform = 'rotate(0deg)';
-                            }
+                            // Deprecated - Redis config is now always expanded
                         }
                     </script>
 
