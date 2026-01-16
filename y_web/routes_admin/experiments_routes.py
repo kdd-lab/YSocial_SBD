@@ -4553,29 +4553,37 @@ def add_experiment_to_group(group_id):
     # HPC experiment validation: HPC experiments cannot run in parallel
     # Check if this is an HPC experiment or if the group already has experiments
     is_hpc = exp.simulator_type == "HPC"
-    existing_experiments = ExperimentScheduleItem.query.filter_by(group_id=group_id).all()
     
-    if is_hpc and len(existing_experiments) > 0:
-        return (
-            jsonify({
-                "success": False, 
-                "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group."
-            }),
-            400,
+    if is_hpc:
+        # HPC experiments must be alone in their group
+        existing_count = ExperimentScheduleItem.query.filter_by(group_id=group_id).count()
+        if existing_count > 0:
+            return (
+                jsonify({
+                    "success": False, 
+                    "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group."
+                }),
+                400,
+            )
+    else:
+        # Check if group already contains an HPC experiment (use join for efficiency)
+        hpc_in_group = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type == "HPC"
+            )
+            .first()
         )
-    
-    if len(existing_experiments) > 0:
-        # Check if any existing experiment in the group is HPC
-        for item in existing_experiments:
-            existing_exp = Exps.query.get(item.experiment_id)
-            if existing_exp and existing_exp.simulator_type == "HPC":
-                return (
-                    jsonify({
-                        "success": False,
-                        "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group."
-                    }),
-                    400,
-                )
+        if hpc_in_group:
+            return (
+                jsonify({
+                    "success": False,
+                    "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group."
+                }),
+                400,
+            )
 
     # Get max order index for this group
     max_order = (
