@@ -735,6 +735,7 @@ def upload_experiment():
             server=experiment_config.get("host", "127.0.0.1"),
             platform_type=experiment_config.get("platform_type", "microblogging"),
             llm_agents_enabled=llm_agents_enabled,
+            simulator_type="Standard",  # Default to Standard for uploaded experiments
         )
 
         db.session.add(exp)
@@ -1133,6 +1134,7 @@ def upload_database():
             owner="",
             exp_descr="",
             status=0,
+            simulator_type="Standard",  # Default to Standard
         )
 
         db.session.add(exp)
@@ -1167,6 +1169,7 @@ def create_experiment():
     exp_name = request.form.get("exp_name")
     exp_descr = request.form.get("exp_descr")
     platform_type = request.form.get("platform_type")
+    simulator_type = request.form.get("simulator_type", "Standard")  # Default to Standard
 
     # Use fixed host value
     host = "127.0.0.1"
@@ -1366,6 +1369,7 @@ def create_experiment():
         server=host,
         annotations=annotations,
         llm_agents_enabled=llm_agents_enabled,
+        simulator_type=simulator_type,
     )
 
     db.session.add(exp)
@@ -3941,6 +3945,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
         server=source_exp.server,
         annotations=source_exp.annotations,
         llm_agents_enabled=source_exp.llm_agents_enabled,
+        simulator_type=source_exp.simulator_type if hasattr(source_exp, 'simulator_type') else "Standard",
     )
     db.session.add(new_exp)
     db.session.commit()
