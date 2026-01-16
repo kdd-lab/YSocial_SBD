@@ -134,14 +134,14 @@ def main():
     print("Migrating SQLite databases...")
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(script_dir))
-    
+
     # List of possible SQLite database locations
     db_paths = [
         os.path.join(project_root, "data_schema", "database_dashboard.db"),
         os.path.join(project_root, "y_web", "db", "dashboard.db"),
         os.path.join(project_root, "db", "dashboard.db"),
     ]
-    
+
     sqlite_success = True
     migrated_count = 0
     for db_path in db_paths:
@@ -153,13 +153,13 @@ def main():
                 sqlite_success = False
         else:
             print(f"  Skipping (not found): {db_path}")
-    
+
     if migrated_count == 0:
         print("  ✗ No SQLite databases found to migrate")
         sqlite_success = False
     else:
         print(f"  ✓ Successfully migrated {migrated_count} database(s)")
-    
+
     print()
 
     # Migrate PostgreSQL database (if configured)
