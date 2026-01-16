@@ -1955,6 +1955,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle archetype toggle
     const archetypeToggle = document.getElementById('enable_archetypes');
     const archetypeDetails = document.getElementById('archetype-details');
+    const agentDowncastCheckbox = document.getElementById('agent_downcast');
     
     function updateArchetypeToggle() {
         if (!archetypeToggle || !archetypeDetails) return;
@@ -1963,12 +1964,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // Enable archetypes
             archetypeDetails.style.opacity = '1';
             archetypeDetails.style.pointerEvents = 'auto';
+            
+            // Enable agent downcast only if LLM agents are enabled
+            {% if llm_agents_enabled %}
+            if (agentDowncastCheckbox) {
+                agentDowncastCheckbox.disabled = false;
+                agentDowncastCheckbox.parentElement.style.opacity = '1';
+                agentDowncastCheckbox.parentElement.style.cursor = 'pointer';
+            }
+            {% endif %}
         } else {
             // Disable archetypes
             archetypeDetails.style.opacity = '0.5';
             archetypeDetails.style.pointerEvents = 'none';
             // Close the details if open
             archetypeDetails.open = false;
+            
+            // Disable agent downcast when archetypes are disabled
+            if (agentDowncastCheckbox) {
+                agentDowncastCheckbox.disabled = true;
+                agentDowncastCheckbox.checked = false;
+                agentDowncastCheckbox.parentElement.style.opacity = '0.5';
+                agentDowncastCheckbox.parentElement.style.cursor = 'not-allowed';
+            }
         }
     }
     
@@ -1977,6 +1995,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initial state
         updateArchetypeToggle();
     }
+    
+    // Handle agent downcast based on LLM agents enabled status
+    {% if not llm_agents_enabled %}
+    // When LLM agents are disabled, agent downcast must also be disabled
+    if (agentDowncastCheckbox) {
+        agentDowncastCheckbox.disabled = true;
+        agentDowncastCheckbox.checked = false;
+        agentDowncastCheckbox.parentElement.style.opacity = '0.5';
+        agentDowncastCheckbox.parentElement.style.cursor = 'not-allowed';
+    }
+    {% endif %}
 });
                                             </script>
 {% include "admin/tutorials/clients_tutorial.html" %}
