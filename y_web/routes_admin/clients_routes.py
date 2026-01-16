@@ -319,10 +319,6 @@ def generate_hpc_client_config(
         "simulation": simulation_config,
         "agents": agents_config,
         "logging": logging_config,
-        "enable_sentiment": enable_sentiment,
-        "emotion_annotation": emotion_annotation,
-        "enable_toxicity": enable_toxicity,
-        "perspective_api_key": perspective_api_key,
     }
     return config
 
@@ -491,7 +487,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     enable_toxicity = "toxicity" in annotations
     perspective_api_key = exp.perspective_api if hasattr(exp, 'perspective_api') else None
     
-    # Build simulation config (without annotation fields - they'll be at root level)
+    # Build simulation config (with annotation fields inside)
     simulation_config = {
         "num_days": days,
         "num_slots_per_day": 24,
@@ -523,6 +519,10 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 "explorer": archetype_explorer,
             },
         },
+        "enable_sentiment": enable_sentiment,
+        "emotion_annotation": emotion_annotation,
+        "enable_toxicity": enable_toxicity,
+        "perspective_api_key": perspective_api_key,
     }
     
     # Build agents config
