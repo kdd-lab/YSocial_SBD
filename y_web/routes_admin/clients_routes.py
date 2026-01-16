@@ -2542,7 +2542,7 @@ def opinion_configuration(idexp):
             "y_web",
             "experiments",
             exp_folder,
-            f"client_{client.name}-{population.name.replace(' ', '')}.json",
+            f"{population.name.replace(' ', '')}.json",
         )
     else:
         population_file = os.path.join(
