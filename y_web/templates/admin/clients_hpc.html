@@ -1,0 +1,275 @@
+{% include "admin/head.html" %}
+
+<div class="view-wrapper is-dashboard">
+    <!--Dashboard container-->
+    <div id="creator-dashboard" class="dashboard-container">
+        <!--Toolbar-->
+        {% include "admin/dash_head.html" %}
+
+        <div class="dashboard-body">
+
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        <a href="/admin/experiments">Experiments</a> > Simulation: <a href="/admin/experiment_details/{{ experiment.idexp }}">{{ experiment.exp_name }} </a> > Create New HPC Client
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <!--Dashboard column-->
+                <div class="column is-8">
+                    <!--Dashboard box-->
+
+                     {% for message in get_flashed_messages() %}
+                    <div class="alert alert-warning">
+                        <button type="button" class="close" data-dismiss="alert">&times;</button>
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+
+
+                    <div class="dashboard-box" id="box-new-client">
+                        <h3 class="title is-5 is-thin">New HPC Client</h3>
+                        <div class="box-content">
+                            <form action="/admin/create_client" enctype="multipart/form-data"
+                                  method="POST" onsubmit="showLoading('Creating HPC client...');">
+                                <div class="box-lines">
+                                    <input type="hidden" name="id_exp" value="{{ experiment.idexp }}">
+                                    <input type="hidden" name="is_hpc" value="true">
+
+                                    <div class="box-line">
+                                        <span class="left">Name</span>
+                                        <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="name"
+                                                                                       class="input" required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Description</span>
+                                        <span class="right" style="width: 70%;"><input type="textarea"
+                                                                                       name="descr"
+                                                                                       class="input"></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Population</span>
+                                        <div class="select">
+                                            <select name="population_id" required>
+                                                <option value=""></option>
+                                                    {% for pop in populations %}
+                                                    <option value="{{ pop.id }}">{{ pop.name }}</option>
+                                                    {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Simulation Parameters -->
+                                    <div class="form-section-header">Simulation Parameters</div>
+                                    <div class="box-line">
+                                        <span class="left">Simulation Length (days)</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="days"
+                                                                                       class="input"
+                                                                                       min="0"
+                                                                                       value="3"
+                                                                                       required></span>
+                                    </div>
+
+                                    <!-- LLM Configuration -->
+                                    <div class="form-section-header">LLM Configuration</div>
+                                    <div class="box-line">
+                                        <span class="left">LLM Backend</span>
+                                        <div class="select">
+                                            <select name="llm_backend" id="llm_backend" onchange="toggleLLMFields()">
+                                                <option value="vllm">vLLM</option>
+                                                <option value="ollama">Ollama</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- vLLM Fields -->
+                                    <div id="vllm_fields">
+                                        <div class="box-line">
+                                            <span class="left">Model</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="llm_model"
+                                                                                           class="input"
+                                                                                           value="AMead10/Llama-3.2-3B-Instruct-AWQ"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Temperature</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_temperature"
+                                                                                           class="input"
+                                                                                           step="0.1"
+                                                                                           value="0.9"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Max Tokens</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_max_tokens"
+                                                                                           class="input"
+                                                                                           value="256"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Max Model Length</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_max_model_len"
+                                                                                           class="input"
+                                                                                           value="4096"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Tensor Parallel Size</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_tensor_parallel_size"
+                                                                                           class="input"
+                                                                                           value="1"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">GPU Memory Utilization</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_gpu_memory_utilization"
+                                                                                           class="input"
+                                                                                           step="0.01"
+                                                                                           value="0.15"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Enable FlashAttention</span>
+                                            <span class="right" style="width: 70%;">
+                                                <input type="checkbox" name="llm_enable_flashattention" value="true">
+                                            </span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Number of Actors</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_num_actors"
+                                                                                           class="input"
+                                                                                           value="4"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">GPU per Actor</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_gpu_per_actor"
+                                                                                           class="input"
+                                                                                           step="0.01"
+                                                                                           value="1"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Reuse Actors</span>
+                                            <span class="right" style="width: 70%;">
+                                                <input type="checkbox" name="llm_reuse_actors" value="true">
+                                            </span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Actor Name Prefix</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="llm_actor_name_prefix"
+                                                                                           class="input"
+                                                                                           value="ysim_llm"></span>
+                                        </div>
+
+                                        <!-- Vision Model -->
+                                        <div class="form-section-header">Vision Model (llm_v)</div>
+                                        <div class="box-line">
+                                            <span class="left">Model</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="llm_v_model"
+                                                                                           class="input"
+                                                                                           value="openbmb/MiniCPM-V-2_6-int4"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Temperature</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_v_temperature"
+                                                                                           class="input"
+                                                                                           step="0.1"
+                                                                                           value="0.5"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Max Tokens</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_v_max_tokens"
+                                                                                           class="input"
+                                                                                           value="300"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Max Model Length</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_v_max_model_len"
+                                                                                           class="input"
+                                                                                           value="4096"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">GPU Memory Utilization</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_v_gpu_memory_utilization"
+                                                                                           class="input"
+                                                                                           step="0.01"
+                                                                                           value="0.15"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Ollama Fields (hidden by default) -->
+                                    <div id="ollama_fields" style="display: none;">
+                                        <div class="box-line">
+                                            <span class="left">Ollama Address</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="ollama_address"
+                                                                                           class="input"
+                                                                                           value="localhost"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Ollama Port</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="ollama_port"
+                                                                                           class="input"
+                                                                                           value="11434"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Model</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="ollama_model"
+                                                                                           class="input"
+                                                                                           value="llama3.2"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Temperature</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="ollama_temperature"
+                                                                                           class="input"
+                                                                                           step="0.1"
+                                                                                           value="0.7"></span>
+                                        </div>
+                                    </div>
+
+                                    <script>
+                                        function toggleLLMFields() {
+                                            const backend = document.getElementById('llm_backend').value;
+                                            const vllmFields = document.getElementById('vllm_fields');
+                                            const ollamaFields = document.getElementById('ollama_fields');
+                                            
+                                            if (backend === 'vllm') {
+                                                vllmFields.style.display = 'block';
+                                                ollamaFields.style.display = 'none';
+                                            } else {
+                                                vllmFields.style.display = 'none';
+                                                ollamaFields.style.display = 'block';
+                                            }
+                                        }
+                                    </script>
+
+                                </div>
+                                <div class="button-wrap">
+                                    <button class="button is-solid primary-button is-fullwidth">
+                                        Create HPC Client
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "admin/dash_foot.html" %}
