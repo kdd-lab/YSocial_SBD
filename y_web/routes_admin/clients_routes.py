@@ -274,8 +274,16 @@ def clients(idexp):
         exp.llm_agents_enabled if hasattr(exp, "llm_agents_enabled") else True
     )
 
+    # Check simulator type to render appropriate template
+    simulator_type = exp.simulator_type if hasattr(exp, "simulator_type") else "Standard"
+    
+    if simulator_type == "HPC":
+        template_name = "admin/clients_hpc.html"
+    else:
+        template_name = "admin/clients.html"
+
     return render_template(
-        "admin/clients.html",
+        template_name,
         experiment=exp,
         populations=pops,
         crecsys=crecsys,
