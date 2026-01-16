@@ -1170,6 +1170,15 @@ def create_experiment():
     exp_descr = request.form.get("exp_descr")
     platform_type = request.form.get("platform_type")
     simulator_type = request.form.get("simulator_type", "Standard")  # Default to Standard
+    
+    # TODO: Redis configuration parameters for HPC simulator
+    # When simulator_type == "HPC", capture Redis settings:
+    # - redis_enabled = request.form.get("redis_enabled") == "true"
+    # - redis_host = request.form.get("redis_host", "localhost")
+    # - redis_port = int(request.form.get("redis_port", "6379"))
+    # - redis_password = request.form.get("redis_password", None)
+    # - redis_sliding_window_days = int(request.form.get("redis_sliding_window_days", "2"))
+    # These need to be written to different config file structure for HPC experiments
 
     # Use fixed host value
     host = "127.0.0.1"
