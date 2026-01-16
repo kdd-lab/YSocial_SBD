@@ -307,33 +307,24 @@ def generate_hpc_client_config(
     emotion_annotation,
     enable_toxicity,
     perspective_api_key,
-    llm_agents_enabled=True,
 ):
     """Generate client configuration for HPC simulator type.
 
     Args:
         client_name: Name of the client
         namespace: Experiment name (not db_name)
-        llm_agents_enabled: Whether LLM agents are enabled for this experiment
         ...
     """
     config = {
         "client_name": client_name,
         "namespace": namespace,
         "server": {"address": None, "port": None},
-    }
-    
-    # Only include LLM sections if LLM agents are enabled
-    if llm_agents_enabled:
-        config["llm"] = llm_config
-        config["llm_v"] = llm_v_config
-    
-    config.update({
+        "llm": llm_config,
+        "llm_v": llm_v_config,
         "simulation": simulation_config,
         "agents": agents_config,
         "logging": logging_config,
-    })
-    
+    }
     return config
 
 
@@ -422,53 +413,45 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # Extract LLM backend
     llm_backend = form_data.get("llm_backend", "vllm")
-    
-    # Check if LLM agents are enabled
-    llm_agents_enabled = bool(exp.llm_agents_enabled) if hasattr(exp, 'llm_agents_enabled') else True
 
-    # Build LLM config based on backend (only if LLM agents are enabled)
-    if llm_agents_enabled:
-        if llm_backend == "vllm":
-            llm_config = {
-                "backend": "vllm",
-                "model": form_data.get("llm_model", "AMead10/Llama-3.2-3B-Instruct-AWQ"),
-                "temperature": float(form_data.get("llm_temperature", "0.9")),
-                "max_tokens": int(form_data.get("llm_max_tokens", "256")),
-                "max_model_len": int(form_data.get("llm_max_model_len", "4096")),
-                "tensor_parallel_size": int(form_data.get("llm_tensor_parallel_size", "1")),
-                "gpu_memory_utilization": float(
-                    form_data.get("llm_gpu_memory_utilization", "0.15")
-                ),
-                "enable_flashattention": form_data.get("llm_enable_flashattention")
-                == "true",
-                "num_actors": int(form_data.get("llm_num_actors", "4")),
-                "gpu_per_actor": float(form_data.get("llm_gpu_per_actor", "1.0")),
-                "reuse_actors": form_data.get("llm_reuse_actors") == "true",
-                "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
-            }
+    # Build LLM config based on backend
+    if llm_backend == "vllm":
+        llm_config = {
+            "backend": "vllm",
+            "model": form_data.get("llm_model", "AMead10/Llama-3.2-3B-Instruct-AWQ"),
+            "temperature": float(form_data.get("llm_temperature", "0.9")),
+            "max_tokens": int(form_data.get("llm_max_tokens", "256")),
+            "max_model_len": int(form_data.get("llm_max_model_len", "4096")),
+            "tensor_parallel_size": int(form_data.get("llm_tensor_parallel_size", "1")),
+            "gpu_memory_utilization": float(
+                form_data.get("llm_gpu_memory_utilization", "0.15")
+            ),
+            "enable_flashattention": form_data.get("llm_enable_flashattention")
+            == "true",
+            "num_actors": int(form_data.get("llm_num_actors", "4")),
+            "gpu_per_actor": float(form_data.get("llm_gpu_per_actor", "1.0")),
+            "reuse_actors": form_data.get("llm_reuse_actors") == "true",
+            "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
+        }
 
-            llm_v_config = {
-                "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
-                "temperature": float(form_data.get("llm_v_temperature", "0.5")),
-                "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
-                "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
-                "gpu_memory_utilization": float(
-                    form_data.get("llm_v_gpu_memory_utilization", "0.15")
-                ),
-            }
-        else:  # ollama
-            llm_config = {
-                "address": "localhost",
-                "port": 11434,
-                "model": form_data.get("user_type", "llama3.2"),
-                "temperature": float(form_data.get("llm_temperature", "0.7")),
-                "llm_api_key": "NULL",
-                "llm_max_tokens": -1,
-            }
-            llm_v_config = {}
-    else:
-        # LLM agents not enabled, set empty configs (won't be used)
-        llm_config = {}
+        llm_v_config = {
+            "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
+            "temperature": float(form_data.get("llm_v_temperature", "0.5")),
+            "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
+            "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
+            "gpu_memory_utilization": float(
+                form_data.get("llm_v_gpu_memory_utilization", "0.15")
+            ),
+        }
+    else:  # ollama
+        llm_config = {
+            "address": "localhost",
+            "port": 11434,
+            "model": form_data.get("user_type", "llama3.2"),
+            "temperature": float(form_data.get("llm_temperature", "0.7")),
+            "llm_api_key": "NULL",
+            "llm_max_tokens": -1,
+        }
         llm_v_config = {}
 
     # Get activity profiles for population
@@ -647,7 +630,6 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         emotion_annotation=emotion_annotation,
         enable_toxicity=enable_toxicity,
         perspective_api_key=perspective_api_key,
-        llm_agents_enabled=llm_agents_enabled,
     )
 
     # Save config file using standard naming pattern
