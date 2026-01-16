@@ -359,6 +359,7 @@ def sample_agents(agents, expected_active_users, archetypes=None):
 
         for a in agents:
             # Use getattr with default to handle agents without archetype attribute (e.g., when resuming old simulations)
+            # Default to 'broadcaster' as it's the most permissive archetype with full action capabilities
             agent_archetype = getattr(a, "archetype", "broadcaster")
             if agent_archetype not in candidates_per_archetype:
                 candidates_per_archetype[agent_archetype] = []
@@ -424,6 +425,7 @@ def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
         if archetypes["enabled"]:
             # filtering the actions based on the archetype
             # Use getattr with default to handle agents without archetype attribute (e.g., when resuming old simulations)
+            # Default to 'broadcaster' as it's the most permissive archetype with full action capabilities
             agent_archetype = getattr(g, "archetype", "broadcaster")
             if agent_archetype == "validator":
                 acts = [
@@ -743,6 +745,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if archetypes["enabled"]:
                 for agent in cl.agents.agents:
                     # Use getattr with default to handle agents without archetype attribute
+                    # Default to 'broadcaster' as it's the most permissive archetype with full action capabilities
                     current_archetype = getattr(agent, "archetype", "broadcaster")
                     probabilities = archetypes["transitions"][current_archetype]
                     choice = random.choices(
