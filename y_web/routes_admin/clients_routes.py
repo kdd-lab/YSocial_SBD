@@ -748,6 +748,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "opinions": (
                 {i: random.random() for i in interests} if opinions_enabled else None
             ),
+            "llm": bool(exp.llm_agents_enabled),
         }
         population_data["agents"].append(agent_data)
 

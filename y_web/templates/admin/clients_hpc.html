@@ -1750,13 +1750,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize button state based on backend
     const backendSelect = document.getElementById('llm_backend');
+    const submitButton = document.getElementById('create_client_button');
+    
+    {% if not llm_agents_enabled %}
+    // When LLM agents are disabled, enable submit button immediately
+    if (submitButton) {
+        submitButton.disabled = false;
+    }
+    {% else %}
+    // When LLM agents are enabled, update state based on backend
     if (backendSelect) {
         updateFormButtonStateForBackend(backendSelect.value);
     }
+    {% endif %}
     
     // Setup form button state management
     const modelsSelect = document.getElementById('models_select_client');
-    const submitButton = document.getElementById('create_client_button');
     
     {% if llm_agents_enabled %}
     if (modelsSelect) {
