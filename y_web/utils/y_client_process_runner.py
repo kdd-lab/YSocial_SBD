@@ -358,11 +358,13 @@ def sample_agents(agents, expected_active_users, archetypes=None):
             user_types[k] = max(int(v * expected_active_users), 1)
 
         for a in agents:
-            if a.archetype not in candidates_per_archetype:
-                candidates_per_archetype[a.archetype] = []
-                weights_per_archetype[a.archetype] = []
-            candidates_per_archetype[a.archetype].append(a)
-            weights_per_archetype[a.archetype].append(a.daily_activity_level)
+            # Use getattr with default to handle agents without archetype attribute (e.g., when resuming old simulations)
+            agent_archetype = getattr(a, "archetype", "broadcaster")
+            if agent_archetype not in candidates_per_archetype:
+                candidates_per_archetype[agent_archetype] = []
+                weights_per_archetype[agent_archetype] = []
+            candidates_per_archetype[agent_archetype].append(a)
+            weights_per_archetype[agent_archetype].append(a.daily_activity_level)
 
         for atype, count in user_types.items():
             if atype in candidates_per_archetype:
@@ -421,7 +423,9 @@ def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
     try:
         if archetypes["enabled"]:
             # filtering the actions based on the archetype
-            if g.archetype == "validator":
+            # Use getattr with default to handle agents without archetype attribute (e.g., when resuming old simulations)
+            agent_archetype = getattr(g, "archetype", "broadcaster")
+            if agent_archetype == "validator":
                 acts = [
                     a
                     for a, v in cl.actions_likelihood.items()
@@ -429,9 +433,9 @@ def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
                 ]
                 if exp.platform_type == "microblogging":
                     g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
-            elif g.archetype == "broadcaster":
+            elif agent_archetype == "broadcaster":
                 acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
-            elif g.archetype == "explorer":
+            elif agent_archetype == "explorer":
                 acts = ["FOLLOW"]
                 if exp.platform_type == "microblogging":
                     g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
@@ -467,7 +471,10 @@ def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
                     if not archetypes["enabled"]:
                         g.reply(tid=tid)
                     else:
-                        if g.archetype == "broadcaster":  # only broadcasters reply
+                        # Use getattr with default to handle agents without archetype attribute
+                        if (
+                            getattr(g, "archetype", "broadcaster") == "broadcaster"
+                        ):  # only broadcasters reply
                             g.reply(tid=tid)
 
                 # select action to be performed
@@ -735,7 +742,8 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
         if d1 % 7 == 0 and d1 > 0:  # weekly changes
             if archetypes["enabled"]:
                 for agent in cl.agents.agents:
-                    current_archetype = agent.archetype
+                    # Use getattr with default to handle agents without archetype attribute
+                    current_archetype = getattr(agent, "archetype", "broadcaster")
                     probabilities = archetypes["transitions"][current_archetype]
                     choice = random.choices(
                         population=list(probabilities.keys()),
