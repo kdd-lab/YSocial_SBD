@@ -63,16 +63,356 @@
                                     </div>
 
                                     <!-- Simulation Parameters -->
+                                    <div id="section-simulation-params" class="tutorial-section">
                                     <div class="form-section-header">Simulation Parameters</div>
+                                    <div class="form-section-description">
+                                        Configure the duration and behavioral settings for the simulation run.
+                                    </div>
                                     <div class="box-line">
                                         <span class="left">Simulation Length (days)</span>
+                                        <span class="right" style="width: 70%; display: flex; align-items: center; gap: 10px;">
+                                            <input type="number"
+                                                   id="days_display"
+                                                   class="input"
+                                                   min="1"
+                                                   step="1"
+                                                   value="3"
+                                                   style="flex: 1;">
+                                            <input type="hidden" name="days" id="days_input" value="3">
+                                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9em; white-space: nowrap;">
+                                                <input type="checkbox" id="infinite_duration" name="infinite_duration" style="cursor: pointer;">
+                                                <span style="color: #039be5;">Run until stopped</span>
+                                            </label>
+                                        </span>
+                                    </div>
+                                    <script>
+                                        // Sync display input with hidden input
+                                        document.getElementById('days_display').addEventListener('change', function() {
+                                            document.getElementById('days_input').value = this.value;
+                                        });
+                                        document.getElementById('days_display').addEventListener('input', function() {
+                                            document.getElementById('days_input').value = this.value;
+                                        });
+                                        
+                                        // Toggle between finite and infinite duration
+                                        document.getElementById('infinite_duration').addEventListener('change', function() {
+                                            const daysDisplay = document.getElementById('days_display');
+                                            const daysInput = document.getElementById('days_input');
+                                            const defaultDays = '3';
+                                            if (this.checked) {
+                                                // Store current value before switching to infinite
+                                                daysDisplay.dataset.previousValue = daysDisplay.value;
+                                                daysDisplay.value = '∞';
+                                                daysDisplay.disabled = true;
+                                                daysDisplay.style.opacity = '0.5';
+                                                daysInput.value = -1;
+                                            } else {
+                                                // Restore previous value or use default
+                                                daysDisplay.value = daysDisplay.dataset.previousValue || defaultDays;
+                                                daysDisplay.disabled = false;
+                                                daysDisplay.style.opacity = '1';
+                                                daysInput.value = daysDisplay.value;
+                                            }
+                                        });
+                                    </script>
+                                    <div class="box-line">
+                                        <span class="left">% New Agents (daily)</span>
                                         <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="days"
+                                                                                       name="percentage_new_agents_iteration"
                                                                                        class="input"
                                                                                        min="0"
-                                                                                       value="3"
+                                                                                       max="1"
+                                                                                       step="0.01"
+                                                                                       value="0"
                                                                                        required></span>
                                     </div>
+                                    <div class="box-line">
+                                        <span class="left">% Daily Churn</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="percentage_removed_agents_iteration"
+                                                                                       class="input"
+                                                                                       min="0"
+                                                                                       max="1"
+                                                                                       step="0.01"
+                                                                                       value="0"
+                                                                                       required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Thread Context Length</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="max_length_thread_reading"
+                                                                                       class="input"
+                                                                                       min="1"
+                                                                                       step="1"
+                                                                                       value="5"
+                                                                                       required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Timeline Follower Ratio</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="reading_from_follower_ratio"
+                                                                                       class="input"
+                                                                                       min="0"
+                                                                                       max="1"
+                                                                                       step="0.01"
+                                                                                       value="0.6"
+                                                                                       required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Probability Daily Follow</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="probability_of_daily_follow"
+                                                                                       class="input"
+                                                                                       min="0"
+                                                                                       max="1"
+                                                                                       step="0.01"
+                                                                                       value="0.1"
+                                                                                       required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Probability Secondary Follow</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="probability_of_secondary_follow"
+                                                                                       class="input"
+                                                                                       min="0"
+                                                                                       max="1"
+                                                                                       step="0.01"
+                                                                                       value="0.0"
+                                                                                       required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Agents' Memory (hours)</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="attention_window"
+                                                                                       class="input"
+                                                                                       min="1"
+                                                                                       step="1"
+                                                                                       value="336"
+                                                                                       required></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Content Visibility (hours)</span>
+                                        <span class="right" style="width: 70%;"><input type="number"
+                                                                                       name="visibility_rounds"
+                                                                                       class="input"
+                                                                                       min="1"
+                                                                                       step="1"
+                                                                                       value="36"
+                                                                                       required></span>
+                                    </div>
+                                    </div><!-- End section-simulation-params -->
+
+                                    <div id="section-actions-relevance" class="tutorial-section">
+                                    <div class="form-section-header">Agents' Actions Relevance</div>
+                                    <div class="form-section-description">
+                                        All actions are scored from 0 to 10, where 0 means that the action is never performed. 
+                                        Scores greater than 0 are relative to each other. For example, if "Post new content" has a score of 3
+                                        and "Comment a Post" has a score of 6, then the agent will comment twice as much as posting new content.
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Post new content</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box selected" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="post" id="post" value="3">
+                                            </div>
+                                        </span>
+                                    </div>
+                                    {% if experiment.platform_type == "microblogging" %}
+                                    <div class="box-line">
+                                        <span class="left">Share and comment an Image</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box selected" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="image" id="image" value="0">
+                                            </div>
+
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Comment on a News</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box selected" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="news" id="news" value="0">
+                                            </div>
+
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    <div class="box-line">
+                                        <span class="left">Comment a Post</span>
+                                         <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box selected" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="comment" id="comment" value="5">
+                                            </div>
+
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Read a content</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box selected" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="read" id="read" value="2">
+                                            </div>
+
+                                        </span>
+
+                                    </div>
+                                    {% if experiment.platform_type == "microblogging" %}
+                                    <div class="box-line">
+                                        <span class="left">Share News from a Page</span>
+                                         <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box selected" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="share" id="share" value="0">
+                                            </div>
+
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                    {% if experiment.db_name.startswith('database_') %}
+                                    {# SQLite database - show Search a Hashtag field #}
+                                    <div class="box-line">
+                                        <span class="left">Search a Hashtag</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box" data-value="0">0</div>
+                                                  <div class="number-box selected" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="search" id="search" value="1">
+                                            </div>
+
+                                        </span>
+                                    </div>
+                                    {% else %}
+                                    {# PostgreSQL database - hide field and set default to 0 #}
+                                    <input type="hidden" name="search" id="search" value="0">
+                                    {% endif %}
+                                    {% if experiment.platform_type == "microblogging" %}
+                                    {% if experiment.db_name.startswith('database_') %}
+                                    {# SQLite database - show Cast Vote field #}
+                                    <div class="box-line">
+                                        <span class="left">Cast Vote</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="scale-wrapper">
+                                            <div class="number-scale">
+                                                  <div class="number-box selected" data-value="0">0</div>
+                                                  <div class="number-box" data-value="1">1</div>
+                                                  <div class="number-box" data-value="2">2</div>
+                                                  <div class="number-box" data-value="3">3</div>
+                                                  <div class="number-box" data-value="4">4</div>
+                                                  <div class="number-box" data-value="5">5</div>
+                                                  <div class="number-box" data-value="6">6</div>
+                                                  <div class="number-box" data-value="7">7</div>
+                                                  <div class="number-box" data-value="8">8</div>
+                                                  <div class="number-box" data-value="9">9</div>
+                                                  <div class="number-box" data-value="10">10</div>
+                                            </div>
+                                            <input type="hidden" name="vote" id="vote" value="0">
+                                            </div>
+
+                                        </span>
+                                    </div>
+                                    {% else %}
+                                    {# PostgreSQL database - hide field and set default to 0 #}
+                                    <input type="hidden" name="vote" id="vote" value="0">
+                                    {% endif %}
+                                    {% endif %}
+                                    {% if experiment.platform_type == "forum" %}
+                                    <div class="box-line">
+                                        <span class="left">Share Link</span>
+                                        <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="share_link"
+                                                                                       class="input"
+                                                                                       value="0"></span>
+                                    </div>
+                                    {% endif %}
+                                    </div><!-- End section-actions-relevance -->
 
                                     <!-- LLM Configuration -->
                                     <div class="form-section-header">LLM Configuration</div>
@@ -257,6 +597,467 @@
                                         }
                                     </script>
 
+                                    <div id="section-recsys" class="tutorial-section">
+                                    <div class="form-section-header">Recommendation Systems</div>
+                                    <div class="form-section-description">
+                                        Select the recommendation algorithms for content and friendship suggestions that will influence agent interactions.
+                                    </div>
+
+                                    <div class="box-line">
+                                        <span class="left">Content RecSys</span>
+                                        <div class="select">
+                                            <select name="recsys_type">
+                                                {% for recsys in crecsys %}
+                                                <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Friendship RecSys</span>
+                                        <div class="select">
+                                            <select name="frecsys_type">
+                                                {% for recsys in frecsys %}
+                                                <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <style>
+                                        .form-section-header {
+                                            font-size: 0.95em;
+                                            font-weight: 600;
+                                            color: #333;
+                                            margin: 20px 0 8px 0;
+                                            padding-bottom: 5px;
+                                            border-bottom: 1px solid #e0e0e0;
+                                        }
+                                        .form-section-description {
+                                            font-size: 0.85em;
+                                            color: #666;
+                                            margin-bottom: 15px;
+                                            line-height: 1.4;
+                                        }
+                                        details summary {
+                                            list-style: none;
+                                        }
+                                        details summary::-webkit-details-marker {
+                                            display: none;
+                                        }
+                                        details summary::before {
+                                            content: '▶';
+                                            display: inline-block;
+                                            margin-right: 8px;
+                                            transition: transform 0.2s;
+                                            color: #374151;
+                                        }
+                                        details[open] summary::before {
+                                            transform: rotate(90deg);
+                                        }
+                                        .tutorial-section {
+                                            padding: 10px;
+                                            margin: -10px;
+                                            margin-bottom: 10px;
+                                            border-radius: 4px;
+                                        }
+                                        .number-scale {
+                                            display: flex;
+                                            gap: 4px;
+                                            flex-wrap: wrap;
+                                        }
+                                        .number-box {
+                                            padding: 8px 12px;
+                                            border: 1px solid #d1d5db;
+                                            border-radius: 4px;
+                                            cursor: pointer;
+                                            transition: all 0.2s;
+                                            background: white;
+                                            font-size: 0.9em;
+                                        }
+                                        .number-box:hover {
+                                            border-color: #22c55e;
+                                            background: #f0fdf4;
+                                        }
+                                        .number-box.selected {
+                                            background: #22c55e;
+                                            color: white;
+                                            border-color: #22c55e;
+                                        }
+                                    </style>
+                                    </div><!-- End section-recsys -->
+
+                                    <div id="section-network" class="tutorial-section">
+                                    <div class="form-section-header">Social Network Structure <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div class="form-section-description">
+                                        Configure a starting social network among the agents. You can either generate a synthetic network or upload a custom network file.
+                                        <strong>Note:</strong> These options are mutually exclusive - selecting one will disable the other.
+                                    </div>
+
+                                    <details style="margin-bottom: 20px;">
+                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
+                                            <span>Click to expand/collapse network configuration</span>
+                                        </summary>
+                                        <div style="padding: 15px 0; margin-top: 10px;">
+
+                                            <!-- Synthetic Network Section -->
+                                            <div id="synthetic_network_section" style="margin-bottom: 20px;">
+                                                <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Synthetic Network</h4>
+
+                                                <div class="box-line">
+                                                    <span class="left">Model</span>
+                                                    <span class="right">
+                                                        <div class="select">
+                                                            <select name="network_model" id="network_model_select">
+                                                                <option value="">None</option>
+                                                                <option value="ER">Random Network</option>
+                                                                <option value="BA">Scale Free</option>
+                                                            </select>
+                                                        </div>
+                                                    </span>
+                                                </div>
+
+                                                <div class="box-line" id="er_param_field" style="display: none;">
+                                                    <span class="left">Rewiring probability</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_p" class="input" value="0.1" min="0" max="1" step="0.00001">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="ba_param_field" style="display: none;">
+                                                    <span class="left">Connections per new node</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_m" class="input" value="2">
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div style="border-top: 1px solid #d1d5db; padding-top: 15px; margin-top: 15px;">
+                                                <p style="text-align: center; font-size: 0.85em; color: #666; margin: 10px 0;">OR</p>
+                                            </div>
+
+                                            <!-- Upload Custom Network Section -->
+                                            <div id="upload_network_section" style="margin-top: 20px;">
+                                                <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Upload Custom Network</h4>
+                                                <style>
+                                                    .file-upload-wrapper-network-create {
+                                                        position: relative;
+                                                        overflow: hidden;
+                                                        display: block;
+                                                        margin-bottom: 12px;
+                                                    }
+                                                    .file-upload-wrapper-network-create input[type=file] {
+                                                        position: absolute;
+                                                        left: -9999px;
+                                                    }
+                                                    .file-upload-label-network-create {
+                                                        display: flex;
+                                                        align-items: center;
+                                                        justify-content: center;
+                                                        padding: 10px 12px;
+                                                        background: #f9fafb;
+                                                        border: 1px dashed #d1d5db;
+                                                        border-radius: 4px;
+                                                        cursor: pointer;
+                                                        transition: all 0.2s;
+                                                        font-size: 0.85em;
+                                                    }
+                                                    .file-upload-label-network-create:hover {
+                                                        background: #f3f4f6;
+                                                        border-color: #22c55e;
+                                                    }
+                                                    .file-upload-label-network-create.disabled {
+                                                        opacity: 0.5;
+                                                        cursor: not-allowed;
+                                                        pointer-events: none;
+                                                    }
+                                                    .file-upload-icon-network-create {
+                                                        margin-right: 8px;
+                                                        font-size: 1.1em;
+                                                    }
+                                                    .file-upload-text-network-create {
+                                                        color: #6b7280;
+                                                    }
+                                                    .file-name-display-network-create {
+                                                        margin-top: 6px;
+                                                        font-size: 0.8em;
+                                                        color: #22c55e;
+                                                        font-weight: 500;
+                                                        text-align: center;
+                                                    }
+                                                </style>
+                                                <div class="file-upload-wrapper-network-create">
+                                                    <input type="file" id="network_file_create" name="network_file" onchange="displayNetworkFileNameCreate(this)">
+                                                    <label for="network_file_create" class="file-upload-label-network-create">
+                                                        <span class="file-upload-icon-network-create">📊</span>
+                                                        <span class="file-upload-text-network-create">Choose edge list file (CSV)...</span>
+                                                    </label>
+                                                    <div id="network-file-name-display-create" class="file-name-display-network-create"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                    </div><!-- End section-network -->
+
+                                    <div id="section-activity-rates" class="tutorial-section">
+                                    <div class="form-section-header">Hourly Activity Rates <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div class="form-section-description">
+                                        Configure hourly activity rates for the simulation. Default values are based on
+                                        <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a>.
+                                        Leave empty to use defaults.
+                                    </div>
+
+                                    <details style="margin-bottom: 20px;">
+                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
+                                            <span>Click to expand/collapse activity rates configuration</span>
+                                        </summary>
+                                        <div style="padding: 15px 0; margin-top: 10px;">
+
+                                            <!-- Bar Chart Visualization -->
+                                            <div style="margin-bottom: 20px;">
+                                                <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Activity Rates Visualization</h4>
+                                                <div style="height: 200px; position: relative; background: white; padding: 10px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                                                    <canvas id="activity_rates_create"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <!-- Activity Rates Input Fields -->
+                                            <div style="margin-bottom: 20px;">
+                                                <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Customize Hourly Rates</h4>
+                                                <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Enter custom values for specific hours (leave empty to use defaults shown in placeholders)</p>
+                                            </div>
+
+                                            <style>
+                                                .activity-grid-create {
+                                                    display: grid;
+                                                    grid-template-columns: repeat(12, 1fr);
+                                                    gap: 8px;
+                                                    margin-bottom: 16px;
+                                                }
+                                                .activity-hour-create {
+                                                    display: flex;
+                                                    flex-direction: column;
+                                                    align-items: center;
+                                                }
+                                                .activity-hour-create label {
+                                                    font-size: 0.75em;
+                                                    color: #666;
+                                                    margin-bottom: 4px;
+                                                    font-weight: 500;
+                                                }
+                                                .activity-hour-create input {
+                                                    width: 100%;
+                                                    padding: 4px 6px;
+                                                    text-align: center;
+                                                    font-size: 0.85em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 4px;
+                                                }
+                                                .activity-hour-create input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                            </style>
+
+                                            <div class="activity-grid-create">
+                                                <div class="activity-hour-create"><label>0h</label><input type="number" name="hourly_0" placeholder="0.023" value=""></div>
+                                                <div class="activity-hour-create"><label>1h</label><input type="number" name="hourly_1" placeholder="0.021" value=""></div>
+                                                <div class="activity-hour-create"><label>2h</label><input type="number" name="hourly_2" placeholder="0.020" value=""></div>
+                                                <div class="activity-hour-create"><label>3h</label><input type="number" name="hourly_3" placeholder="0.020" value=""></div>
+                                                <div class="activity-hour-create"><label>4h</label><input type="number" name="hourly_4" placeholder="0.018" value=""></div>
+                                                <div class="activity-hour-create"><label>5h</label><input type="number" name="hourly_5" placeholder="0.017" value=""></div>
+                                                <div class="activity-hour-create"><label>6h</label><input type="number" name="hourly_6" placeholder="0.017" value=""></div>
+                                                <div class="activity-hour-create"><label>7h</label><input type="number" name="hourly_7" placeholder="0.018" value=""></div>
+                                                <div class="activity-hour-create"><label>8h</label><input type="number" name="hourly_8" placeholder="0.020" value=""></div>
+                                                <div class="activity-hour-create"><label>9h</label><input type="number" name="hourly_9" placeholder="0.020" value=""></div>
+                                                <div class="activity-hour-create"><label>10h</label><input type="number" name="hourly_10" placeholder="0.021" value=""></div>
+                                                <div class="activity-hour-create"><label>11h</label><input type="number" name="hourly_11" placeholder="0.022" value=""></div>
+                                            </div>
+                                            <div class="activity-grid-create">
+                                                <div class="activity-hour-create"><label>12h</label><input type="number" name="hourly_12" placeholder="0.024" value=""></div>
+                                                <div class="activity-hour-create"><label>13h</label><input type="number" name="hourly_13" placeholder="0.027" value=""></div>
+                                                <div class="activity-hour-create"><label>14h</label><input type="number" name="hourly_14" placeholder="0.030" value=""></div>
+                                                <div class="activity-hour-create"><label>15h</label><input type="number" name="hourly_15" placeholder="0.032" value=""></div>
+                                                <div class="activity-hour-create"><label>16h</label><input type="number" name="hourly_16" placeholder="0.032" value=""></div>
+                                                <div class="activity-hour-create"><label>17h</label><input type="number" name="hourly_17" placeholder="0.032" value=""></div>
+                                                <div class="activity-hour-create"><label>18h</label><input type="number" name="hourly_18" placeholder="0.032" value=""></div>
+                                                <div class="activity-hour-create"><label>19h</label><input type="number" name="hourly_19" placeholder="0.031" value=""></div>
+                                                <div class="activity-hour-create"><label>20h</label><input type="number" name="hourly_20" placeholder="0.030" value=""></div>
+                                                <div class="activity-hour-create"><label>21h</label><input type="number" name="hourly_21" placeholder="0.029" value=""></div>
+                                                <div class="activity-hour-create"><label>22h</label><input type="number" name="hourly_22" placeholder="0.027" value=""></div>
+                                                <div class="activity-hour-create"><label>23h</label><input type="number" name="hourly_23" placeholder="0.025" value=""></div>
+                                            </div>
+                                        </div>
+                                    </details>
+                                    </div><!-- End section-activity-rates -->
+
+                                    <div id="section-agent-archetypes" class="tutorial-section">
+                                    <div class="form-section-header">Agent Archetypes and Transitions <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
+                                    <div class="form-section-description">
+                                        Configure the behavioral archetypes and transition probabilities for agents. Default values are based on
+                                        <a href="https://zenodo.org/records/14669616" target="_blank" style="color: #039be5;">Bluesky Data</a>.
+                                    </div>
+
+                                    <div style="margin: 15px 0; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                                        <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em; font-weight: 500; color: #374151;">
+                                            <input type="checkbox" id="enable_archetypes" name="enable_archetypes" checked style="margin-right: 8px; cursor: pointer;">
+                                            <span>Enable Agent Archetypes Distribution</span>
+                                        </label>
+                                        <p style="font-size: 0.8em; color: #6b7280; margin: 8px 0 0 28px; line-height: 1.4;">
+                                            When disabled, all agents will be able to perform all actions without archetype restrictions.
+                                        </p>
+                                    </div>
+
+                                    <details style="margin-bottom: 20px;" id="archetype-details">
+                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
+                                            <span>Click to expand/collapse archetype configuration</span>
+                                        </summary>
+                                        <div style="padding: 15px 0; margin-top: 10px;">
+
+                                            <style>
+                                                .archetype-boxes {
+                                                    display: grid;
+                                                    grid-template-columns: repeat(3, 1fr);
+                                                    gap: 12px;
+                                                    margin-bottom: 20px;
+                                                }
+                                                .archetype-box {
+                                                    background: #f9fafb;
+                                                    border: 1px solid #e5e7eb;
+                                                    border-radius: 6px;
+                                                    padding: 12px;
+                                                }
+                                                .archetype-box h4 {
+                                                    font-size: 0.85em;
+                                                    font-weight: 600;
+                                                    color: #374151;
+                                                    margin-bottom: 6px;
+                                                }
+                                                .archetype-box p {
+                                                    font-size: 0.75em;
+                                                    color: #6b7280;
+                                                    line-height: 1.3;
+                                                    margin-bottom: 8px;
+                                                }
+                                                .archetype-box input {
+                                                    width: 70px;
+                                                    padding: 4px 8px;
+                                                    text-align: center;
+                                                    font-size: 0.85em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 4px;
+                                                }
+                                                .archetype-box input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                                .transition-table-compact {
+                                                    width: 100%;
+                                                    border-collapse: collapse;
+                                                    font-size: 0.75em;
+                                                    margin-top: 16px;
+                                                }
+                                                .transition-table-compact th,
+                                                .transition-table-compact td {
+                                                    padding: 4px 6px;
+                                                    text-align: center;
+                                                    border: 1px solid #e5e7eb;
+                                                }
+                                                .transition-table-compact th {
+                                                    background-color: #f9fafb;
+                                                    color: #374151;
+                                                    font-weight: 600;
+                                                    font-size: 0.7em;
+                                                }
+                                                .transition-table-compact td:first-child {
+                                                    background-color: #f9fafb;
+                                                    font-weight: 500;
+                                                    text-align: left;
+                                                    color: #374151;
+                                                    font-size: 0.7em;
+                                                }
+                                                .transition-table-compact input {
+                                                    width: 50px;
+                                                    padding: 3px 4px;
+                                                    text-align: center;
+                                                    font-size: 0.75em;
+                                                    border: 1px solid #d1d5db;
+                                                    border-radius: 3px;
+                                                }
+                                                .transition-table-compact input:focus {
+                                                    outline: none;
+                                                    border-color: #22c55e;
+                                                    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+                                                }
+                                                .archetype-box.disabled {
+                                                    opacity: 0.5;
+                                                    background: #f3f4f6;
+                                                }
+                                                .archetype-box.disabled input {
+                                                    background: #e5e7eb;
+                                                    cursor: not-allowed;
+                                                }
+                                            </style>
+
+                                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Archetype Distribution (%)</h4>
+                                            <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Define the percentage of agents in each behavioral archetype (must sum to 100%).</p>
+                                            
+                                            <div class="archetype-boxes">
+                                                <div class="archetype-box" id="archetype-validator-box">
+                                                    <h4>The Validator</h4>
+                                                    <p>Active Audience - ~70% of activity is validating others</p>
+                                                    <input type="number" id="archetype_validator" name="archetype_validator" value="52" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                                <div class="archetype-box" id="archetype-broadcaster-box">
+                                                    <h4>The Broadcaster</h4>
+                                                    <p>Content Creator - ~75% of actions are posts/comments</p>
+                                                    <input type="number" id="archetype_broadcaster" name="archetype_broadcaster" value="20" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                                <div class="archetype-box" id="archetype-explorer-box">
+                                                    <h4>The Explorer</h4>
+                                                    <p>Network Growth - Focused on expanding social graph</p>
+                                                    <input type="number" id="archetype_explorer" name="archetype_explorer" value="28" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                                </div>
+                                            </div>
+
+                                            <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px; margin-top: 16px;">Transition Probabilities (%)</h4>
+                                            <p style="font-size: 0.8em; color: #666; margin-bottom: 12px;">Probability that an agent transitions from one archetype to another (each row must sum to 100%).</p>
+                                            
+                                            <table class="transition-table-compact">
+                                                <thead>
+                                                    <tr>
+                                                        <th style="text-align: left;">From / To</th>
+                                                        <th>Validator</th>
+                                                        <th>Broadcaster</th>
+                                                        <th>Explorer</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>Validator</td>
+                                                        <td><input type="number" id="trans_val_val" name="trans_val_val" value="85.3" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_val_broad" name="trans_val_broad" value="8.1" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_val_expl" name="trans_val_expl" value="6.6" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Broadcaster</td>
+                                                        <td><input type="number" id="trans_broad_val" name="trans_broad_val" value="19.5" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_broad_broad" name="trans_broad_broad" value="72.9" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_broad_expl" name="trans_broad_expl" value="7.5" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Explorer</td>
+                                                        <td><input type="number" id="trans_expl_val" name="trans_expl_val" value="36.4" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_expl_broad" name="trans_expl_broad" value="14.6" step="0.1" min="0" max="100"></td>
+                                                        <td><input type="number" id="trans_expl_expl" name="trans_expl_expl" value="49.0" step="0.1" min="0" max="100"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </details>
+                                    </div><!-- End section-agent-archetypes -->
+
                                 </div>
                                 <div class="button-wrap">
                                     <button class="button is-solid primary-button is-fullwidth">
@@ -271,5 +1072,320 @@
         </div>
     </div>
 </div>
+
+<script>
+// Handle number scale selection
+document.querySelectorAll('.number-scale').forEach(scale => {
+  const boxes = scale.querySelectorAll('.number-box');
+  const wrapper = scale.closest('.scale-wrapper');
+  const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+
+  boxes.forEach(box => {
+    box.addEventListener('click', () => {
+      boxes.forEach(b => b.classList.remove('selected'));
+      box.classList.add('selected');
+      hiddenInput.value = box.dataset.value;
+    });
+  });
+});
+
+// Handle mutual exclusivity between synthetic network and file upload
+function updateNetworkInputStates() {
+    const networkModelSelect = document.getElementById('network_model_select');
+    const networkFileInput = document.getElementById('network_file_create');
+    const networkFileLabel = document.querySelector('.file-upload-label-network-create');
+    const erParamField = document.getElementById('er_param_field');
+    const baParamField = document.getElementById('ba_param_field');
+    
+    if (!networkModelSelect || !networkFileInput) return;
+    
+    const modelSelected = networkModelSelect.value !== '';
+    const fileSelected = networkFileInput.files && networkFileInput.files.length > 0;
+    
+    // If synthetic model is selected, disable file upload
+    if (modelSelected) {
+        networkFileInput.disabled = true;
+        if (networkFileLabel) {
+            networkFileLabel.classList.add('disabled');
+        }
+    } else {
+        networkFileInput.disabled = false;
+        if (networkFileLabel) {
+            networkFileLabel.classList.remove('disabled');
+        }
+    }
+    
+    // If file is uploaded, disable synthetic model selection
+    if (fileSelected) {
+        networkModelSelect.disabled = true;
+    } else {
+        networkModelSelect.disabled = false;
+    }
+    
+    // Show/hide parameter fields based on model selection
+    if (erParamField) erParamField.style.display = 'none';
+    if (baParamField) baParamField.style.display = 'none';
+    
+    if (networkModelSelect.value === 'ER' && erParamField) {
+        erParamField.style.display = 'block';
+    } else if (networkModelSelect.value === 'BA' && baParamField) {
+        baParamField.style.display = 'block';
+    }
+}
+
+// Display network file name when selected
+function displayNetworkFileNameCreate(input) {
+    const display = document.getElementById('network-file-name-display-create');
+    if (input.files && input.files[0]) {
+        display.textContent = '✓ ' + input.files[0].name;
+    } else {
+        display.textContent = '';
+    }
+    updateNetworkInputStates();
+}
+
+// Initialize chart with default data
+function initActivityChart() {
+    const defaultData = [
+        0.023, 0.021, 0.020, 0.020, 0.018, 0.017, 0.017, 0.018,
+        0.020, 0.020, 0.021, 0.022, 0.024, 0.027, 0.030, 0.032,
+        0.032, 0.032, 0.032, 0.031, 0.030, 0.029, 0.027, 0.025
+    ];
+    const labels = Array.from({length: 24}, (_, i) => i.toString());
+    
+    // Convert to percentages
+    const activityData = defaultData.map(v => v * 100);
+    const maxValue = Math.max(...activityData);
+    const yAxisMax = Math.ceil(maxValue * 1.1);
+
+    const ctx = document.getElementById('activity_rates_create');
+    if (!ctx) return;
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Activity %',
+                data: activityData,
+                backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                borderColor: 'rgba(34, 197, 94, 1)',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 8,
+                    titleFont: { size: 12 },
+                    bodyFont: { size: 11 },
+                    callbacks: {
+                        label: function(context) {
+                            return 'Active: ' + context.parsed.y.toFixed(2) + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    suggestedMax: yAxisMax,
+                    ticks: {
+                        font: { size: 10 },
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: { size: 9 }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+// On page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup network mutual exclusivity
+    const networkModelSelect = document.getElementById('network_model_select');
+    const networkFileInput = document.getElementById('network_file_create');
+    
+    if (networkModelSelect) {
+        networkModelSelect.addEventListener('change', updateNetworkInputStates);
+    }
+    if (networkFileInput) {
+        networkFileInput.addEventListener('change', function() {
+            displayNetworkFileNameCreate(this);
+        });
+    }
+    
+    // Initial state
+    updateNetworkInputStates();
+    
+    // Initialize chart when details are expanded
+    const detailsElements = document.querySelectorAll('details');
+    detailsElements.forEach(details => {
+        details.addEventListener('toggle', function() {
+            if (this.open && this.querySelector('#activity_rates_create')) {
+                setTimeout(initActivityChart, 100);
+            }
+        });
+    });
+    
+    // Handle Explorer archetype based on follow probabilities
+    function updateExplorerArchetype() {
+        const dailyFollow = document.querySelector('input[name="probability_of_daily_follow"]');
+        const secondaryFollow = document.querySelector('input[name="probability_of_secondary_follow"]');
+        const explorerBox = document.getElementById('archetype-explorer-box');
+        const explorerInput = document.getElementById('archetype_explorer');
+        const validatorInput = document.getElementById('archetype_validator');
+        
+        if (!dailyFollow || !secondaryFollow || !explorerBox || !explorerInput) return;
+        
+        const dailyFollowValue = parseFloat(dailyFollow.value) || 0;
+        const secondaryFollowValue = parseFloat(secondaryFollow.value) || 0;
+        
+        // Get transition probability inputs
+        const transValExpl = document.getElementById('trans_val_expl');
+        const transBroadExpl = document.getElementById('trans_broad_expl');
+        const transExplVal = document.getElementById('trans_expl_val');
+        const transExplBroad = document.getElementById('trans_expl_broad');
+        const transExplExpl = document.getElementById('trans_expl_expl');
+        const transValVal = document.getElementById('trans_val_val');
+        const transValBroad = document.getElementById('trans_val_broad');
+        const transBroadVal = document.getElementById('trans_broad_val');
+        const transBroadBroad = document.getElementById('trans_broad_broad');
+        
+        // Check if both probabilities are zero
+        if (dailyFollowValue === 0 && secondaryFollowValue === 0) {
+            // Disable Explorer
+            explorerBox.classList.add('disabled');
+            explorerInput.disabled = true;
+            explorerInput.readOnly = true;
+            
+            // Move Explorer's percentage to Validator
+            const explorerValue = parseFloat(explorerInput.value) || 0;
+            if (explorerValue > 0) {
+                const currentValidator = parseFloat(validatorInput.value) || 0;
+                validatorInput.value = (currentValidator + explorerValue).toFixed(1);
+            }
+            explorerInput.value = '0';
+            
+            // Disable Explorer-related transition inputs
+            if (transValExpl) { transValExpl.value = '0'; transValExpl.disabled = true; transValExpl.readOnly = true; }
+            if (transBroadExpl) { transBroadExpl.value = '0'; transBroadExpl.disabled = true; transBroadExpl.readOnly = true; }
+            if (transExplVal) { transExplVal.value = '0'; transExplVal.disabled = true; transExplVal.readOnly = true; }
+            if (transExplBroad) { transExplBroad.value = '0'; transExplBroad.disabled = true; transExplBroad.readOnly = true; }
+            if (transExplExpl) { transExplExpl.value = '0'; transExplExpl.disabled = true; transExplExpl.readOnly = true; }
+            
+            // Redistribute transition probabilities
+            const valToVal = parseFloat(transValVal.value) || 85.3;
+            const valToBroad = parseFloat(transValBroad.value) || 8.1;
+            const valToExpl = 6.6;
+            const total = valToVal + valToBroad;
+            if (total > 0) {
+                transValVal.value = (valToVal + valToExpl * (valToVal / total)).toFixed(1);
+                transValBroad.value = (valToBroad + valToExpl * (valToBroad / total)).toFixed(1);
+            }
+            
+            const broadToVal = parseFloat(transBroadVal.value) || 19.5;
+            const broadToBroad = parseFloat(transBroadBroad.value) || 72.9;
+            const broadToExpl = 7.5;
+            const broadTotal = broadToVal + broadToBroad;
+            if (broadTotal > 0) {
+                transBroadVal.value = (broadToVal + broadToExpl * (broadToVal / broadTotal)).toFixed(1);
+                transBroadBroad.value = (broadToBroad + broadToExpl * (broadToBroad / broadTotal)).toFixed(1);
+            }
+        } else {
+            // Enable Explorer
+            explorerBox.classList.remove('disabled');
+            explorerInput.disabled = false;
+            explorerInput.readOnly = false;
+            
+            // Restore default values if currently 0
+            if (parseFloat(explorerInput.value) === 0) {
+                const currentValidator = parseFloat(validatorInput.value) || 80;
+                if (currentValidator >= 80) {
+                    validatorInput.value = '52';
+                    explorerInput.value = '28';
+                } else {
+                    explorerInput.value = '28';
+                }
+            }
+            
+            // Re-enable transition probability inputs
+            if (transValExpl) { transValExpl.disabled = false; transValExpl.readOnly = false; transValExpl.value = '6.6'; }
+            if (transBroadExpl) { transBroadExpl.disabled = false; transBroadExpl.readOnly = false; transBroadExpl.value = '7.5'; }
+            if (transExplVal) { transExplVal.disabled = false; transExplVal.readOnly = false; transExplVal.value = '36.4'; }
+            if (transExplBroad) { transExplBroad.disabled = false; transExplBroad.readOnly = false; transExplBroad.value = '14.6'; }
+            if (transExplExpl) { transExplExpl.disabled = false; transExplExpl.readOnly = false; transExplExpl.value = '49.0'; }
+            
+            // Restore original transition values
+            if (transValVal) transValVal.value = '85.3';
+            if (transValBroad) transValBroad.value = '8.1';
+            if (transBroadVal) transBroadVal.value = '19.5';
+            if (transBroadBroad) transBroadBroad.value = '72.9';
+        }
+    }
+    
+    // Set up listeners for probability fields
+    const dailyFollowInput = document.querySelector('input[name="probability_of_daily_follow"]');
+    const secondaryFollowInput = document.querySelector('input[name="probability_of_secondary_follow"]');
+    
+    if (dailyFollowInput) {
+        dailyFollowInput.addEventListener('change', updateExplorerArchetype);
+        dailyFollowInput.addEventListener('input', updateExplorerArchetype);
+    }
+    if (secondaryFollowInput) {
+        secondaryFollowInput.addEventListener('change', updateExplorerArchetype);
+        secondaryFollowInput.addEventListener('input', updateExplorerArchetype);
+    }
+    
+    // Initial check on page load
+    updateExplorerArchetype();
+    
+    // Handle archetype toggle
+    const archetypeToggle = document.getElementById('enable_archetypes');
+    const archetypeDetails = document.getElementById('archetype-details');
+    
+    function updateArchetypeToggle() {
+        if (!archetypeToggle || !archetypeDetails) return;
+        
+        if (archetypeToggle.checked) {
+            // Enable archetypes
+            archetypeDetails.style.opacity = '1';
+            archetypeDetails.style.pointerEvents = 'auto';
+        } else {
+            // Disable archetypes
+            archetypeDetails.style.opacity = '0.5';
+            archetypeDetails.style.pointerEvents = 'none';
+            // Close the details if open
+            archetypeDetails.open = false;
+        }
+    }
+    
+    if (archetypeToggle) {
+        archetypeToggle.addEventListener('change', updateArchetypeToggle);
+        // Initial state
+        updateArchetypeToggle();
+    }
+});
+</script>
 
 {% include "admin/footer.html" %}
