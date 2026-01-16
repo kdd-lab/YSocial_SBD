@@ -589,6 +589,152 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     with open(config_filename, "w") as f:
         json.dump(config, f, indent=2)
     
+    # Create agent population file (same as standard pipeline)
+    population_filename = f"{exp_dir}{os.sep}{population.name}.json"
+    
+    # Get agents for this population
+    agents = Agent_Population.query.filter_by(population_id=population.id).all()
+    agents = [Agent.query.filter_by(id=a.agent_id).first() for a in agents]
+    
+    # Assign archetypes to agents based on distribution probabilities
+    num_agents = len(agents)
+    archetype_assignments = []
+    
+    if enable_archetypes and num_agents > 0:
+        # Build list of active archetypes and their probabilities
+        active_archetypes = []
+        active_probabilities = []
+        
+        if archetype_validator > 0:
+            active_archetypes.append("validator")
+            active_probabilities.append(archetype_validator)
+        
+        if archetype_broadcaster > 0:
+            active_archetypes.append("broadcaster")
+            active_probabilities.append(archetype_broadcaster)
+        
+        if archetype_explorer > 0:
+            active_archetypes.append("explorer")
+            active_probabilities.append(archetype_explorer)
+        
+        # Normalize probabilities if they don't sum to 1
+        if len(active_probabilities) > 0:
+            total_prob = sum(active_probabilities)
+            if total_prob > 0:
+                active_probabilities = [p / total_prob for p in active_probabilities]
+                # Assign archetypes to agents using numpy random choice
+                import numpy as np
+                archetype_assignments = np.random.choice(
+                    active_archetypes, size=num_agents, p=active_probabilities
+                ).tolist()
+            else:
+                archetype_assignments = [None] * num_agents
+        else:
+            archetype_assignments = [None] * num_agents
+    else:
+        archetype_assignments = [None] * num_agents
+    
+    # Build agent population JSON
+    import faker
+    import random
+    
+    population_data = {"agents": []}
+    for idx, agent in enumerate(agents):
+        custom_prompt = Agent_Profile.query.filter_by(agent_id=agent.id).first()
+        custom_prompt = custom_prompt.profile if custom_prompt else None
+        
+        # Randomly select interests from topics
+        fake = faker.Faker()
+        interests = list(set(fake.random_elements(
+            elements=set(topics),
+            length=fake.random_int(min=1, max=5)
+        )))
+        
+        activity_profile_obj = db.session.query(ActivityProfile).filter_by(id=agent.activity_profile).first()
+        activity_profile_name = activity_profile_obj.name if activity_profile_obj else "Always On"
+        
+        # Get opinions enabled from experiment annotations
+        opinions_enabled = "opinions" in (exp.annotations.split(",") if exp.annotations else [])
+        
+        agent_data = {
+            "name": agent.name,
+            "email": f"{agent.name}@ysocial.it",
+            "password": f"{agent.name}",
+            "age": agent.age,
+            "type": "normal",
+            "leaning": agent.leaning,
+            "interests": [interests, len(interests)],
+            "oe": agent.oe,
+            "co": agent.co,
+            "ex": agent.ex,
+            "ag": agent.ag,
+            "ne": agent.ne,
+            "rec_sys": crecsys,
+            "frec_sys": frecsys,
+            "language": agent.language,
+            "owner": exp.owner,
+            "education_level": agent.education_level,
+            "round_actions": int(agent.round_actions),
+            "gender": agent.gender,
+            "nationality": agent.nationality,
+            "toxicity": agent.toxicity,
+            "is_page": 0,
+            "prompts": custom_prompt,
+            "daily_activity_level": agent.daily_activity_level,
+            "profession": agent.profession,
+            "activity_profile": activity_profile_name,
+            "archetype": archetype_assignments[idx],
+            "opinions": {i: random.random() for i in interests} if opinions_enabled else None,
+        }
+        population_data["agents"].append(agent_data)
+    
+    # Add pages to population data
+    pages = Page_Population.query.filter_by(population_id=population.id).all()
+    pages = [Page.query.filter_by(id=p.page_id).first() for p in pages]
+    
+    for page in pages:
+        # Get page topics
+        page_topics = db.session.query(Exp_Topic, Topic_List).join(Topic_List).filter(
+            Exp_Topic.exp_id == exp.idexp, Exp_Topic.topic_id == Topic_List.id
+        ).all()
+        page_topics = [t[1].name for t in page_topics]
+        page_topics = list(set(page_topics) & set(topics))
+        
+        activity_profile_obj = db.session.query(ActivityProfile).filter_by(id=page.activity_profile).first()
+        activity_profile_name = activity_profile_obj.name if activity_profile_obj else "Always On"
+        
+        page_data = {
+            "name": page.name,
+            "email": f"{page.name}@ysocial.it",
+            "password": f"{page.name}",
+            "age": 0,
+            "type": "normal",
+            "leaning": page.leaning,
+            "interests": [page_topics, len(page_topics)],
+            "oe": "",
+            "co": "",
+            "ex": "",
+            "ag": "",
+            "ne": "",
+            "rec_sys": "",
+            "frec_sys": "",
+            "language": "english",
+            "owner": exp.owner,
+            "education_level": "",
+            "round_actions": 3,
+            "gender": "",
+            "nationality": "",
+            "toxicity": "none",
+            "is_page": 1,
+            "feed_url": page.feed,
+            "activity_profile": activity_profile_name,
+        }
+        population_data["agents"].append(page_data)
+    
+    # Save population file
+    with open(population_filename, "w") as f:
+        json.dump(population_data, f, indent=4)
+    
     # Copy prompts.json into the experiment folder (same as standard)
     if exp.platform_type == "microblogging":
         prompts_src = get_resource_path(os.path.join("data_schema", "prompts.json"))
