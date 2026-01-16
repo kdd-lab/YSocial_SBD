@@ -1284,6 +1284,55 @@
                                         </span>
                                     </div>
 
+                                    <!-- Redis Configuration Box (shown only for HPC) -->
+                                    <div id="redis-config-box" class="box-line" style="display: none; flex-direction: column; align-items: flex-start;">
+                                        <div style="width: 100%; display: flex; align-items: flex-start;">
+                                            <span class="left" style="flex-shrink: 0;"></span>
+                                            <span class="right" style="width: 70%;">
+                                                <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 16px; margin-top: 8px;">
+                                                    <!-- Collapsible Header -->
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; margin-bottom: 12px;" onclick="toggleRedisDetails()">
+                                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                                            <i class="mdi mdi-database" style="color: #6c757d; font-size: 1.2em;"></i>
+                                                            <strong style="color: #495057; font-size: 0.95em;">Redis Configuration</strong>
+                                                        </div>
+                                                        <i id="redis-toggle-icon" class="mdi mdi-chevron-down" style="color: #6c757d; font-size: 1.3em; transition: transform 0.3s;"></i>
+                                                    </div>
+
+                                                    <!-- Collapsible Content -->
+                                                    <div id="redis-details" style="display: none;">
+                                                        <div style="margin-bottom: 12px;">
+                                                            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                                                <input type="checkbox" id="redis_enabled" name="redis_enabled" value="true" style="width: auto;">
+                                                                <span style="font-size: 0.9em; color: #495057; font-weight: 500;">Enable Redis</span>
+                                                            </label>
+                                                        </div>
+
+                                                        <div style="margin-bottom: 12px;">
+                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Host</label>
+                                                            <input type="text" name="redis_host" value="localhost" class="input" style="width: 100%; font-size: 0.9em;">
+                                                        </div>
+
+                                                        <div style="margin-bottom: 12px;">
+                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Port</label>
+                                                            <input type="number" name="redis_port" value="6379" class="input" style="width: 100%; font-size: 0.9em;" min="1" max="65535">
+                                                        </div>
+
+                                                        <div style="margin-bottom: 12px;">
+                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Password <span style="color: #6c757d; font-weight: normal;">(optional)</span></label>
+                                                            <input type="password" name="redis_password" value="" placeholder="Leave empty for no password" class="input" style="width: 100%; font-size: 0.9em;">
+                                                        </div>
+
+                                                        <div style="margin-bottom: 0;">
+                                                            <label style="display: block; font-size: 0.85em; color: #495057; margin-bottom: 4px; font-weight: 500;">Sliding Window Days</label>
+                                                            <input type="number" name="redis_sliding_window_days" value="2" class="input" style="width: 100%; font-size: 0.9em;" min="1" max="365">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </span>
+                                        </div>
+                                    </div>
+
                                     <div class="box-line">
                                         <span class="left">Platform Type</span>
                                         <span class="right" style="width: 70%;">
@@ -1607,7 +1656,33 @@
                                     updateButtonState();
                                 }
                             });
+
+                            // Handle Simulator Type change to show/hide Redis configuration
+                            const simulatorTypeSelect = document.querySelector('select[name="simulator_type"]');
+                            const redisConfigBox = document.getElementById('redis-config-box');
+
+                            simulatorTypeSelect.addEventListener('change', function() {
+                                if (this.value === 'HPC') {
+                                    redisConfigBox.style.display = 'flex';
+                                } else {
+                                    redisConfigBox.style.display = 'none';
+                                }
+                            });
                         });
+
+                        // Toggle Redis configuration details (collapsible)
+                        function toggleRedisDetails() {
+                            const details = document.getElementById('redis-details');
+                            const icon = document.getElementById('redis-toggle-icon');
+                            
+                            if (details.style.display === 'none' || details.style.display === '') {
+                                details.style.display = 'block';
+                                icon.style.transform = 'rotate(180deg)';
+                            } else {
+                                details.style.display = 'none';
+                                icon.style.transform = 'rotate(0deg)';
+                            }
+                        }
                     </script>
 
                     <!--Dashboard box-->
