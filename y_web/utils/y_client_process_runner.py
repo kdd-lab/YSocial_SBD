@@ -5,12 +5,15 @@ This script is invoked as a subprocess to run client simulations.
 It's designed to be called by start_client using subprocess.Popen.
 """
 import argparse
+import json
 import math
+import os
 import random
 import re
 import sys
 import traceback
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 
@@ -81,10 +84,6 @@ def start_client_process(exp, cli, population, resume=True, db_type="sqlite"):
     Start client simulation without pushing Flask app context.
     Independent of the main Flask runtime.
     """
-    import json
-    import os
-    import sys
-
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
@@ -302,6 +301,8 @@ def start_client_process(exp, cli, population, resume=True, db_type="sqlite"):
             cl.add_network()
 
         if not os.path.exists(filename):
+            # Ensure all agents have archetype before saving
+            ensure_agents_have_archetype(cl.agents.agents, cl.agent_archetypes)
             cl.save_agents(filename)
 
         run_simulation(cl, cli.id, filename, exp, population, db_type)
@@ -337,22 +338,192 @@ def get_users_per_hour(population, agents, session):
     return hours_to_users
 
 
-def sample_agents(agents, expected_active_users):
-    weights = [a.daily_activity_level for a in agents]
-    # normalize weights to sum to 1
-    weights = [w / sum(weights) for w in weights]
+def sample_agents(agents, expected_active_users, archetypes=None):
+    """
+    Sample agents based on their daily activity level and archetype distribution.
+    If archetypes are enabled, sample according to the specified distribution.
+    Otherwise, sample based solely on daily activity levels.
 
-    try:
-        sagents = np.random.choice(
-            agents,
-            size=expected_active_users,
-            p=weights,
-            replace=False,
-        )
-    except Exception:
-        sagents = np.random.choice(agents, size=expected_active_users, replace=False)
+    :param agents:
+    :param expected_active_users:
+    :param archetypes:
+    :return:
+    """
+    sagents = []
+
+    if archetypes["enabled"]:
+        candidates_per_archetype = {}
+        weights_per_archetype = {}
+        # identify the percentages of each archetype
+        user_types = {}
+        for k, v in archetypes["distribution"].items():
+            user_types[k] = max(int(v * expected_active_users), 1)
+
+        for a in agents:
+            # Use getattr with default to handle agents without archetype attribute (e.g., when resuming old simulations)
+            # Default to 'broadcaster' as it's the most permissive archetype with full action capabilities
+            agent_archetype = getattr(a, "archetype", "broadcaster")
+            if agent_archetype not in candidates_per_archetype:
+                candidates_per_archetype[agent_archetype] = []
+                weights_per_archetype[agent_archetype] = []
+            candidates_per_archetype[agent_archetype].append(a)
+            weights_per_archetype[agent_archetype].append(a.daily_activity_level)
+
+        for atype, count in user_types.items():
+            if atype in candidates_per_archetype:
+                cands = candidates_per_archetype[atype]
+                wts = weights_per_archetype[atype]
+                # normalize weights
+                wts = [w / sum(wts) for w in wts]
+                try:
+                    sampled = np.random.choice(
+                        cands,
+                        size=min(count, len(cands)),
+                        p=wts,
+                        replace=False,
+                    )
+                except Exception:
+                    sampled = np.random.choice(
+                        cands,
+                        size=min(count, len(cands)),
+                        replace=False,
+                    )
+                sagents.extend(sampled)
+    else:
+        weights = [a.daily_activity_level for a in agents]
+        # normalize weights to sum to 1
+        weights = [w / sum(weights) for w in weights]
+
+        try:
+            sagents = np.random.choice(
+                agents,
+                size=expected_active_users,
+                p=weights,
+                replace=False,
+            )
+        except Exception:
+            sagents = np.random.choice(
+                agents, size=expected_active_users, replace=False
+            )
 
     return sagents
+
+
+def ensure_agents_have_archetype(agents, archetypes):
+    """
+    Ensure all agents have an archetype attribute before saving.
+    If archetypes are enabled and an agent doesn't have an archetype,
+    assign a default based on the archetype distribution.
+
+    :param agents: List of agent objects
+    :param archetypes: Archetype configuration dict
+    """
+    if archetypes and archetypes.get("enabled", False):
+        # Get distribution for weighted random assignment
+        distribution = archetypes.get("distribution", {"broadcaster": 1.0})
+        archetype_choices = list(distribution.keys())
+        archetype_weights = list(distribution.values())
+
+        for agent in agents:
+            if not hasattr(agent, "archetype") or agent.archetype is None:
+                # Assign archetype based on distribution
+                agent.archetype = random.choices(
+                    archetype_choices, weights=archetype_weights, k=1
+                )[0]
+                print(
+                    f"Assigned archetype '{agent.archetype}' to agent {agent.name}",
+                    file=sys.stderr,
+                )
+
+
+def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
+    """
+    Process a single agent's actions for one time slot.
+
+    :param g: The agent to process
+    :param archetypes: Archetype configuration
+    :param cl: Client instance
+    :param exp: Experiment instance
+    :param tid: Current time ID
+    :param FakeAgent: FakeAgent class (for microblogging) or None
+    :param local_random: Thread-local random.Random instance for thread safety
+    :return: Tuple of (agent_name, success_flag)
+    """
+
+    try:
+        if archetypes["enabled"]:
+            # filtering the actions based on the archetype
+            # Use getattr with default to handle agents without archetype attribute (e.g., when resuming old simulations)
+            # Default to 'broadcaster' as it's the most permissive archetype with full action capabilities
+            agent_archetype = getattr(g, "archetype", "broadcaster")
+            if agent_archetype == "validator":
+                acts = [
+                    a
+                    for a, v in cl.actions_likelihood.items()
+                    if v > 0 and a in ["READ", "SHARE", "SEARCH"]
+                ]
+                if exp.platform_type == "microblogging":
+                    g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+            elif agent_archetype == "broadcaster":
+                acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+            elif agent_archetype == "explorer":
+                acts = ["FOLLOW"]
+                if exp.platform_type == "microblogging":
+                    g.__class__ = FakeAgent  # change class to FakeAgent to limit actions (only for microblogging)
+
+        else:
+            acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+
+        # Get a random integer within g.round_actions.
+        # If g.is_page == 1, then rounds = 0 (the page does not perform actions)
+        if g.is_page == 1:
+            rounds = 0
+        else:
+            lower = max(int(g.round_actions) - 2, 1)
+            rounds = local_random.randint(lower, int(g.round_actions))
+            # Round_actions max is set for each agent by sampling from a user defined distribution.
+            # Execute at least "lower" actions per user (to guarantee the activity level distribution).
+
+        for _ in range(rounds):
+            # sample two elements from a list with replacement
+            if len(acts) > 1:
+                candidates = local_random.choices(
+                    acts,
+                    k=2,
+                    weights=[cl.actions_likelihood[a] for a in acts],
+                )
+                candidates.append("NONE")
+            else:
+                candidates = acts + ["NONE"]
+
+            try:
+                # reply to received mentions
+                if g not in cl.pages:
+                    if not archetypes["enabled"]:
+                        g.reply(tid=tid)
+                    else:
+                        # Use getattr with default to handle agents without archetype attribute
+                        if (
+                            getattr(g, "archetype", "broadcaster") == "broadcaster"
+                        ):  # only broadcasters reply
+                            g.reply(tid=tid)
+
+                # select action to be performed
+                g.select_action(
+                    tid=tid,
+                    actions=candidates,
+                    max_length_thread_reading=cl.max_length_thread_reading,
+                )
+            except Exception as e:
+                print(f"Error ({g.name}): {e}")
+                print(traceback.format_exc())
+                pass
+
+        return (g.name, True)
+    except Exception as e:
+        print(f"Error processing agent {g.name}: {e}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
+        return (g.name, False)
 
 
 def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
@@ -364,6 +535,13 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
 
     from y_web import create_app  # only to reuse URI config
     from y_web.models import Client_Execution
+    from y_web.utils.path_utils import get_base_path
+
+    base_path = get_base_path()
+    FakeAgent = None
+    if exp.platform_type == "microblogging":
+        sys.path.append(os.path.join(base_path, "external", "YClient"))
+        from y_client.classes import FakeAgent
 
     # Create app only to get DB URI, but don't push its context
     app2 = create_app(db_type)
@@ -382,6 +560,8 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
     page_agents = [p for p in cl.agents.agents if p.is_page]
 
     hour_to_page = get_users_per_hour(population, page_agents, session)
+
+    archetypes = cl.agent_archetypes
 
     for d1 in range(total_days):
         common_agents = [p for p in cl.agents.agents if not p.is_page]
@@ -407,7 +587,7 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if platform_type == "microblogging":
                 # pages post all the time their activity profile is active
                 for page in active_pages:
-                    page.select_action(
+                    page.select_action_lite(
                         tid=tid,
                         actions=[],
                         max_length_thread_reading=cl.max_length_thread_reading,
@@ -417,9 +597,11 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if len(cl.agents.agents) == 0:
                 break
 
-            # get the daily activities of each agent
+            # get the daily activities of each agent (stratified on archetypes if enabled)
             try:
-                sagents = sample_agents(hour_to_users[h], expected_active_users)
+                sagents = sample_agents(
+                    hour_to_users[h], expected_active_users, archetypes
+                )
             except Exception as e:
                 print(f"Error sampling agents: {e}", file=sys.stderr)
                 sagents = []
@@ -427,46 +609,38 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             # shuffle agents
             random.shuffle(sagents)
 
-            for g in sagents:
-                acts = [a for a, v in cl.actions_likelihood.items() if v > 0]
+            # Process agents in parallel using ThreadPoolExecutor
+            # Only proceed if there are agents to process
+            if len(sagents) > 0:
+                # Use max_workers based on available CPUs, but cap it for resource management
+                max_workers = min(
+                    len(sagents), 10
+                )  # Cap at 10 workers to avoid resource exhaustion
 
-                daily_active[g.name] = None
+                # Process agents in parallel (FakeAgent was imported at function start)
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all agent processing tasks with thread-local random instances
+                    # Create properly seeded Random instances for thread safety
+                    future_to_agent = {
+                        executor.submit(
+                            process_agent,
+                            g,
+                            archetypes,
+                            cl,
+                            exp,
+                            tid,
+                            FakeAgent,
+                            random.Random(random.randint(0, 2**32 - 1)),
+                        ): g
+                        for g in sagents
+                    }
 
-                # Get a random integer within g.round_actions.
-                # If g.is_page == 1, then rounds = 0 (the page does not perform actions)
-                if g.is_page == 1:
-                    rounds = 0
-                else:
-                    lower = max(int(g.round_actions) - 2, 1)
-                    rounds = random.randint(lower, int(g.round_actions))
-                    # Round_actions max is set for each agent by sampling from a user defined distribution.
-                    # Execute at least "lower" actions per user (to guarantee the activity level distribution).
-
-                for _ in range(rounds):
-                    # sample two elements from a list with replacement
-
-                    candidates = random.choices(
-                        acts,
-                        k=2,
-                        weights=[cl.actions_likelihood[a] for a in acts],
-                    )
-                    candidates.append("NONE")
-
-                    try:
-                        # reply to received mentions
-                        if g not in cl.pages:
-                            g.reply(tid=tid)
-
-                        # select action to be performed
-                        g.select_action(
-                            tid=tid,
-                            actions=candidates,
-                            max_length_thread_reading=cl.max_length_thread_reading,
-                        )
-                    except Exception as e:
-                        print(f"Error ({g.name}): {e}")
-                        print(traceback.format_exc())
-                        pass
+                    # Collect results as they complete
+                    # Track all agents in daily_active, not just successful ones (preserves original behavior)
+                    for future in as_completed(future_to_agent):
+                        agent_name, success = future.result()
+                        # Add to daily_active regardless of success to maintain original behavior
+                        daily_active[agent_name] = None
 
             # increment slot
             cl.sim_clock.increment_slot()
@@ -596,6 +770,24 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                     )
                 ):
                     cl.add_agent()
+
+        # change the archetypes if enabled
+        if d1 % 7 == 0 and d1 > 0:  # weekly changes
+            if archetypes["enabled"]:
+                for agent in cl.agents.agents:
+                    # Use getattr with default to handle agents without archetype attribute
+                    # Default to 'broadcaster' as it's the most permissive archetype with full action capabilities
+                    current_archetype = getattr(agent, "archetype", "broadcaster")
+                    probabilities = archetypes["transitions"][current_archetype]
+                    choice = random.choices(
+                        population=list(probabilities.keys()),
+                        weights=list(probabilities.values()),
+                        k=1,
+                    )[0]
+                    agent.archetype = choice
+
+        # Ensure all agents have archetype before saving (handles new agents added during simulation)
+        ensure_agents_have_archetype(cl.agents.agents, archetypes)
 
         # saving "living" agents at the end of the day
         cl.save_agents(agent_file)

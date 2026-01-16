@@ -49,6 +49,7 @@ class User_mgmt(UserMixin, db.Model):
     daily_activity_level = db.Column(db.Integer(), default=1)
     profession = db.Column(db.String(50), default="")
     activity_profile = db.Column(db.String(50), default="Always On")
+    archetype = db.Column(db.String(50), nullable=True, default=None)
 
     posts = db.relationship("Post", backref="author", lazy=True)
     liked = db.relationship("Reactions", backref="liked_by", lazy=True)
@@ -340,6 +341,35 @@ class Post_Toxicity(db.Model):
     flirtation = db.Column(db.REAL, default=0)
 
 
+class Agent_Opinion(db.Model):
+    """
+    Agent opinion tracking for interactions.
+
+    Stores opinions that agents form about topics, posts, and other agents
+    during their interactions in the simulation. The opinion is stored as
+    a float value representing the agent's sentiment or stance.
+
+    Fields:
+        id: Primary key
+        agent_id: ID of the agent forming the opinion
+        tid: Transaction/interaction ID for this opinion event
+        topic_id: ID of the topic being discussed (FK to interests)
+        id_interacted_with: ID of the user/agent being interacted with
+        id_post: ID of the post that triggered this opinion (FK to post)
+        opinion: Numerical opinion value (float) indicating sentiment/stance
+    """
+
+    __bind_key__ = "db_exp"
+    __tablename__ = "agent_opinion"
+    id = db.Column(db.Integer, primary_key=True)
+    agent_id = db.Column(db.Integer, nullable=False)
+    tid = db.Column(db.Integer, nullable=False)
+    topic_id = db.Column(db.Integer, db.ForeignKey("interests.iid"), nullable=False)
+    id_interacted_with = db.Column(db.Integer, nullable=False)
+    id_post = db.Column(db.Integer, db.ForeignKey("post.id"), nullable=False)
+    opinion = db.Column(db.REAL, nullable=False)
+
+
 ############################################################################################################
 
 
@@ -554,6 +584,7 @@ class Agent(db.Model):
     activity_profile = db.Column(
         db.Integer, db.ForeignKey("activity_profiles.id"), nullable=True
     )
+    archetype = db.Column(db.String(50), nullable=True, default=None)
 
 
 class Agent_Population(db.Model):
@@ -688,6 +719,20 @@ class Client(db.Model):
     crecsys = db.Column(db.String(50))
     frecsys = db.Column(db.String(50))
     pid = db.Column(db.Integer, nullable=True, default=None)
+    # Agent archetype percentages
+    archetype_validator = db.Column(db.REAL, default=0.52)
+    archetype_broadcaster = db.Column(db.REAL, default=0.20)
+    archetype_explorer = db.Column(db.REAL, default=0.28)
+    # Transition probabilities (3x3 matrix)
+    trans_val_val = db.Column(db.REAL, default=0.853)
+    trans_val_broad = db.Column(db.REAL, default=0.081)
+    trans_val_expl = db.Column(db.REAL, default=0.066)
+    trans_broad_broad = db.Column(db.REAL, default=0.729)
+    trans_broad_val = db.Column(db.REAL, default=0.195)
+    trans_broad_expl = db.Column(db.REAL, default=0.075)
+    trans_expl_expl = db.Column(db.REAL, default=0.490)
+    trans_expl_val = db.Column(db.REAL, default=0.364)
+    trans_expl_broad = db.Column(db.REAL, default=0.146)
 
 
 class Client_Execution(db.Model):
@@ -1087,3 +1132,35 @@ class WatchdogSettings(db.Model):
         db.Integer, nullable=False, default=15
     )  # Default 15 minutes
     last_run = db.Column(db.DateTime, nullable=True)  # Last time watchdog ran
+
+
+class OpinionGroup(db.Model):
+    """
+    Opinion group definitions for opinion dynamics simulations.
+
+    Defines groups of opinions with a name and value range [lower_bound, upper_bound]
+    where bounds are in the interval [0, 1].
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_groups"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    lower_bound = db.Column(db.Float, nullable=False)
+    upper_bound = db.Column(db.Float, nullable=False)
+
+
+class OpinionDistribution(db.Model):
+    """
+    Opinion distribution configurations for opinion dynamics simulations.
+
+    Stores distribution types (uniform, beta, etc.) and their parameters
+    as a JSON string for flexible configuration of opinion initialization.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_distributions"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    distribution_type = db.Column(db.String(50), nullable=False)
+    parameters = db.Column(db.Text, nullable=False)  # JSON string

@@ -53,6 +53,8 @@ from y_web.models import (
     LogSyncSettings,
     Nationalities,
     Ollama_Pull,
+    OpinionDistribution,
+    OpinionGroup,
     Page,
     Page_Population,
     Population,
@@ -1177,6 +1179,7 @@ def create_experiment():
 
     # Get LLM agents setting (convert to integer for database compatibility)
     llm_agents_enabled = 1 if request.form.get("llm_agents_enabled") == "true" else 0
+    opinions_enabled = request.form.get("opinion_annotation") == "true"
 
     # Get annotation settings
     toxicity_annotation = request.form.get("toxicity_annotation") == "true"
@@ -1323,6 +1326,7 @@ def create_experiment():
         ),
         "sentiment_annotation": sentiment_annotation,
         "emotion_annotation": emotion_annotation,
+        "opinions_enabled": opinions_enabled,
         "database_uri": db_uri,
         "topics": [t.strip() for t in topics if t.strip()],
     }
@@ -1342,6 +1346,8 @@ def create_experiment():
         annotations += "sentiment,"
     if emotion_annotation:
         annotations += "emotion,"
+    if opinions_enabled:
+        annotations += "opinions,"
     # remove trailing comma
     annotations = annotations.rstrip(",")
 
@@ -5219,3 +5225,332 @@ def cleanup_completed_groups():
         add_schedule_log(f"Cleaned up {count} completed group(s)", "info")
 
     return jsonify({"success": True, "removed_count": count})
+
+
+# ========================================
+# Opinion Dynamics Routes
+# ========================================
+
+
+@experiments.route("/admin/opinion_groups_data")
+@login_required
+def opinion_groups_data():
+    """Display opinion groups data page."""
+    query = OpinionGroup.query
+
+    # search filter
+    search = request.args.get("search")
+    if search:
+        query = query.filter(db.or_(OpinionGroup.name.like(f"%{search}%")))
+    total = query.count()
+
+    # sorting
+    sort = request.args.get("sort")
+    if sort:
+        order = []
+        for s in sort.split(","):
+            direction = s[0]
+            name = s[1:]
+            if name not in ["name", "lower_bound", "upper_bound"]:
+                name = "name"
+            col = getattr(OpinionGroup, name)
+            if direction == "-":
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = query.order_by(*order)
+
+    # pagination
+    start = request.args.get("start", type=int, default=-1)
+    length = request.args.get("length", type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    res = query.all()
+
+    res = {
+        "data": [
+            {
+                "id": group.id,
+                "name": group.name,
+                "lower_bound": group.lower_bound,
+                "upper_bound": group.upper_bound,
+            }
+            for group in res
+        ],
+        "total": total,
+    }
+
+    return res
+
+
+@experiments.route("/admin/opinion_groups_data", methods=["POST"])
+@login_required
+def update_opinion_group():
+    """Update opinion group data (for inline editing)."""
+    check_privileges(current_user.username)
+
+    data = request.get_json()
+    group_id = data.get("id")
+    group = OpinionGroup.query.filter_by(id=group_id).first()
+
+    if not group:
+        return jsonify({"success": False, "message": "Opinion group not found"}), 404
+
+    # Update fields if provided
+    if "name" in data:
+        group.name = data["name"]
+    if "lower_bound" in data:
+        try:
+            lower_bound = float(data["lower_bound"])
+            if not (0 <= lower_bound <= 1):
+                return (
+                    jsonify(
+                        {"success": False, "message": "Lower bound must be in [0, 1]"}
+                    ),
+                    400,
+                )
+            group.lower_bound = lower_bound
+        except ValueError:
+            return (
+                jsonify({"success": False, "message": "Invalid lower_bound value"}),
+                400,
+            )
+    if "upper_bound" in data:
+        try:
+            upper_bound = float(data["upper_bound"])
+            if not (0 <= upper_bound <= 1):
+                return (
+                    jsonify(
+                        {"success": False, "message": "Upper bound must be in [0, 1]"}
+                    ),
+                    400,
+                )
+            group.upper_bound = upper_bound
+        except ValueError:
+            return (
+                jsonify({"success": False, "message": "Invalid upper_bound value"}),
+                400,
+            )
+
+    # Validate that lower_bound <= upper_bound
+    if group.lower_bound > group.upper_bound:
+        return (
+            jsonify(
+                {"success": False, "message": "Lower bound must be <= upper bound"}
+            ),
+            400,
+        )
+
+    # Check for overlaps with other existing groups
+    existing_groups = OpinionGroup.query.filter(OpinionGroup.id != group_id).all()
+    for existing in existing_groups:
+        # Check if the updated group overlaps with any other existing group
+        # Two ranges [a1, a2] and [b1, b2] overlap if: a1 < b2 AND b1 < a2
+        if (
+            group.lower_bound < existing.upper_bound
+            and existing.lower_bound < group.upper_bound
+        ):
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": f"Overlaps with '{existing.name}' [{existing.lower_bound}, {existing.upper_bound}]",
+                    }
+                ),
+                400,
+            )
+
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@experiments.route("/admin/create_opinion_group", methods=["POST"])
+@login_required
+def create_opinion_group():
+    """Create opinion group."""
+    check_privileges(current_user.username)
+
+    name = request.form.get("name")
+    lower_bound = request.form.get("lower_bound")
+    upper_bound = request.form.get("upper_bound")
+
+    try:
+        lower_bound = float(lower_bound)
+        upper_bound = float(upper_bound)
+    except (ValueError, TypeError):
+        flash("Invalid bound values. Must be numbers.", "error")
+        return redirect(request.referrer)
+
+    # Validate bounds are in [0, 1] and lower <= upper
+    if not (0 <= lower_bound <= 1 and 0 <= upper_bound <= 1):
+        flash("Bounds must be in the range [0, 1].", "error")
+        return redirect(request.referrer)
+
+    if lower_bound > upper_bound:
+        flash("Lower bound must be less than or equal to upper bound.", "error")
+        return redirect(request.referrer)
+
+    # Check for overlaps with existing groups
+    existing_groups = OpinionGroup.query.all()
+    for existing in existing_groups:
+        # Check if the new group overlaps with any existing group
+        # Two ranges [a1, a2] and [b1, b2] overlap if: a1 < b2 AND b1 < a2
+        if lower_bound < existing.upper_bound and existing.lower_bound < upper_bound:
+            flash(
+                f"Opinion group overlaps with existing group '{existing.name}' "
+                f"[{existing.lower_bound}, {existing.upper_bound}]. "
+                "Groups must not overlap.",
+                "error",
+            )
+            return redirect(request.referrer)
+
+    group = OpinionGroup(name=name, lower_bound=lower_bound, upper_bound=upper_bound)
+    db.session.add(group)
+    db.session.commit()
+
+    return redirect(request.referrer)
+
+
+@experiments.route("/admin/delete_opinion_group/<int:group_id>", methods=["DELETE"])
+@login_required
+def delete_opinion_group(group_id):
+    """Delete opinion group."""
+    check_privileges(current_user.username)
+
+    group = OpinionGroup.query.filter_by(id=group_id).first()
+    if not group:
+        return jsonify({"success": False, "message": "Opinion group not found"}), 404
+
+    db.session.delete(group)
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@experiments.route("/admin/opinion_distributions_data")
+@login_required
+def opinion_distributions_data():
+    """Display opinion distributions data page."""
+    query = OpinionDistribution.query
+
+    # search filter
+    search = request.args.get("search")
+    if search:
+        query = query.filter(
+            db.or_(
+                OpinionDistribution.name.like(f"%{search}%"),
+                OpinionDistribution.distribution_type.like(f"%{search}%"),
+            )
+        )
+    total = query.count()
+
+    # sorting
+    sort = request.args.get("sort")
+    if sort:
+        order = []
+        for s in sort.split(","):
+            direction = s[0]
+            name = s[1:]
+            if name not in ["name", "distribution_type"]:
+                name = "name"
+            col = getattr(OpinionDistribution, name)
+            if direction == "-":
+                col = col.desc()
+            order.append(col)
+        if order:
+            query = query.order_by(*order)
+
+    # pagination
+    start = request.args.get("start", type=int, default=-1)
+    length = request.args.get("length", type=int, default=-1)
+    if start != -1 and length != -1:
+        query = query.offset(start).limit(length)
+
+    # response
+    res = query.all()
+
+    res = {
+        "data": [
+            {
+                "id": dist.id,
+                "name": dist.name,
+                "distribution_type": dist.distribution_type,
+                "parameters": dist.parameters,
+            }
+            for dist in res
+        ],
+        "total": total,
+    }
+
+    return res
+
+
+@experiments.route("/admin/opinion_distributions_data", methods=["POST"])
+@login_required
+def update_opinion_distribution():
+    """Update opinion distribution data (for inline editing)."""
+    check_privileges(current_user.username)
+
+    data = request.get_json()
+    dist_id = data.get("id")
+    dist = OpinionDistribution.query.filter_by(id=dist_id).first()
+
+    if not dist:
+        return (
+            jsonify({"success": False, "message": "Opinion distribution not found"}),
+            404,
+        )
+
+    # Update fields if provided
+    if "name" in data:
+        dist.name = data["name"]
+
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@experiments.route("/admin/create_opinion_distribution", methods=["POST"])
+@login_required
+def create_opinion_distribution():
+    """Create opinion distribution."""
+    check_privileges(current_user.username)
+
+    name = request.form.get("name")
+    distribution_type = request.form.get("distribution_type")
+    parameters = request.form.get("parameters")  # JSON string
+
+    # Validate JSON parameters
+    try:
+        json.loads(parameters)
+    except (json.JSONDecodeError, TypeError):
+        flash("Invalid parameters format. Must be valid JSON.", "error")
+        return redirect(request.referrer)
+
+    dist = OpinionDistribution(
+        name=name, distribution_type=distribution_type, parameters=parameters
+    )
+    db.session.add(dist)
+    db.session.commit()
+
+    return redirect(request.referrer)
+
+
+@experiments.route(
+    "/admin/delete_opinion_distribution/<int:dist_id>", methods=["DELETE"]
+)
+@login_required
+def delete_opinion_distribution(dist_id):
+    """Delete opinion distribution."""
+    check_privileges(current_user.username)
+
+    dist = OpinionDistribution.query.filter_by(id=dist_id).first()
+    if not dist:
+        return (
+            jsonify({"success": False, "message": "Opinion distribution not found"}),
+            404,
+        )
+
+    db.session.delete(dist)
+    db.session.commit()
+    return jsonify({"success": True})
