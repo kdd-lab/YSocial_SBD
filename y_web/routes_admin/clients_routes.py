@@ -292,6 +292,147 @@ def clients(idexp):
     )
 
 
+def generate_hpc_client_config(
+    client_name,
+    namespace,
+    llm_backend,
+    llm_config,
+    llm_v_config,
+    simulation_config,
+    agents_config,
+    logging_config,
+):
+    """Generate client configuration for HPC simulator type."""
+    config = {
+        "client_name": client_name,
+        "namespace": namespace,
+        "server": {
+            "address": None,
+            "port": None
+        },
+        "llm": llm_config,
+        "llm_v": llm_v_config,
+        "simulation": simulation_config,
+        "agents": agents_config,
+        "logging": logging_config,
+    }
+    return config
+
+
+def create_hpc_client(exp, name, descr, population_id, form_data):
+    """Create an HPC client with simplified configuration."""
+    from y_web.utils.path_utils import get_writable_path
+    import json
+    
+    BASE_DIR = get_writable_path()
+    
+    # Get population
+    population = Population.query.filter_by(id=population_id).first()
+    if not population:
+        flash("Population not found")
+        return redirect(request.referrer)
+    
+    # Extract form data
+    days = int(form_data.get("days", "3"))
+    llm_backend = form_data.get("llm_backend", "vllm")
+    
+    # Build LLM config based on backend
+    if llm_backend == "vllm":
+        llm_config = {
+            "backend": "vllm",
+            "model": form_data.get("llm_model", "AMead10/Llama-3.2-3B-Instruct-AWQ"),
+            "temperature": float(form_data.get("llm_temperature", "0.9")),
+            "max_tokens": int(form_data.get("llm_max_tokens", "256")),
+            "max_model_len": int(form_data.get("llm_max_model_len", "4096")),
+            "tensor_parallel_size": int(form_data.get("llm_tensor_parallel_size", "1")),
+            "gpu_memory_utilization": float(form_data.get("llm_gpu_memory_utilization", "0.15")),
+            "enable_flashattention": form_data.get("llm_enable_flashattention") == "true",
+            "num_actors": int(form_data.get("llm_num_actors", "4")),
+            "gpu_per_actor": float(form_data.get("llm_gpu_per_actor", "1")),
+            "reuse_actors": form_data.get("llm_reuse_actors") == "true",
+            "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
+        }
+        
+        llm_v_config = {
+            "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
+            "temperature": float(form_data.get("llm_v_temperature", "0.5")),
+            "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
+            "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
+            "gpu_memory_utilization": float(form_data.get("llm_v_gpu_memory_utilization", "0.15")),
+        }
+    else:  # ollama
+        llm_config = {
+            "address": form_data.get("ollama_address", "localhost"),
+            "port": int(form_data.get("ollama_port", "11434")),
+            "model": form_data.get("ollama_model", "llama3.2"),
+            "temperature": float(form_data.get("ollama_temperature", "0.7")),
+            "llm_api_key": "NULL",
+            "llm_max_tokens": -1,
+        }
+        llm_v_config = {}
+    
+    # Read server config to get shared values
+    exp_dir = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{exp.db_name.split(os.sep)[1]}"
+    server_config_path = f"{exp_dir}{os.sep}config_server.json"
+    
+    # Default values for simulation config
+    simulation_config = {
+        "num_days": days,
+        "num_slots_per_day": 24,
+        "heartbeat_interval": 5,
+    }
+    
+    # Default agents config
+    agents_config = {
+        "reading_from_follower_ratio": 0.6,
+        "max_length_thread_reading": 5,
+        "attention_window": 336,
+        "probability_of_daily_follow": 0.1,
+        "probability_of_secondary_follow": 0.1,
+        "batch_size": 100,
+    }
+    
+    # Logging config
+    logging_config = {
+        "enable_execution_log": True,
+        "enable_actor_log": True,
+        "enable_client_log": True,
+        "enable_console_log": True,
+        "enable_llm_usage_log": True,
+    }
+    
+    # Generate config
+    config = generate_hpc_client_config(
+        client_name=name,
+        namespace=exp.exp_name,
+        llm_backend=llm_backend,
+        llm_config=llm_config,
+        llm_v_config=llm_v_config,
+        simulation_config=simulation_config,
+        agents_config=agents_config,
+        logging_config=logging_config,
+    )
+    
+    # Save config file
+    config_path = f"{exp_dir}{os.sep}{population.name}.json"
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=2)
+    
+    # Create client record in database
+    client = Client(
+        name=name,
+        descr=descr,
+        id_exp=exp.idexp,
+        population_id=population_id,
+        status="stopped",
+    )
+    db.session.add(client)
+    db.session.commit()
+    
+    flash(f"HPC client '{name}' created successfully")
+    return redirect(f"/admin/experiment_details/{exp.idexp}")
+
+
 @clientsr.route("/admin/create_client", methods=["POST"])
 @login_required
 def create_client():
@@ -302,6 +443,18 @@ def create_client():
     descr = request.form.get("descr")
     exp_id = request.form.get("id_exp")
     population_id = request.form.get("population_id")
+    
+    # Check if this is an HPC client
+    is_hpc = request.form.get("is_hpc") == "true"
+    
+    # Check if LLM agents are enabled for this experiment
+    exp = Exps.query.filter_by(idexp=exp_id).first()
+    
+    # For HPC clients, use simplified config generation
+    if is_hpc:
+        return create_hpc_client(exp, name, descr, population_id, request.form)
+    
+    # Continue with standard client creation for non-HPC
     days = request.form.get("days")
     percentage_new_agents_iteration = request.form.get(
         "percentage_new_agents_iteration"
@@ -327,8 +480,6 @@ def create_client():
     vote = request.form.get("vote")
     share_link = request.form.get("share_link")
 
-    # Check if LLM agents are enabled for this experiment
-    exp = Exps.query.filter_by(idexp=exp_id).first()
     llm_agents_enabled = (
         exp.llm_agents_enabled if (exp and hasattr(exp, "llm_agents_enabled")) else True
     )
