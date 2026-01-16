@@ -42,7 +42,7 @@
                                         <span class="left">Name</span>
                                         <span class="right" style="width: 70%;"><input type="text"
                                                                                        name="name"
-                                                                                       class="input" required></span>
+                                                                                       class="input"></span>
                                     </div>
                                     <div class="box-line">
                                         <span class="left">Description</span>
@@ -53,7 +53,7 @@
                                     <div class="box-line">
                                         <span class="left">Population</span>
                                         <div class="select">
-                                            <select name="population_id" required>
+                                            <select name="population_id">
                                                 <option value=""></option>
                                                     {% for pop in populations %}
                                                     <option value="{{ pop.id }}">{{ pop.name }}</option>
@@ -61,8 +61,6 @@
                                             </select>
                                         </div>
                                     </div>
-
-                                    <!-- Simulation Parameters -->
                                     <div id="section-simulation-params" class="tutorial-section">
                                     <div class="form-section-header">Simulation Parameters</div>
                                     <div class="form-section-description">
@@ -76,9 +74,9 @@
                                                    class="input"
                                                    min="1"
                                                    step="1"
-                                                   value="3"
+                                                   value="30"
                                                    style="flex: 1;">
-                                            <input type="hidden" name="days" id="days_input" value="3">
+                                            <input type="hidden" name="days" id="days_input" value="30">
                                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.9em; white-space: nowrap;">
                                                 <input type="checkbox" id="infinite_duration" name="infinite_duration" style="cursor: pointer;">
                                                 <span style="color: #039be5;">Run until stopped</span>
@@ -98,7 +96,7 @@
                                         document.getElementById('infinite_duration').addEventListener('change', function() {
                                             const daysDisplay = document.getElementById('days_display');
                                             const daysInput = document.getElementById('days_input');
-                                            const defaultDays = '3';
+                                            const defaultDays = '30';
                                             if (this.checked) {
                                                 // Store current value before switching to infinite
                                                 daysDisplay.dataset.previousValue = daysDisplay.value;
@@ -201,7 +199,6 @@
                                                                                        required></span>
                                     </div>
                                     </div><!-- End section-simulation-params -->
-
                                     <div id="section-actions-relevance" class="tutorial-section">
                                     <div class="form-section-header">Agents' Actions Relevance</div>
                                     <div class="form-section-description">
@@ -212,6 +209,7 @@
                                     <div class="box-line">
                                         <span class="left">Post new content</span>
                                         <span class="right" style="width: 70%;">
+                                            <!--<input type="text" name="post" class="input"  value="0.2">-->
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
                                                   <div class="number-box" data-value="0">0</div>
@@ -233,6 +231,9 @@
                                     {% if experiment.platform_type == "microblogging" %}
                                     <div class="box-line">
                                         <span class="left">Share and comment an Image</span>
+                                        <!--<span class="right" style="width: 70%;"><input type="text" name="image"
+                                                                                       class="input"
+                                                                                       value="0"></span>-->
                                         <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -255,6 +256,10 @@
                                     </div>
                                     <div class="box-line">
                                         <span class="left">Comment on a News</span>
+                                       <!-- <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="news"
+                                                                                       class="input"
+                                                                                       value="0"></span> -->
                                         <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -278,6 +283,10 @@
                                     {% endif %}
                                     <div class="box-line">
                                         <span class="left">Comment a Post</span>
+                                        <!--<span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="comment"
+                                                                                       class="input"
+                                                                                       value="0.5"></span> -->
                                          <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -300,6 +309,10 @@
                                     </div>
                                     <div class="box-line">
                                         <span class="left">Read a content</span>
+                                        <!-- <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="read"
+                                                                                       class="input"
+                                                                                       value="0.2"></span> -->
                                         <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -324,6 +337,10 @@
                                     {% if experiment.platform_type == "microblogging" %}
                                     <div class="box-line">
                                         <span class="left">Share News from a Page</span>
+                                        <!-- <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="share"
+                                                                                       class="input"
+                                                                                       value="0"></span> -->
                                          <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -349,6 +366,10 @@
                                     {# SQLite database - show Search a Hashtag field #}
                                     <div class="box-line">
                                         <span class="left">Search a Hashtag</span>
+                                       <!-- <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="search"
+                                                                                       class="input"
+                                                                                       value="0.1"></span> -->
                                         <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -378,6 +399,10 @@
                                     {# SQLite database - show Cast Vote field #}
                                     <div class="box-line">
                                         <span class="left">Cast Vote</span>
+                                        <!-- <span class="right" style="width: 70%;"><input type="text"
+                                                                                       name="vote"
+                                                                                       class="input"
+                                                                                       value="0"></span> -->
                                         <span class="right" style="width: 70%;">
                                             <div class="scale-wrapper">
                                             <div class="number-scale">
@@ -412,10 +437,11 @@
                                                                                        value="0"></span>
                                     </div>
                                     {% endif %}
-                                    </div><!-- End section-actions-relevance -->
-
-                                    <!-- LLM Configuration -->
-                                    <div class="form-section-header">LLM Configuration</div>
+                                    {% if llm_agents_enabled %}
+                                    <div class="form-section-header">Large Language Models</div>
+                                    <div class="form-section-description">
+                                        Configure the LLM backend and model for agent content generation.
+                                    </div>
                                     <div class="box-line">
                                         <span class="left">LLM Backend</span>
                                         <div class="select">
@@ -508,7 +534,10 @@
                                         </div>
 
                                         <!-- Vision Model -->
-                                        <div class="form-section-header">Vision Model (llm_v)</div>
+                                        <div class="form-section-header">Large Language Models (Image Transcription)</div>
+                                        <div class="form-section-description">
+                                            Configure the vision model for image content analysis and transcription.
+                                        </div>
                                         <div class="box-line">
                                             <span class="left">Model</span>
                                             <span class="right" style="width: 70%;"><input type="text"
@@ -551,33 +580,97 @@
                                     <!-- Ollama Fields (hidden by default) -->
                                     <div id="ollama_fields" style="display: none;">
                                         <div class="box-line">
-                                            <span class="left">Ollama Address</span>
-                                            <span class="right" style="width: 70%;"><input type="text"
-                                                                                           name="ollama_address"
-                                                                                           class="input"
-                                                                                           value="localhost"></span>
+                                            <span class="left">LLM Server URL</span>
+                                            <span class="right" style="width: 70%;">
+                                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                                    <input type="text" id="custom_llm_url_client" name="llm" class="input" placeholder="e.g., localhost:8000" value="http://127.0.0.1:11434/v1" style="flex: 1;">
+                                                    <button type="button" class="button is-solid primary-button" onclick="fetchModelsForClient()">
+                                                        Fetch Models
+                                                    </button>
+                                                </div>
+                                                <div id="llm_url_status_client" style="min-height: 24px; font-size: 0.9rem;"></div>
+                                            </span>
                                         </div>
                                         <div class="box-line">
-                                            <span class="left">Ollama Port</span>
+                                            <span class="left">LLM Model</span>
+                                            <div class="select">
+                                                <select name="user_type" id="models_select_client">
+                                                    <option value=""></option>
+                                                    {% for model in models %}
+                                                    <option value="{{ model }}">{{ model }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">API Key</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="llm_api_key"
+                                                                                           class="input"
+                                                                                           value="NULL"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Max tokens</span>
                                             <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="ollama_port"
+                                                                                           name="llm_max_tokens"
                                                                                            class="input"
-                                                                                           value="11434"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Model</span>
-                                            <span class="right" style="width: 70%;"><input type="text"
-                                                                                           name="ollama_model"
-                                                                                           class="input"
-                                                                                           value="llama3.2"></span>
+                                                                                           value="-1"></span>
                                         </div>
                                         <div class="box-line">
                                             <span class="left">Temperature</span>
                                             <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="ollama_temperature"
+                                                                                           name="llm_temperature"
                                                                                            class="input"
-                                                                                           step="0.1"
-                                                                                           value="0.7"></span>
+                                                                                           value="1.5"></span>
+                                        </div>
+                                        <div class="form-section-header">Large Language Models (Image Transcription)</div>
+                                        <div class="form-section-description">
+                                            Configure the vision LLM for image content analysis and transcription.
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">LLM Model</span>
+                                            <span class="right" style="width: 70%;">minicpm-v:latest<input  type="hidden"
+                                                                                           name="llm_v_agent"
+                                                                                           id="llm_v_agent"
+                                                                                           class="input"
+                                                                                           value="minicpm-v"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">LLM Server URL</span>
+                                            <span class="right" style="width: 70%;">
+                                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                                    <input type="text" id="custom_llm_url_v_client" name="llm_v" class="input" placeholder="e.g., localhost:8000" value="http://127.0.0.1:11434/v1" style="flex: 1;">
+                                                    <button type="button" class="button is-solid primary-button" onclick="validateImageLLMModel()">
+                                                        Validate Model
+                                                    </button>
+                                                </div>
+                                                <div id="llm_v_url_status_client" style="min-height: 24px; font-size: 0.9rem;"></div>
+                                            </span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">API Key</span>
+                                            <span class="right" style="width: 70%;"><input type="text"
+                                                                                           name="llm_v_api_key"
+                                                                                           class="input"
+                                                                                           value="NULL"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Max tokens</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_v_max_tokens"
+                                                                                           class="input"
+                                                                                           value="300"></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Temperature</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="llm_v_temperature"
+                                                                                           class="input"
+                                                                                           value="0.5"></span>
+                                        </div>
+                                        <input type="hidden" id="llm_v_validation_status" value="false">
+                                        <div id="image_action_warning" style="padding: 10px; margin: 10px 0; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
+                                            <i class="mdi mdi-alert"></i> <strong>Notice:</strong> Image sharing/commenting is currently disabled. Please validate that the minicpm-v:latest model is available on your server to enable this feature.
                                         </div>
                                     </div>
 
@@ -595,7 +688,13 @@
                                                 ollamaFields.style.display = 'block';
                                             }
                                         }
+                                        // Initialize on page load
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                            toggleLLMFields();
+                                        });
                                     </script>
+                                    {% endif %}
+                                    </div><!-- End section-actions-relevance -->
 
                                     <div id="section-recsys" class="tutorial-section">
                                     <div class="form-section-header">Recommendation Systems</div>
@@ -660,29 +759,6 @@
                                             margin: -10px;
                                             margin-bottom: 10px;
                                             border-radius: 4px;
-                                        }
-                                        .number-scale {
-                                            display: flex;
-                                            gap: 4px;
-                                            flex-wrap: wrap;
-                                        }
-                                        .number-box {
-                                            padding: 8px 12px;
-                                            border: 1px solid #d1d5db;
-                                            border-radius: 4px;
-                                            cursor: pointer;
-                                            transition: all 0.2s;
-                                            background: white;
-                                            font-size: 0.9em;
-                                        }
-                                        .number-box:hover {
-                                            border-color: #22c55e;
-                                            background: #f0fdf4;
-                                        }
-                                        .number-box.selected {
-                                            background: #22c55e;
-                                            color: white;
-                                            border-color: #22c55e;
                                         }
                                     </style>
                                     </div><!-- End section-recsys -->
@@ -860,33 +936,195 @@
                                             </style>
 
                                             <div class="activity-grid-create">
-                                                <div class="activity-hour-create"><label>0h</label><input type="number" name="hourly_0" placeholder="0.023" value=""></div>
-                                                <div class="activity-hour-create"><label>1h</label><input type="number" name="hourly_1" placeholder="0.021" value=""></div>
-                                                <div class="activity-hour-create"><label>2h</label><input type="number" name="hourly_2" placeholder="0.020" value=""></div>
-                                                <div class="activity-hour-create"><label>3h</label><input type="number" name="hourly_3" placeholder="0.020" value=""></div>
-                                                <div class="activity-hour-create"><label>4h</label><input type="number" name="hourly_4" placeholder="0.018" value=""></div>
-                                                <div class="activity-hour-create"><label>5h</label><input type="number" name="hourly_5" placeholder="0.017" value=""></div>
-                                                <div class="activity-hour-create"><label>6h</label><input type="number" name="hourly_6" placeholder="0.017" value=""></div>
-                                                <div class="activity-hour-create"><label>7h</label><input type="number" name="hourly_7" placeholder="0.018" value=""></div>
-                                                <div class="activity-hour-create"><label>8h</label><input type="number" name="hourly_8" placeholder="0.020" value=""></div>
-                                                <div class="activity-hour-create"><label>9h</label><input type="number" name="hourly_9" placeholder="0.020" value=""></div>
-                                                <div class="activity-hour-create"><label>10h</label><input type="number" name="hourly_10" placeholder="0.021" value=""></div>
-                                                <div class="activity-hour-create"><label>11h</label><input type="number" name="hourly_11" placeholder="0.022" value=""></div>
+                                                <div class="activity-hour-create">
+                                                    <label>0h</label>
+                                                    <input type="number" name="hourly_0" placeholder="0.023" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>1h</label>
+                                                    <input type="number" name="hourly_1" placeholder="0.021" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>2h</label>
+                                                    <input type="number" name="hourly_2" placeholder="0.020" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>3h</label>
+                                                    <input type="number" name="hourly_3" placeholder="0.020" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>4h</label>
+                                                    <input type="number" name="hourly_4" placeholder="0.018" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>5h</label>
+                                                    <input type="number" name="hourly_5" placeholder="0.017" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>6h</label>
+                                                    <input type="number" name="hourly_6" placeholder="0.017" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>7h</label>
+                                                    <input type="number" name="hourly_7" placeholder="0.018" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>8h</label>
+                                                    <input type="number" name="hourly_8" placeholder="0.020" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>9h</label>
+                                                    <input type="number" name="hourly_9" placeholder="0.020" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>10h</label>
+                                                    <input type="number" name="hourly_10" placeholder="0.021" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>11h</label>
+                                                    <input type="number" name="hourly_11" placeholder="0.022" value="">
+                                                </div>
                                             </div>
                                             <div class="activity-grid-create">
-                                                <div class="activity-hour-create"><label>12h</label><input type="number" name="hourly_12" placeholder="0.024" value=""></div>
-                                                <div class="activity-hour-create"><label>13h</label><input type="number" name="hourly_13" placeholder="0.027" value=""></div>
-                                                <div class="activity-hour-create"><label>14h</label><input type="number" name="hourly_14" placeholder="0.030" value=""></div>
-                                                <div class="activity-hour-create"><label>15h</label><input type="number" name="hourly_15" placeholder="0.032" value=""></div>
-                                                <div class="activity-hour-create"><label>16h</label><input type="number" name="hourly_16" placeholder="0.032" value=""></div>
-                                                <div class="activity-hour-create"><label>17h</label><input type="number" name="hourly_17" placeholder="0.032" value=""></div>
-                                                <div class="activity-hour-create"><label>18h</label><input type="number" name="hourly_18" placeholder="0.032" value=""></div>
-                                                <div class="activity-hour-create"><label>19h</label><input type="number" name="hourly_19" placeholder="0.031" value=""></div>
-                                                <div class="activity-hour-create"><label>20h</label><input type="number" name="hourly_20" placeholder="0.030" value=""></div>
-                                                <div class="activity-hour-create"><label>21h</label><input type="number" name="hourly_21" placeholder="0.029" value=""></div>
-                                                <div class="activity-hour-create"><label>22h</label><input type="number" name="hourly_22" placeholder="0.027" value=""></div>
-                                                <div class="activity-hour-create"><label>23h</label><input type="number" name="hourly_23" placeholder="0.025" value=""></div>
+                                                <div class="activity-hour-create">
+                                                    <label>12h</label>
+                                                    <input type="number" name="hourly_12" placeholder="0.024" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>13h</label>
+                                                    <input type="number" name="hourly_13" placeholder="0.027" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>14h</label>
+                                                    <input type="number" name="hourly_14" placeholder="0.030" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>15h</label>
+                                                    <input type="number" name="hourly_15" placeholder="0.032" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>16h</label>
+                                                    <input type="number" name="hourly_16" placeholder="0.032" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>17h</label>
+                                                    <input type="number" name="hourly_17" placeholder="0.032" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>18h</label>
+                                                    <input type="number" name="hourly_18" placeholder="0.032" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>19h</label>
+                                                    <input type="number" name="hourly_19" placeholder="0.031" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>20h</label>
+                                                    <input type="number" name="hourly_20" placeholder="0.030" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>21h</label>
+                                                    <input type="number" name="hourly_21" placeholder="0.029" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>22h</label>
+                                                    <input type="number" name="hourly_22" placeholder="0.027" value="">
+                                                </div>
+                                                <div class="activity-hour-create">
+                                                    <label>23h</label>
+                                                    <input type="number" name="hourly_23" placeholder="0.025" value="">
+                                                </div>
                                             </div>
+
+                                            <script>
+                                                // Initialize chart with default data
+                                                function initActivityChart() {
+                                                    const defaultData = [
+                                                        0.023, 0.021, 0.020, 0.020, 0.018, 0.017, 0.017, 0.018,
+                                                        0.020, 0.020, 0.021, 0.022, 0.024, 0.027, 0.030, 0.032,
+                                                        0.032, 0.032, 0.032, 0.031, 0.030, 0.029, 0.027, 0.025
+                                                    ];
+                                                    const labels = Array.from({length: 24}, (_, i) => i.toString());
+                                                    
+                                                    // Convert to percentages
+                                                    const activityData = defaultData.map(v => v * 100);
+                                                    const maxValue = Math.max(...activityData);
+                                                    const yAxisMax = Math.ceil(maxValue * 1.1);
+
+                                                    const ctx = document.getElementById('activity_rates_create');
+                                                    if (!ctx) return;
+
+                                                    new Chart(ctx, {
+                                                        type: 'bar',
+                                                        data: {
+                                                            labels: labels,
+                                                            datasets: [{
+                                                                label: 'Activity %',
+                                                                data: activityData,
+                                                                backgroundColor: 'rgba(34, 197, 94, 0.6)',
+                                                                borderColor: 'rgba(34, 197, 94, 1)',
+                                                                borderWidth: 1,
+                                                                borderRadius: 4
+                                                            }]
+                                                        },
+                                                        options: {
+                                                            responsive: true,
+                                                            maintainAspectRatio: false,
+                                                            plugins: {
+                                                                legend: {
+                                                                    display: false
+                                                                },
+                                                                tooltip: {
+                                                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                                                    padding: 8,
+                                                                    titleFont: { size: 12 },
+                                                                    bodyFont: { size: 11 },
+                                                                    callbacks: {
+                                                                        label: function(context) {
+                                                                            return 'Active: ' + context.parsed.y.toFixed(2) + '%';
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            scales: {
+                                                                y: {
+                                                                    beginAtZero: true,
+                                                                    suggestedMax: yAxisMax,
+                                                                    ticks: {
+                                                                        font: { size: 10 },
+                                                                        callback: function(value) {
+                                                                            return value + '%';
+                                                                        }
+                                                                    },
+                                                                    grid: {
+                                                                        color: 'rgba(0, 0, 0, 0.05)'
+                                                                    }
+                                                                },
+                                                                x: {
+                                                                    ticks: {
+                                                                        font: { size: 9 }
+                                                                    },
+                                                                    grid: {
+                                                                        display: false
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                }
+
+                                                // Initialize chart when details are expanded
+                                                document.addEventListener('DOMContentLoaded', function() {
+                                                    const detailsElements = document.querySelectorAll('details');
+                                                    detailsElements.forEach(details => {
+                                                        details.addEventListener('toggle', function() {
+                                                            if (this.open && this.querySelector('#activity_rates_create')) {
+                                                                setTimeout(initActivityChart, 100);
+                                                            }
+                                                        });
+                                                    });
+                                                });
+                                            </script>
                                         </div>
                                     </details>
                                     </div><!-- End section-activity-rates -->
@@ -1060,13 +1298,99 @@
 
                                 </div>
                                 <div class="button-wrap">
-                                    <button class="button is-solid primary-button is-fullwidth">
-                                        Create HPC Client
+                                    <button id="create_client_button" class="button is-solid primary-button is-fullwidth" disabled>
+                                        Create
                                     </button>
                                 </div>
                             </form>
                         </div>
                     </div>
+                </div>
+
+
+                <!--Dashboard column-->
+                <div class="column is-4">
+                    <!--Box-->
+                    <div class="dashboard-box is-compact">
+                        <h3 class="title is-5 is-thin">Quick Reference Guide</h3>
+                        <div class="help-block">
+
+                            <p>
+                                <b>What is a Client?</b><br>
+                                A client manages a population of agents that interact within the simulation. Each client runs independently with its own configuration and LLM settings.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Basic Fields</b><br>
+                                <em>Name:</em> Unique identifier for this client<br>
+                                <em>Description:</em> Brief explanation of the client's purpose<br>
+                                <em>Population:</em> Select the agent population to use
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Simulation Parameters</b><br>
+                                Configure duration, agent behavior, and network dynamics.<br><br>
+                                <em>Simulation Length:</em> Number of days to run. Check "Run until stopped" to create an infinite-duration client that runs until manually stopped.<br>
+                                <em>New Agents/Churn:</em> Daily agent creation and removal rates<br>
+                                <em>Thread Context:</em> How much conversation history agents see<br>
+                                <em>Timeline Ratio:</em> Balance between follower and general content<br>
+                                <em>Probability Daily Follow:</em> Probability that, during a given simulation day, an active agent is asked if he wants to connect with a peer<br>
+                                <em>Probability Secondary Follow:</em> Probability that an agent is asked if he would like to follow the author of content he interacted with<br>
+                                <em>Agents' Memory (hours):</em> For how long an agent maintain his interest in a topic<br>
+                                <em>Content Visibility (hours)</em> For how long a content can be proposed by recommender systems
+                            </p>
+                            <p style="color: #f39c12; font-size: 0.9em; margin-top: 10px;">
+                                <i class="mdi mdi-alert" style="font-size: 14px;"></i>
+                                <strong>Note:</strong> Experiments with infinite-duration clients cannot be used in scheduled experiment groups.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Agents' Actions Relevance</b><br>
+                                Set relative probabilities (0-10) for each action type. Higher values mean more frequent actions. Use 0 to disable an action.<br><br>
+                                Actions include posting, commenting, reading, searching, and platform-specific features.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Large Language Models</b><br>
+                                Configure the LLM server and model for agent content generation.<br><br>
+                                <i class="mdi mdi-information-outline" style="font-size: 16px;"></i> Click "Fetch Models" to load available models from your LLM server<br>
+                                <i class="mdi mdi-check-circle" style="font-size: 16px;"></i> Select a model to enable the Create button
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Image Transcription (Optional)</b><br>
+                                Configure vision LLM for image content analysis.<br><br>
+                                Click "Validate Model" to verify minicpm-v:latest is available. This enables image-related actions.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Social Network Structure (Optional)</b><br>
+                                Define initial connections between agents:<br><br>
+                                <em>Synthetic Network:</em> Generate using Random or Scale-Free models<br>
+                                <em>Custom Network:</em> Upload a CSV edge list file<br><br>
+                                <em>Note:</em> These options are mutually exclusive.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Hourly Activity Rates (Optional)</b><br>
+                                Customize agent activity patterns by hour.<br><br>
+                                Default values are based on real-world Bluesky data. Leave empty to use defaults.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Agent Archetypes and Transitions (Optional)</b><br>
+                                Configure behavioral archetypes and transition probabilities for agents.<br><br>
+                                <em>Enable/Disable Toggle:</em> When disabled, all agents can perform all actions without archetype restrictions.<br><br>
+                                <em>The Validator:</em> Active Audience (~70% validation activity)<br>
+                                <em>The Broadcaster:</em> Content Creator (~75% posts/comments)<br>
+                                <em>The Explorer:</em> Network Growth (focused on connections, enabled only when follow probabilities > 0)<br><br>
+                                Default values (52-20-28) are based on real-world Bluesky data.
+                            </p>
+
+                        </div>
+                    </div>
+
+
                 </div>
             </div>
         </div>
@@ -1074,20 +1398,182 @@
 </div>
 
 <script>
-// Handle number scale selection
-document.querySelectorAll('.number-scale').forEach(scale => {
-  const boxes = scale.querySelectorAll('.number-box');
-  const wrapper = scale.closest('.scale-wrapper');
-  const hiddenInput = wrapper.querySelector('input[type="hidden"]');
+                                            document.querySelectorAll('.number-scale').forEach(scale => {
+                                              const boxes = scale.querySelectorAll('.number-box');
+                                              const wrapper = scale.closest('.scale-wrapper');
+                                              const hiddenInput = wrapper.querySelector('input[type="hidden"]');
 
-  boxes.forEach(box => {
-    box.addEventListener('click', () => {
-      boxes.forEach(b => b.classList.remove('selected'));
-      box.classList.add('selected');
-      hiddenInput.value = box.dataset.value;
-    });
-  });
-});
+                                              boxes.forEach(box => {
+                                                box.addEventListener('click', () => {
+                                                  boxes.forEach(b => b.classList.remove('selected'));
+                                                  box.classList.add('selected');
+                                                  hiddenInput.value = box.dataset.value;
+                                                  display.textContent = box.dataset.value;
+                                                });
+                                              });
+                                            });
+
+// Track if models have been fetched and validated
+let llmModelsFetched = false;
+let llmModelSelected = false;
+
+// Check if form should be enabled
+function updateFormButtonState() {
+    const submitButton = document.getElementById('create_client_button');
+    if (submitButton) {
+        {% if llm_agents_enabled %}
+        submitButton.disabled = !(llmModelsFetched && llmModelSelected);
+        {% else %}
+        // When LLM agents are disabled, form can be submitted without LLM validation
+        submitButton.disabled = false;
+        {% endif %}
+    }
+}
+
+// Fetch models for client LLM configuration
+function fetchModelsForClient() {
+    const urlInput = document.getElementById('custom_llm_url_client');
+    const select = document.getElementById('models_select_client');
+    const status = document.getElementById('llm_url_status_client');
+    const llmUrl = urlInput.value.trim();
+    
+    if (!llmUrl) {
+        alert('Please enter an LLM server URL');
+        return;
+    }
+    
+    status.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Fetching...';
+    
+    fetch(`/admin/api/fetch_models?llm_url=${encodeURIComponent(llmUrl)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> ' + data.error + '</span>';
+                llmModelsFetched = false;
+                updateFormButtonState();
+                setTimeout(() => { status.innerHTML = ''; }, 5000);
+            } else {
+                select.innerHTML = '<option value="">Select a model</option>';
+                data.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    select.appendChild(option);
+                });
+                status.innerHTML = '<span style="color: green;"><i class="mdi mdi-check"></i> ' + data.models.length + ' models loaded</span>';
+                llmModelsFetched = true;
+                // Reset model selection since we just loaded new models
+                llmModelSelected = false;
+                updateFormButtonState();
+                setTimeout(() => { status.innerHTML = ''; }, 3000);
+            }
+        })
+        .catch(error => {
+            status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Connection failed</span>';
+            llmModelsFetched = false;
+            updateFormButtonState();
+            setTimeout(() => { status.innerHTML = ''; }, 5000);
+        });
+}
+
+// Validate that minicpm-v:latest is available for image transcription
+function validateImageLLMModel() {
+    const llmVUrlInput = document.getElementById('custom_llm_url_v_client');
+    const status = document.getElementById('llm_v_url_status_client');
+    const validationStatus = document.getElementById('llm_v_validation_status');
+    const llmVUrl = llmVUrlInput.value.trim();
+    const modelName = 'minicpm-v:latest';
+    
+    if (!llmVUrl) {
+        alert('Please enter an LLM server URL for image transcription');
+        return;
+    }
+    
+    status.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Validating...';
+    
+    fetch(`/admin/api/fetch_models?llm_url=${encodeURIComponent(llmVUrl)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> ' + data.error + '</span>';
+                validationStatus.value = 'false';
+                disableImageAction();
+                alert('Unable to connect to the LLM server. Image sharing/commenting functionality will remain disabled.');
+                setTimeout(() => { status.innerHTML = ''; }, 5000);
+            } else {
+                // Check if minicpm-v:latest model exists in fetched models
+                const modelExists = data.models.includes(modelName);
+                
+                if (modelExists) {
+                    status.innerHTML = '<span style="color: green;"><i class="mdi mdi-check"></i> Model "' + modelName + '" found and validated!</span>';
+                    validationStatus.value = 'true';
+                    enableImageAction();
+                    setTimeout(() => { status.innerHTML = ''; }, 3000);
+                } else {
+                    status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Model "' + modelName + '" not found on this server!</span>';
+                    validationStatus.value = 'false';
+                    disableImageAction();
+                    alert('The minicpm-v:latest model is not available on the specified server. Image sharing/commenting functionality will remain disabled.');
+                    // Set llm_v to empty/None to signal model unavailability
+                    llmVUrlInput.value = '';
+                }
+            }
+        })
+        .catch(error => {
+            status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Connection failed</span>';
+            validationStatus.value = 'false';
+            disableImageAction();
+            alert('Failed to connect to the LLM server. Image sharing/commenting functionality will remain disabled.');
+            setTimeout(() => { status.innerHTML = ''; }, 5000);
+        });
+}
+
+// Disable the "Share and comment an Image" action
+function disableImageAction() {
+    const imageScale = document.getElementById('image');
+    const imageScaleWrapper = imageScale ? imageScale.closest('.scale-wrapper') : null;
+    const warning = document.getElementById('image_action_warning');
+    
+    if (imageScaleWrapper) {
+        const numberBoxes = imageScaleWrapper.querySelectorAll('.number-box');
+        numberBoxes.forEach(box => {
+            if (box.dataset.value !== '0') {
+                box.style.opacity = '0.3';
+                box.style.pointerEvents = 'none';
+                box.style.cursor = 'not-allowed';
+            }
+        });
+        
+        // Force selection to 0
+        numberBoxes.forEach(box => box.classList.remove('selected'));
+        numberBoxes[0].classList.add('selected');
+        imageScale.value = '0';
+    }
+    
+    if (warning) {
+        warning.style.display = 'block';
+    }
+}
+
+// Enable the "Share and comment an Image" action
+function enableImageAction() {
+    const imageScale = document.getElementById('image');
+    const imageScaleWrapper = imageScale ? imageScale.closest('.scale-wrapper') : null;
+    const warning = document.getElementById('image_action_warning');
+    
+    if (imageScaleWrapper) {
+        const numberBoxes = imageScaleWrapper.querySelectorAll('.number-box');
+        numberBoxes.forEach(box => {
+            box.style.opacity = '1';
+            box.style.pointerEvents = 'auto';
+            box.style.cursor = 'pointer';
+        });
+    }
+    
+    if (warning) {
+        warning.style.display = 'none';
+    }
+}
 
 // Handle mutual exclusivity between synthetic network and file upload
 function updateNetworkInputStates() {
@@ -1144,84 +1630,39 @@ function displayNetworkFileNameCreate(input) {
     updateNetworkInputStates();
 }
 
-// Initialize chart with default data
-function initActivityChart() {
-    const defaultData = [
-        0.023, 0.021, 0.020, 0.020, 0.018, 0.017, 0.017, 0.018,
-        0.020, 0.020, 0.021, 0.022, 0.024, 0.027, 0.030, 0.032,
-        0.032, 0.032, 0.032, 0.031, 0.030, 0.029, 0.027, 0.025
-    ];
-    const labels = Array.from({length: 24}, (_, i) => i.toString());
-    
-    // Convert to percentages
-    const activityData = defaultData.map(v => v * 100);
-    const maxValue = Math.max(...activityData);
-    const yAxisMax = Math.ceil(maxValue * 1.1);
-
-    const ctx = document.getElementById('activity_rates_create');
-    if (!ctx) return;
-
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Activity %',
-                data: activityData,
-                backgroundColor: 'rgba(34, 197, 94, 0.6)',
-                borderColor: 'rgba(34, 197, 94, 1)',
-                borderWidth: 1,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    padding: 8,
-                    titleFont: { size: 12 },
-                    bodyFont: { size: 11 },
-                    callbacks: {
-                        label: function(context) {
-                            return 'Active: ' + context.parsed.y.toFixed(2) + '%';
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    suggestedMax: yAxisMax,
-                    ticks: {
-                        font: { size: 10 },
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                },
-                x: {
-                    ticks: {
-                        font: { size: 9 }
-                    },
-                    grid: {
-                        display: false
-                    }
-                }
-            }
-        }
-    });
-}
-
-// On page load
+// On page load, disable image action by default and setup form validation
 document.addEventListener('DOMContentLoaded', function() {
+    {% if llm_agents_enabled %}
+    disableImageAction();
+    {% else %}
+    // When LLM agents are disabled, enable image action automatically
+    enableImageAction();
+    {% endif %}
+    
+    // Setup form button state management
+    const modelsSelect = document.getElementById('models_select_client');
+    const submitButton = document.getElementById('create_client_button');
+    
+    // Ensure button is disabled initially
+    if (submitButton) {
+        {% if llm_agents_enabled %}
+        submitButton.disabled = true;
+        {% else %}
+        // When LLM agents are disabled, form can be submitted immediately
+        submitButton.disabled = false;
+        {% endif %}
+    }
+    
+    {% if llm_agents_enabled %}
+    if (modelsSelect) {
+        // Monitor model selection
+        modelsSelect.addEventListener('change', function() {
+            llmModelSelected = this.value !== '';
+            updateFormButtonState();
+        });
+    }
+    {% endif %}
+    
     // Setup network mutual exclusivity
     const networkModelSelect = document.getElementById('network_model_select');
     const networkFileInput = document.getElementById('network_file_create');
@@ -1238,16 +1679,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial state
     updateNetworkInputStates();
     
-    // Initialize chart when details are expanded
-    const detailsElements = document.querySelectorAll('details');
-    detailsElements.forEach(details => {
-        details.addEventListener('toggle', function() {
-            if (this.open && this.querySelector('#activity_rates_create')) {
-                setTimeout(initActivityChart, 100);
-            }
-        });
-    });
-    
     // Handle Explorer archetype based on follow probabilities
     function updateExplorerArchetype() {
         const dailyFollow = document.querySelector('input[name="probability_of_daily_follow"]');
@@ -1255,11 +1686,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const explorerBox = document.getElementById('archetype-explorer-box');
         const explorerInput = document.getElementById('archetype_explorer');
         const validatorInput = document.getElementById('archetype_validator');
-        
-        if (!dailyFollow || !secondaryFollow || !explorerBox || !explorerInput) return;
-        
-        const dailyFollowValue = parseFloat(dailyFollow.value) || 0;
-        const secondaryFollowValue = parseFloat(secondaryFollow.value) || 0;
+        const broadcasterInput = document.getElementById('archetype_broadcaster');
         
         // Get transition probability inputs
         const transValExpl = document.getElementById('trans_val_expl');
@@ -1271,6 +1698,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const transValBroad = document.getElementById('trans_val_broad');
         const transBroadVal = document.getElementById('trans_broad_val');
         const transBroadBroad = document.getElementById('trans_broad_broad');
+        
+        if (!dailyFollow || !secondaryFollow || !explorerBox || !explorerInput) return;
+        
+        const dailyFollowValue = parseFloat(dailyFollow.value) || 0;
+        const secondaryFollowValue = parseFloat(secondaryFollow.value) || 0;
         
         // Check if both probabilities are zero
         if (dailyFollowValue === 0 && secondaryFollowValue === 0) {
@@ -1287,31 +1719,59 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             explorerInput.value = '0';
             
-            // Disable Explorer-related transition inputs
-            if (transValExpl) { transValExpl.value = '0'; transValExpl.disabled = true; transValExpl.readOnly = true; }
-            if (transBroadExpl) { transBroadExpl.value = '0'; transBroadExpl.disabled = true; transBroadExpl.readOnly = true; }
-            if (transExplVal) { transExplVal.value = '0'; transExplVal.disabled = true; transExplVal.readOnly = true; }
-            if (transExplBroad) { transExplBroad.value = '0'; transExplBroad.disabled = true; transExplBroad.readOnly = true; }
-            if (transExplExpl) { transExplExpl.value = '0'; transExplExpl.disabled = true; transExplExpl.readOnly = true; }
-            
             // Redistribute transition probabilities
+            // Set all Explorer-related transitions to 0
+            transValExpl.value = '0';
+            transValExpl.disabled = true;
+            transValExpl.readOnly = true;
+            
+            transBroadExpl.value = '0';
+            transBroadExpl.disabled = true;
+            transBroadExpl.readOnly = true;
+            
+            transExplVal.value = '0';
+            transExplVal.disabled = true;
+            transExplVal.readOnly = true;
+            
+            transExplBroad.value = '0';
+            transExplBroad.disabled = true;
+            transExplBroad.readOnly = true;
+            
+            transExplExpl.value = '0';
+            transExplExpl.disabled = true;
+            transExplExpl.readOnly = true;
+            
+            // Redistribute Validator->Explorer to Validator->Broadcaster
+            // Original: val->val=85.3, val->broad=8.1, val->expl=6.6
+            // New: redistribute 6.6 proportionally between val->val and val->broad
             const valToVal = parseFloat(transValVal.value) || 85.3;
             const valToBroad = parseFloat(transValBroad.value) || 8.1;
-            const valToExpl = 6.6;
+            const valToExpl = 6.6; // redistributing this
             const total = valToVal + valToBroad;
             if (total > 0) {
                 transValVal.value = (valToVal + valToExpl * (valToVal / total)).toFixed(1);
                 transValBroad.value = (valToBroad + valToExpl * (valToBroad / total)).toFixed(1);
+            } else {
+                // Fallback: split equally
+                transValVal.value = (valToVal + valToExpl / 2).toFixed(1);
+                transValBroad.value = (valToBroad + valToExpl / 2).toFixed(1);
             }
             
+            // Redistribute Broadcaster->Explorer to Broadcaster->Validator
+            // Original: broad->val=19.5, broad->broad=72.9, broad->expl=7.5
             const broadToVal = parseFloat(transBroadVal.value) || 19.5;
             const broadToBroad = parseFloat(transBroadBroad.value) || 72.9;
-            const broadToExpl = 7.5;
+            const broadToExpl = 7.5; // redistributing this
             const broadTotal = broadToVal + broadToBroad;
             if (broadTotal > 0) {
                 transBroadVal.value = (broadToVal + broadToExpl * (broadToVal / broadTotal)).toFixed(1);
                 transBroadBroad.value = (broadToBroad + broadToExpl * (broadToBroad / broadTotal)).toFixed(1);
+            } else {
+                // Fallback: split equally
+                transBroadVal.value = (broadToVal + broadToExpl / 2).toFixed(1);
+                transBroadBroad.value = (broadToBroad + broadToExpl / 2).toFixed(1);
             }
+            
         } else {
             // Enable Explorer
             explorerBox.classList.remove('disabled');
@@ -1320,7 +1780,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Restore default values if currently 0
             if (parseFloat(explorerInput.value) === 0) {
+                // Restore defaults
                 const currentValidator = parseFloat(validatorInput.value) || 80;
+                const explorerDefault = 28;
+                
+                // If validator was increased to 80 (52+28), restore original values
                 if (currentValidator >= 80) {
                     validatorInput.value = '52';
                     explorerInput.value = '28';
@@ -1330,17 +1794,31 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Re-enable transition probability inputs
-            if (transValExpl) { transValExpl.disabled = false; transValExpl.readOnly = false; transValExpl.value = '6.6'; }
-            if (transBroadExpl) { transBroadExpl.disabled = false; transBroadExpl.readOnly = false; transBroadExpl.value = '7.5'; }
-            if (transExplVal) { transExplVal.disabled = false; transExplVal.readOnly = false; transExplVal.value = '36.4'; }
-            if (transExplBroad) { transExplBroad.disabled = false; transExplBroad.readOnly = false; transExplBroad.value = '14.6'; }
-            if (transExplExpl) { transExplExpl.disabled = false; transExplExpl.readOnly = false; transExplExpl.value = '49.0'; }
+            transValExpl.disabled = false;
+            transValExpl.readOnly = false;
+            transValExpl.value = '6.6';
+            
+            transBroadExpl.disabled = false;
+            transBroadExpl.readOnly = false;
+            transBroadExpl.value = '7.5';
+            
+            transExplVal.disabled = false;
+            transExplVal.readOnly = false;
+            transExplVal.value = '36.4';
+            
+            transExplBroad.disabled = false;
+            transExplBroad.readOnly = false;
+            transExplBroad.value = '14.6';
+            
+            transExplExpl.disabled = false;
+            transExplExpl.readOnly = false;
+            transExplExpl.value = '49.0';
             
             // Restore original transition values
-            if (transValVal) transValVal.value = '85.3';
-            if (transValBroad) transValBroad.value = '8.1';
-            if (transBroadVal) transBroadVal.value = '19.5';
-            if (transBroadBroad) transBroadBroad.value = '72.9';
+            transValVal.value = '85.3';
+            transValBroad.value = '8.1';
+            transBroadVal.value = '19.5';
+            transBroadBroad.value = '72.9';
         }
     }
     
@@ -1386,6 +1864,6 @@ document.addEventListener('DOMContentLoaded', function() {
         updateArchetypeToggle();
     }
 });
-</script>
-
+                                            </script>
+{% include "admin/tutorials/clients_tutorial.html" %}
 {% include "admin/footer.html" %}
