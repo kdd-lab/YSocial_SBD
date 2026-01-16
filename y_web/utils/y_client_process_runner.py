@@ -301,6 +301,8 @@ def start_client_process(exp, cli, population, resume=True, db_type="sqlite"):
             cl.add_network()
 
         if not os.path.exists(filename):
+            # Ensure all agents have archetype before saving
+            ensure_agents_have_archetype(cl.agents.agents, cl.agent_archetypes)
             cl.save_agents(filename)
 
         run_simulation(cl, cli.id, filename, exp, population, db_type)
@@ -405,6 +407,35 @@ def sample_agents(agents, expected_active_users, archetypes=None):
             )
 
     return sagents
+
+
+def ensure_agents_have_archetype(agents, archetypes):
+    """
+    Ensure all agents have an archetype attribute before saving.
+    If archetypes are enabled and an agent doesn't have an archetype,
+    assign a default based on the archetype distribution.
+
+    :param agents: List of agent objects
+    :param archetypes: Archetype configuration dict
+    """
+    if archetypes and archetypes.get("enabled", False):
+        # Get distribution for weighted random assignment
+        distribution = archetypes.get("distribution", {"broadcaster": 1.0})
+        archetype_choices = list(distribution.keys())
+        archetype_weights = list(distribution.values())
+
+        for agent in agents:
+            if not hasattr(agent, "archetype") or agent.archetype is None:
+                # Assign archetype based on distribution
+                import random
+
+                agent.archetype = random.choices(
+                    archetype_choices, weights=archetype_weights, k=1
+                )[0]
+                print(
+                    f"Assigned archetype '{agent.archetype}' to agent {agent.name}",
+                    file=sys.stderr,
+                )
 
 
 def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
@@ -754,6 +785,9 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
                         k=1,
                     )[0]
                     agent.archetype = choice
+
+        # Ensure all agents have archetype before saving (handles new agents added during simulation)
+        ensure_agents_have_archetype(cl.agents.agents, archetypes)
 
         # saving "living" agents at the end of the day
         cl.save_agents(agent_file)
