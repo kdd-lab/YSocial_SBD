@@ -419,27 +419,22 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # Build LLM config based on backend and LLM agents enabled status
     if not llm_agents_enabled:
-        # LLM agents not enabled - set empty/null values for all features
+        # LLM agents not enabled - use Ollama defaults for consistency
         llm_config = {
-            "backend": None,
-            "model": None,
-            "temperature": None,
-            "max_tokens": None,
-            "max_model_len": None,
-            "tensor_parallel_size": None,
-            "gpu_memory_utilization": None,
-            "enable_flashattention": None,
-            "num_actors": None,
-            "gpu_per_actor": None,
-            "reuse_actors": None,
-            "actor_name_prefix": None,
+            "address": "localhost",
+            "port": 11434,
+            "model": "llama3.2",
+            "temperature": 0.9,
+            "llm_api_key": "NULL",
+            "llm_max_tokens": -1,
         }
         llm_v_config = {
-            "model": None,
-            "temperature": None,
-            "max_tokens": None,
-            "max_model_len": None,
-            "gpu_memory_utilization": None,
+            "address": "localhost",
+            "port": 11434,
+            "model": "minicpm-v",
+            "temperature": 0.5,
+            "llm_api_key": "NULL",
+            "llm_max_tokens": 300,
         }
     elif llm_backend == "vllm":
         llm_config = {
