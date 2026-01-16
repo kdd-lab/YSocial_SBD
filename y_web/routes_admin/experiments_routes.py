@@ -3945,7 +3945,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
         server=source_exp.server,
         annotations=source_exp.annotations,
         llm_agents_enabled=source_exp.llm_agents_enabled,
-        simulator_type=source_exp.simulator_type if hasattr(source_exp, 'simulator_type') else "Standard",
+        simulator_type=source_exp.simulator_type,
     )
     db.session.add(new_exp)
     db.session.commit()
