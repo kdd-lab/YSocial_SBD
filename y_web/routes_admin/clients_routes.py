@@ -491,7 +491,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     enable_toxicity = "toxicity" in annotations
     perspective_api_key = exp.perspective_api if hasattr(exp, 'perspective_api') else None
     
-    # Build simulation config
+    # Build simulation config (without annotation fields - they'll be at root level)
     simulation_config = {
         "num_days": days,
         "num_slots_per_day": 24,
@@ -523,10 +523,6 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 "explorer": archetype_explorer,
             },
         },
-        "enable_sentiment": enable_sentiment,
-        "emotion_annotation": emotion_annotation,
-        "enable_toxicity": enable_toxicity,
-        "perspective_api_key": perspective_api_key,
     }
     
     # Build agents config
@@ -648,6 +644,12 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     db.session.commit()
     
     flash(f"HPC client '{name}' created successfully")
+    
+    # Check if opinions annotation is present and redirect to opinion configuration
+    opinions_enabled = "opinions" in (exp.annotations.split(",") if exp.annotations else [])
+    if opinions_enabled:
+        return redirect(url_for("clientsr.opinion_configuration", idexp=exp.idexp, client_id=client.id))
+    
     return redirect(f"/admin/experiment_details/{exp.idexp}")
 
 

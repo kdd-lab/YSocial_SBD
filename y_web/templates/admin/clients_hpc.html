@@ -1427,11 +1427,7 @@ function updateFormButtonStateForBackend(backend) {
     if (submitButton) {
         if (backend === 'vllm') {
             // vLLM doesn't require model fetching, enable button immediately
-            {% if llm_agents_enabled %}
             submitButton.disabled = false;
-            {% else %}
-            submitButton.disabled = false;
-            {% endif %}
         } else {
             // Ollama requires model fetching and selection
             {% if llm_agents_enabled %}
@@ -1447,7 +1443,7 @@ function updateFormButtonStateForBackend(backend) {
 function updateFormButtonState() {
     const submitButton = document.getElementById('create_client_button');
     if (submitButton) {
-        const backend = document.getElementById('llm_backend')?.value || 'ollama';
+        const backend = document.getElementById('llm_backend')?.value || 'vllm';
         if (backend === 'vllm') {
             // vLLM mode - always enabled
             submitButton.disabled = false;
@@ -1671,19 +1667,15 @@ document.addEventListener('DOMContentLoaded', function() {
     enableImageAction();
     {% endif %}
     
+    // Initialize button state based on backend
+    const backendSelect = document.getElementById('llm_backend');
+    if (backendSelect) {
+        updateFormButtonStateForBackend(backendSelect.value);
+    }
+    
     // Setup form button state management
     const modelsSelect = document.getElementById('models_select_client');
     const submitButton = document.getElementById('create_client_button');
-    
-    // Ensure button is disabled initially
-    if (submitButton) {
-        {% if llm_agents_enabled %}
-        submitButton.disabled = true;
-        {% else %}
-        // When LLM agents are disabled, form can be submitted immediately
-        submitButton.disabled = false;
-        {% endif %}
-    }
     
     {% if llm_agents_enabled %}
     if (modelsSelect) {
