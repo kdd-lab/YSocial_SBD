@@ -2060,6 +2060,9 @@ def experiment_logs(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /log subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "log")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2162,6 +2165,9 @@ def experiment_trends(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /log subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "log")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2370,6 +2376,9 @@ def client_logs(client_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /log subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "log")
 
         # Client log file name format: {client_name}_client.log
         log_file = os.path.join(exp_folder, f"{client.name}_client.log")
@@ -4540,6 +4549,33 @@ def add_experiment_to_group(group_id):
             jsonify({"success": False, "message": "Experiment already in group"}),
             400,
         )
+
+    # HPC experiment validation: HPC experiments cannot run in parallel
+    # Check if this is an HPC experiment or if the group already has experiments
+    is_hpc = exp.simulator_type == "HPC"
+    existing_experiments = ExperimentScheduleItem.query.filter_by(group_id=group_id).all()
+    
+    if is_hpc and len(existing_experiments) > 0:
+        return (
+            jsonify({
+                "success": False, 
+                "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group."
+            }),
+            400,
+        )
+    
+    if len(existing_experiments) > 0:
+        # Check if any existing experiment in the group is HPC
+        for item in existing_experiments:
+            existing_exp = Exps.query.get(item.experiment_id)
+            if existing_exp and existing_exp.simulator_type == "HPC":
+                return (
+                    jsonify({
+                        "success": False,
+                        "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group."
+                    }),
+                    400,
+                )
 
     # Get max order index for this group
     max_order = (
