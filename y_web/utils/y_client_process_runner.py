@@ -610,35 +610,37 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             random.shuffle(sagents)
 
             # Process agents in parallel using ThreadPoolExecutor
-            # Use max_workers based on available CPUs, but cap it for resource management
-            max_workers = min(
-                len(sagents), 10
-            )  # Cap at 10 workers to avoid resource exhaustion
+            # Only proceed if there are agents to process
+            if len(sagents) > 0:
+                # Use max_workers based on available CPUs, but cap it for resource management
+                max_workers = min(
+                    len(sagents), 10
+                )  # Cap at 10 workers to avoid resource exhaustion
 
-            # Process agents in parallel (FakeAgent was imported at function start)
-            with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                # Submit all agent processing tasks with thread-local random instances
-                # Create properly seeded Random instances for thread safety
-                future_to_agent = {
-                    executor.submit(
-                        process_agent,
-                        g,
-                        archetypes,
-                        cl,
-                        exp,
-                        tid,
-                        FakeAgent,
-                        random.Random(random.randint(0, 2**32 - 1)),
-                    ): g
-                    for g in sagents
-                }
+                # Process agents in parallel (FakeAgent was imported at function start)
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    # Submit all agent processing tasks with thread-local random instances
+                    # Create properly seeded Random instances for thread safety
+                    future_to_agent = {
+                        executor.submit(
+                            process_agent,
+                            g,
+                            archetypes,
+                            cl,
+                            exp,
+                            tid,
+                            FakeAgent,
+                            random.Random(random.randint(0, 2**32 - 1)),
+                        ): g
+                        for g in sagents
+                    }
 
-                # Collect results as they complete
-                # Track all agents in daily_active, not just successful ones (preserves original behavior)
-                for future in as_completed(future_to_agent):
-                    agent_name, success = future.result()
-                    # Add to daily_active regardless of success to maintain original behavior
-                    daily_active[agent_name] = None
+                    # Collect results as they complete
+                    # Track all agents in daily_active, not just successful ones (preserves original behavior)
+                    for future in as_completed(future_to_agent):
+                        agent_name, success = future.result()
+                        # Add to daily_active regardless of success to maintain original behavior
+                        daily_active[agent_name] = None
 
             # increment slot
             cl.sim_clock.increment_slot()
