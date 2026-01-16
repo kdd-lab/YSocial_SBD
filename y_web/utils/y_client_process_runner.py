@@ -427,8 +427,6 @@ def ensure_agents_have_archetype(agents, archetypes):
         for agent in agents:
             if not hasattr(agent, "archetype") or agent.archetype is None:
                 # Assign archetype based on distribution
-                import random
-
                 agent.archetype = random.choices(
                     archetype_choices, weights=archetype_weights, k=1
                 )[0]
