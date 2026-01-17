@@ -75,7 +75,7 @@
         <div class="card-body">
             <!-- Post body text -->
             <div class="post-text">
-                {% if item["shared_from"] != -1 %}
+                {% if item["shared_from"] != -1 and (item["shared_from"][1] != 'Unknown' and item["shared_from"][0] != -1) %}
                 <div style="text-align: right; border-bottom: 2px solid #f4f4f4; margin-bottom: 5px;">
                     <p><small>Shared from: <a href="/{{exp_id}}/thread/{{ item['shared_from'][0] }}">{{ item['shared_from'][1] }}</a></small></p>
                 </div>
