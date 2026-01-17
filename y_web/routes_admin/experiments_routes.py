@@ -400,7 +400,7 @@ def change_active_experiment(exp_id):
 
                 if user is None:
                     new_user = User_mgmt(
-                        id=current_user,
+                        id=current_user.id,
                         email=current_user.email,
                         username=current_user.username,
                         password=current_user.password,
