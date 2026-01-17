@@ -98,15 +98,13 @@ def get_user_recent_posts(
     username = User_mgmt.query.filter_by(id=user_id).first().username
     if mode == "recent":
         posts = (
-            Post.query.filter_by(user_id=user_id, comment_to=-1).order_by(
-                desc(Post.id)
-            )
+            Post.query.filter_by(user_id=user_id, comment_to=-1).order_by(desc(Post.id))
         ).paginate(page=page, per_page=per_page, error_out=False)
     elif mode == "comments":
         posts = (
-            Post.query.filter(
-                Post.user_id == user_id, Post.comment_to != -1
-            ).order_by(desc(Post.id))
+            Post.query.filter(Post.user_id == user_id, Post.comment_to != -1).order_by(
+                desc(Post.id)
+            )
         ).paginate(page=page, per_page=per_page, error_out=False)
 
     elif mode == "liked":
@@ -127,9 +125,9 @@ def get_user_recent_posts(
     elif mode == "shares":
         # get all posts of user_id having shared_from is not -1
         posts = (
-            Post.query.filter(
-                Post.user_id == user_id, Post.shared_from != -1
-            ).order_by(desc(Post.id))
+            Post.query.filter(Post.user_id == user_id, Post.shared_from != -1).order_by(
+                desc(Post.id)
+            )
         ).paginate(page=page, per_page=per_page, error_out=False)
 
     else:
@@ -585,7 +583,9 @@ def get_trending_emotions(limit=10, window=120):
 
     # get current round
     last_round_obj = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round = __compute_last_round(last_round_obj) #last_round_obj.id if last_round_obj else 0
+    last_round = __compute_last_round(
+        last_round_obj
+    )  # last_round_obj.id if last_round_obj else 0
 
     # get the trending emotions
     em = (
@@ -606,6 +606,7 @@ def get_trending_emotions(limit=10, window=120):
     em = [{"emotion": e[1], "count": e[2], "id": e[0]} for e in em]
 
     return em
+
 
 def __compute_last_round(last_round_obj):
     """Compute the last round number from the last round object.
@@ -634,9 +635,7 @@ def get_trending_hashtags(limit=10, window=120):
     # get current round
 
     last_round_obj = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round = __compute_last_round(last_round_obj) #.id if last_round_obj else 0
-
-
+    last_round = __compute_last_round(last_round_obj)  # .id if last_round_obj else 0
 
     ht = (
         db.session.query(
@@ -678,7 +677,9 @@ def get_trending_topics(limit=10, window=120):
     """
     # get current round
     last_round_obj = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round = __compute_last_round(last_round_obj) #last_round_obj.id if last_round_obj else 0
+    last_round = __compute_last_round(
+        last_round_obj
+    )  # last_round_obj.id if last_round_obj else 0
 
     # query trending topics
     tp = (
@@ -1299,7 +1300,9 @@ def get_user_recent_interests(user_id, limit=5):
         List of tuples containing (interest_name, interest_id, engagement_count)
     """
     last_round = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round_id = __compute_last_round(last_round) #last_round.id if last_round else 0
+    last_round_id = __compute_last_round(
+        last_round
+    )  # last_round.id if last_round else 0
 
     interests = (
         db.session.query(

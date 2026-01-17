@@ -128,7 +128,7 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     user = User_mgmt.query.get(user_id)
 
     is_following = (
@@ -251,7 +251,7 @@ def edit_profile(exp_id, user_id):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     profile_pic = ""
@@ -296,7 +296,7 @@ def update_profile_data(exp_id, user_id):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     user.email = request.form.get("email")
@@ -329,7 +329,7 @@ def update_password(exp_id, user_id):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     npassword = request.form.get("new_password")
@@ -796,7 +796,7 @@ def get_thread(exp_id, post_id):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -1238,7 +1238,7 @@ def get_thread_reddit(exp_id, post_id):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -1940,7 +1940,7 @@ def api_profile_posts(exp_id, user_id, page=1, mode="recent"):
     except (ValueError, TypeError):
         # Keep as string if it's a UUID
         pass
-    
+
     rp = get_user_recent_posts(user_id, page, 10, mode, current_user.id, exp_id)
     html = render_template(
         "components/posts.html",
