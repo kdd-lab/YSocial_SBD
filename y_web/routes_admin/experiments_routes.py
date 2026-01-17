@@ -2540,11 +2540,11 @@ def prompts(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
-    
+
     # Check if this is an HPC experiment and route to appropriate template
     if experiment.simulator_type == "HPC":
-        return redirect(url_for('experiments.prompts_hpc', uid=uid))
-    
+        return redirect(url_for("experiments.prompts_hpc", uid=uid))
+
     # get the prompts file for the experiment
     prompts = os.path.join(
         BASE_DIR,
@@ -2569,16 +2569,19 @@ def prompts_hpc(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
-    
+
     if not experiment:
         flash("Experiment not found.", "error")
-        return redirect(url_for('experiments.experiments'))
-    
+        return redirect(url_for("experiments.experiments"))
+
     # Ensure this is an HPC experiment
     if experiment.simulator_type != "HPC":
-        flash("This page is only for HPC experiments. Redirecting to standard prompts page.", "warning")
-        return redirect(url_for('experiments.prompts', uid=uid))
-    
+        flash(
+            "This page is only for HPC experiments. Redirecting to standard prompts page.",
+            "warning",
+        )
+        return redirect(url_for("experiments.prompts", uid=uid))
+
     # get the prompts file for the experiment
     prompts_path = os.path.join(
         BASE_DIR,
@@ -2589,7 +2592,9 @@ def prompts_hpc(uid):
     with open(prompts_path) as f:
         prompts = json.load(f)
 
-    return render_template("admin/prompts_hpc.html", experiment=experiment, prompts=prompts)
+    return render_template(
+        "admin/prompts_hpc.html", experiment=experiment, prompts=prompts
+    )
 
 
 @experiments.route("/admin/update_prompts/<int:uid>", methods=["POST"])
@@ -2635,16 +2640,16 @@ def update_prompts_hpc(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
-    
+
     if not experiment:
         flash("Experiment not found.", "error")
-        return redirect(url_for('experiments.experiments'))
-    
+        return redirect(url_for("experiments.experiments"))
+
     # Ensure this is an HPC experiment
     if experiment.simulator_type != "HPC":
         flash("This update is only for HPC experiments.", "error")
         return redirect(request.referrer)
-    
+
     # get the prompts file for the experiment
     prompts_filename = os.path.join(
         BASE_DIR,
@@ -2657,44 +2662,54 @@ def update_prompts_hpc(uid):
 
     # Update prompts based on form data
     # Handle persona_template
-    if 'persona_template' in request.form:
-        prompts['persona_template'] = request.form['persona_template']
-    
+    if "persona_template" in request.form:
+        prompts["persona_template"] = request.form["persona_template"]
+
     # Handle personas (archetypes)
-    if 'personas' not in prompts:
-        prompts['personas'] = {}
-    if 'personas_0' in request.form:
-        prompts['personas']['0'] = request.form['personas_0']
-    if 'personas_1' in request.form:
-        prompts['personas']['1'] = request.form['personas_1']
-    if 'personas_2' in request.form:
-        prompts['personas']['2'] = request.form['personas_2']
-    
+    if "personas" not in prompts:
+        prompts["personas"] = {}
+    if "personas_0" in request.form:
+        prompts["personas"]["0"] = request.form["personas_0"]
+    if "personas_1" in request.form:
+        prompts["personas"]["1"] = request.form["personas_1"]
+    if "personas_2" in request.form:
+        prompts["personas"]["2"] = request.form["personas_2"]
+
     # Handle all action prompts (system_template and user_template pairs)
     action_types = [
-        'generate_post', 'decide_reaction', 'generate_comment', 'generate_read_reaction',
-        'decide_search_action', 'generate_news_commentary', 'decide_follow',
-        'decide_secondary_follow', 'extract_article_topics', 'extract_emotions',
-        'describe_image', 'generate_image_commentary', 'infer_article_opinion',
-        'evaluate_opinion', 'generate_share_commentary'
+        "generate_post",
+        "decide_reaction",
+        "generate_comment",
+        "generate_read_reaction",
+        "decide_search_action",
+        "generate_news_commentary",
+        "decide_follow",
+        "decide_secondary_follow",
+        "extract_article_topics",
+        "extract_emotions",
+        "describe_image",
+        "generate_image_commentary",
+        "infer_article_opinion",
+        "evaluate_opinion",
+        "generate_share_commentary",
     ]
-    
+
     for action in action_types:
         if action not in prompts:
             prompts[action] = {}
-        
+
         system_key = f"{action}_system_template"
         user_key = f"{action}_user_template"
-        
+
         if system_key in request.form:
-            prompts[action]['system_template'] = request.form[system_key]
+            prompts[action]["system_template"] = request.form[system_key]
         if user_key in request.form:
-            prompts[action]['user_template'] = request.form[user_key]
+            prompts[action]["user_template"] = request.form[user_key]
 
     # write the updated prompts
     with open(prompts_filename, "w") as f:
         json.dump(prompts, f, indent=2)
-    
+
     flash("HPC prompts updated successfully!", "success")
 
     return redirect(request.referrer)
@@ -4670,16 +4685,20 @@ def add_experiment_to_group(group_id):
     # HPC experiment validation: HPC experiments cannot run in parallel
     # Check if this is an HPC experiment or if the group already has experiments
     is_hpc = exp.simulator_type == "HPC"
-    
+
     if is_hpc:
         # HPC experiments must be alone in their group
-        existing_count = ExperimentScheduleItem.query.filter_by(group_id=group_id).count()
+        existing_count = ExperimentScheduleItem.query.filter_by(
+            group_id=group_id
+        ).count()
         if existing_count > 0:
             return (
-                jsonify({
-                    "success": False, 
-                    "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group."
-                }),
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group.",
+                    }
+                ),
                 400,
             )
     else:
@@ -4689,16 +4708,18 @@ def add_experiment_to_group(group_id):
             .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
             .filter(
                 ExperimentScheduleItem.group_id == group_id,
-                Exps.simulator_type == "HPC"
+                Exps.simulator_type == "HPC",
             )
             .first()
         )
         if hpc_in_group:
             return (
-                jsonify({
-                    "success": False,
-                    "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group."
-                }),
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group.",
+                    }
+                ),
                 400,
             )
 

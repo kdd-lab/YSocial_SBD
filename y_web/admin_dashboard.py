@@ -312,7 +312,9 @@ def dashboard_experiments_by_status(status):
                 "running": exp.running,
                 "status": exp.status,
                 "owner": exp.owner,
-                "simulator_type": exp.simulator_type if hasattr(exp, 'simulator_type') else 'Standard',
+                "simulator_type": (
+                    exp.simulator_type if hasattr(exp, "simulator_type") else "Standard"
+                ),
                 "clients": client_data,
             }
         )

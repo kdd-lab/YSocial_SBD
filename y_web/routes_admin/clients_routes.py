@@ -413,9 +413,11 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # Extract LLM backend
     llm_backend = form_data.get("llm_backend", "vllm")
-    
+
     # Check if LLM agents are enabled
-    llm_agents_enabled = bool(exp.llm_agents_enabled) if hasattr(exp, 'llm_agents_enabled') else True
+    llm_agents_enabled = (
+        bool(exp.llm_agents_enabled) if hasattr(exp, "llm_agents_enabled") else True
+    )
 
     # Build LLM config based on backend and LLM agents enabled status
     if not llm_agents_enabled:
@@ -833,7 +835,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     # For HPC experiments, use prompts_hpc.json from data_schema and rename to prompts.json
     # Always copy for HPC to ensure correct prompts file (overwrites if exists)
     prompts_dest = f"{exp_dir}{os.sep}prompts.json"
-    
+
     if exp.platform_type == "microblogging":
         prompts_src = get_resource_path(os.path.join("data_schema", "prompts_hpc.json"))
         shutil.copyfile(prompts_src, prompts_dest)
