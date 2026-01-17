@@ -735,6 +735,7 @@ def upload_experiment():
             server=experiment_config.get("host", "127.0.0.1"),
             platform_type=experiment_config.get("platform_type", "microblogging"),
             llm_agents_enabled=llm_agents_enabled,
+            simulator_type="Standard",  # Default to Standard for uploaded experiments
         )
 
         db.session.add(exp)
@@ -1133,6 +1134,7 @@ def upload_database():
             owner="",
             exp_descr="",
             status=0,
+            simulator_type="Standard",  # Default to Standard
         )
 
         db.session.add(exp)
@@ -1158,6 +1160,139 @@ def upload_database():
     return settings()
 
 
+def generate_standard_config(
+    platform_type,
+    exp_name,
+    host,
+    port,
+    perspective_api,
+    sentiment_annotation,
+    emotion_annotation,
+    opinions_enabled,
+    db_uri,
+    topics,
+    data_path,
+):
+    """Generate config file for Standard simulator type."""
+    return {
+        "platform_type": platform_type,
+        "name": exp_name,
+        "host": host,
+        "port": port,
+        "debug": "False",
+        "reset_db": "False",
+        "modules": ["news", "voting", "image"],
+        "perspective_api": (
+            perspective_api if perspective_api and len(perspective_api) > 0 else None
+        ),
+        "sentiment_annotation": sentiment_annotation,
+        "emotion_annotation": emotion_annotation,
+        "opinions_enabled": opinions_enabled,
+        "database_uri": db_uri,
+        "topics": [t.strip() for t in topics if t.strip()],
+        "data_path": data_path,
+    }
+
+
+def generate_hpc_config(
+    exp_name,
+    platform_type,
+    db_type,
+    db_uri,
+    redis_enabled,
+    redis_host,
+    redis_port,
+    redis_password,
+    redis_sliding_window_days,
+    perspective_api,
+    sentiment_annotation,
+    emotion_annotation,
+    topics,
+    data_path,
+    db_config_dict=None,
+):
+    """Generate config file for HPC simulator type."""
+    # Build database configuration section
+    database_config = {
+        "type": db_type,
+    }
+
+    if db_type == "sqlite":
+        database_config["sqlite"] = {"filename": "simulation.db"}
+    elif db_type == "postgresql":
+        if db_config_dict:
+            database_config["postgresql"] = db_config_dict
+        else:
+            # Fallback defaults
+            database_config["postgresql"] = {
+                "host": "localhost",
+                "port": 5432,
+                "database": "ysimulator",
+                "username": "postgres",
+                "password": "password",
+            }
+
+    return {
+        "server_name": exp_name,
+        "namespace": exp_name,
+        "address": "auto",
+        "port": None,
+        "database": database_config,
+        "min_to_start": 1,
+        "timeout_seconds": 180,
+        "redis": {
+            "enabled": redis_enabled,
+            "host": redis_host,
+            "port": redis_port,
+            "db": 0,
+            "password": redis_password,
+            "sliding_window_days": redis_sliding_window_days,
+        },
+        "posts": {"visibility_rounds": 36},
+        "recommendations": {"default_limit": 5},
+        "simulation": {
+            "agent_archetypes": {
+                "enabled": True,
+                "distribution": {
+                    "validator": 0.33,
+                    "broadcaster": 0.33,
+                    "explorer": 0.34,
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": 0.85,
+                        "broadcaster": 0.1,
+                        "explorer": 0.05,
+                    },
+                    "broadcaster": {
+                        "validator": 0.1,
+                        "broadcaster": 0.8,
+                        "explorer": 0.1,
+                    },
+                    "explorer": {
+                        "validator": 0.05,
+                        "broadcaster": 0.1,
+                        "explorer": 0.85,
+                    },
+                },
+            }
+        },
+        "logging": {
+            "enable_server_log": True,
+            "enable_actor_log": True,
+            "enable_request_log": True,
+            "enable_console_log": True,
+        },
+        "platform_type": platform_type,
+        "perspective_api": perspective_api,
+        "sentiment_annotation": sentiment_annotation,
+        "emotion_annotation": emotion_annotation,
+        "database_uri": db_uri,
+        "topics": [t.strip() for t in topics if t.strip()],
+        "data_path": data_path,
+    }
+
+
 @experiments.route("/admin/create_experiment", methods=["POST", "GET"])
 @login_required
 def create_experiment():
@@ -1167,6 +1302,28 @@ def create_experiment():
     exp_name = request.form.get("exp_name")
     exp_descr = request.form.get("exp_descr")
     platform_type = request.form.get("platform_type")
+    simulator_type = request.form.get(
+        "simulator_type", "Standard"
+    )  # Default to Standard
+
+    # Redis configuration parameters for HPC simulator
+    redis_enabled = request.form.get("redis_enabled") == "true"
+    redis_host = request.form.get("redis_host", "localhost")
+    redis_port = (
+        int(request.form.get("redis_port", "6379"))
+        if request.form.get("redis_port")
+        else 6379
+    )
+    redis_password = (
+        request.form.get("redis_password")
+        if request.form.get("redis_password")
+        else None
+    )
+    redis_sliding_window_days = (
+        int(request.form.get("redis_sliding_window_days", "2"))
+        if request.form.get("redis_sliding_window_days")
+        else 2
+    )
 
     # Use fixed host value
     host = "127.0.0.1"
@@ -1313,23 +1470,65 @@ def create_experiment():
     else:
         raise NotImplementedError(f"Unsupported platform {platform_type}")
 
-    config = {
-        "platform_type": platform_type,
-        "name": exp_name,
-        "host": host,
-        "port": port,
-        "debug": "False",
-        "reset_db": "False",
-        "modules": ["news", "voting", "image"],
-        "perspective_api": (
-            perspective_api if perspective_api and len(perspective_api) > 0 else None
-        ),
-        "sentiment_annotation": sentiment_annotation,
-        "emotion_annotation": emotion_annotation,
-        "opinions_enabled": opinions_enabled,
-        "database_uri": db_uri,
-        "topics": [t.strip() for t in topics if t.strip()],
-    }
+    # Generate data_path
+    data_path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}"
+
+    # Generate config based on simulator type
+    if simulator_type == "HPC":
+        # For HPC, extract PostgreSQL connection details if using postgresql
+        db_config_dict = None
+        if db_type == "postgresql":
+            from urllib.parse import urlparse
+
+            parsed_uri = urlparse(current_app.config["SQLALCHEMY_DATABASE_URI"])
+            db_config_dict = {
+                "host": parsed_uri.hostname or "localhost",
+                "port": parsed_uri.port or 5432,
+                "database": f"experiments_{uid}".replace("-", "_"),
+                "username": parsed_uri.username or "postgres",
+                "password": parsed_uri.password or "password",
+            }
+
+        config = generate_hpc_config(
+            exp_name=exp_name,
+            platform_type=platform_type,
+            db_type=db_type,
+            db_uri=db_uri,
+            redis_enabled=redis_enabled,
+            redis_host=redis_host,
+            redis_port=redis_port,
+            redis_password=redis_password,
+            redis_sliding_window_days=redis_sliding_window_days,
+            perspective_api=(
+                perspective_api
+                if perspective_api and len(perspective_api) > 0
+                else None
+            ),
+            sentiment_annotation=sentiment_annotation,
+            emotion_annotation=emotion_annotation,
+            topics=topics,
+            data_path=data_path,
+            db_config_dict=db_config_dict,
+        )
+    else:
+        # Standard simulator
+        config = generate_standard_config(
+            platform_type=platform_type,
+            exp_name=exp_name,
+            host=host,
+            port=port,
+            perspective_api=(
+                perspective_api
+                if perspective_api and len(perspective_api) > 0
+                else None
+            ),
+            sentiment_annotation=sentiment_annotation,
+            emotion_annotation=emotion_annotation,
+            opinions_enabled=opinions_enabled,
+            db_uri=db_uri,
+            topics=topics,
+            data_path=data_path,
+        )
 
     with open(
         f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
@@ -1366,6 +1565,7 @@ def create_experiment():
         server=host,
         annotations=annotations,
         llm_agents_enabled=llm_agents_enabled,
+        simulator_type=simulator_type,
     )
 
     db.session.add(exp)
@@ -1860,6 +2060,9 @@ def experiment_logs(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /log subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "log")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -1962,6 +2165,9 @@ def experiment_trends(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /log subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "log")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2170,6 +2376,9 @@ def client_logs(client_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /log subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "log")
 
         # Client log file name format: {client_name}_client.log
         log_file = os.path.join(exp_folder, f"{client.name}_client.log")
@@ -2331,6 +2540,11 @@ def prompts(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+    
+    # Check if this is an HPC experiment and route to appropriate template
+    if experiment.simulator_type == "HPC":
+        return redirect(url_for('experiments.prompts_hpc', uid=uid))
+    
     # get the prompts file for the experiment
     prompts = os.path.join(
         BASE_DIR,
@@ -2341,6 +2555,41 @@ def prompts(uid):
     prompts = json.load(open(prompts))
 
     return render_template("admin/prompts.html", experiment=experiment, prompts=prompts)
+
+
+@experiments.route("/admin/prompts_hpc/<int:uid>")
+@login_required
+def prompts_hpc(uid):
+    """Handle HPC prompts operation."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # get experiment details
+    experiment = Exps.query.filter_by(idexp=uid).first()
+    
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for('experiments.experiments'))
+    
+    # Ensure this is an HPC experiment
+    if experiment.simulator_type != "HPC":
+        flash("This page is only for HPC experiments. Redirecting to standard prompts page.", "warning")
+        return redirect(url_for('experiments.prompts', uid=uid))
+    
+    # get the prompts file for the experiment
+    prompts_path = os.path.join(
+        BASE_DIR,
+        f"y_web{os.sep}experiments{os.sep}{experiment.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+    )
+
+    # read the prompts file
+    with open(prompts_path) as f:
+        prompts = json.load(f)
+
+    return render_template("admin/prompts_hpc.html", experiment=experiment, prompts=prompts)
 
 
 @experiments.route("/admin/update_prompts/<int:uid>", methods=["POST"])
@@ -2370,6 +2619,83 @@ def update_prompts(uid):
 
     # write the updated prompts
     json.dump(prompts, open(prompts_filename, "w"), indent=4)
+
+    return redirect(request.referrer)
+
+
+@experiments.route("/admin/update_prompts_hpc/<int:uid>", methods=["POST"])
+@login_required
+def update_prompts_hpc(uid):
+    """Update HPC prompts."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # get experiment details
+    experiment = Exps.query.filter_by(idexp=uid).first()
+    
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for('experiments.experiments'))
+    
+    # Ensure this is an HPC experiment
+    if experiment.simulator_type != "HPC":
+        flash("This update is only for HPC experiments.", "error")
+        return redirect(request.referrer)
+    
+    # get the prompts file for the experiment
+    prompts_filename = os.path.join(
+        BASE_DIR,
+        f"y_web{os.sep}experiments{os.sep}{experiment.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+    )
+
+    # read the prompts file
+    with open(prompts_filename) as f:
+        prompts = json.load(f)
+
+    # Update prompts based on form data
+    # Handle persona_template
+    if 'persona_template' in request.form:
+        prompts['persona_template'] = request.form['persona_template']
+    
+    # Handle personas (archetypes)
+    if 'personas' not in prompts:
+        prompts['personas'] = {}
+    if 'personas_0' in request.form:
+        prompts['personas']['0'] = request.form['personas_0']
+    if 'personas_1' in request.form:
+        prompts['personas']['1'] = request.form['personas_1']
+    if 'personas_2' in request.form:
+        prompts['personas']['2'] = request.form['personas_2']
+    
+    # Handle all action prompts (system_template and user_template pairs)
+    action_types = [
+        'generate_post', 'decide_reaction', 'generate_comment', 'generate_read_reaction',
+        'decide_search_action', 'generate_news_commentary', 'decide_follow',
+        'decide_secondary_follow', 'extract_article_topics', 'extract_emotions',
+        'describe_image', 'generate_image_commentary', 'infer_article_opinion',
+        'evaluate_opinion', 'generate_share_commentary'
+    ]
+    
+    for action in action_types:
+        if action not in prompts:
+            prompts[action] = {}
+        
+        system_key = f"{action}_system_template"
+        user_key = f"{action}_user_template"
+        
+        if system_key in request.form:
+            prompts[action]['system_template'] = request.form[system_key]
+        if user_key in request.form:
+            prompts[action]['user_template'] = request.form[user_key]
+
+    # write the updated prompts
+    with open(prompts_filename, "w") as f:
+        json.dump(prompts, f, indent=2)
+    
+    flash("HPC prompts updated successfully!", "success")
 
     return redirect(request.referrer)
 
@@ -3941,6 +4267,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
         server=source_exp.server,
         annotations=source_exp.annotations,
         llm_agents_enabled=source_exp.llm_agents_enabled,
+        simulator_type=source_exp.simulator_type,
     )
     db.session.add(new_exp)
     db.session.commit()
@@ -4339,6 +4666,41 @@ def add_experiment_to_group(group_id):
             jsonify({"success": False, "message": "Experiment already in group"}),
             400,
         )
+
+    # HPC experiment validation: HPC experiments cannot run in parallel
+    # Check if this is an HPC experiment or if the group already has experiments
+    is_hpc = exp.simulator_type == "HPC"
+    
+    if is_hpc:
+        # HPC experiments must be alone in their group
+        existing_count = ExperimentScheduleItem.query.filter_by(group_id=group_id).count()
+        if existing_count > 0:
+            return (
+                jsonify({
+                    "success": False, 
+                    "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group."
+                }),
+                400,
+            )
+    else:
+        # Check if group already contains an HPC experiment (use join for efficiency)
+        hpc_in_group = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type == "HPC"
+            )
+            .first()
+        )
+        if hpc_in_group:
+            return (
+                jsonify({
+                    "success": False,
+                    "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group."
+                }),
+                400,
+            )
 
     # Get max order index for this group
     max_order = (
@@ -5146,6 +5508,11 @@ def auto_create_groups():
             400,
         )
 
+    # Separate HPC and Standard experiments
+    # HPC experiments must be alone in their own groups
+    hpc_exps = [exp for exp in available_exps if exp.simulator_type == "HPC"]
+    standard_exps = [exp for exp in available_exps if exp.simulator_type != "HPC"]
+
     # Get current max order index
     max_order = (
         db.session.query(db.func.max(ExperimentScheduleGroup.order_index)).scalar() or 0
@@ -5155,8 +5522,35 @@ def auto_create_groups():
     created_groups = []
     group_num = 1
 
-    for i in range(0, len(available_exps), experiments_per_group):
-        group_exps = available_exps[i : i + experiments_per_group]
+    # First, create individual groups for each HPC experiment
+    for exp in hpc_exps:
+        group = ExperimentScheduleGroup(
+            name=f"Auto Group {max_order + group_num} (HPC)",
+            order_index=max_order + group_num,
+            is_completed=0,
+        )
+        db.session.add(group)
+        db.session.commit()
+
+        # Add HPC experiment to its own group
+        item = ExperimentScheduleItem(
+            group_id=group.id, experiment_id=exp.idexp, order_index=0
+        )
+        db.session.add(item)
+        db.session.commit()
+
+        created_groups.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "experiment_count": 1,
+            }
+        )
+        group_num += 1
+
+    # Then, create groups for Standard experiments
+    for i in range(0, len(standard_exps), experiments_per_group):
+        group_exps = standard_exps[i : i + experiments_per_group]
 
         # Create group
         group = ExperimentScheduleGroup(

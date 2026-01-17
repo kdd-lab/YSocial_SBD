@@ -274,14 +274,641 @@ def clients(idexp):
         exp.llm_agents_enabled if hasattr(exp, "llm_agents_enabled") else True
     )
 
+    # Check simulator type to render appropriate template
+    simulator_type = (
+        exp.simulator_type if hasattr(exp, "simulator_type") else "Standard"
+    )
+
+    if simulator_type == "HPC":
+        template_name = "admin/clients_hpc.html"
+    else:
+        template_name = "admin/clients.html"
+
     return render_template(
-        "admin/clients.html",
+        template_name,
         experiment=exp,
         populations=pops,
         crecsys=crecsys,
         frecsys=frecsys,
         llm_agents_enabled=llm_agents_enabled,
     )
+
+
+def generate_hpc_client_config(
+    client_name,
+    namespace,
+    llm_backend,
+    llm_config,
+    llm_v_config,
+    simulation_config,
+    agents_config,
+    logging_config,
+    enable_sentiment,
+    emotion_annotation,
+    enable_toxicity,
+    perspective_api_key,
+):
+    """Generate client configuration for HPC simulator type.
+
+    Args:
+        client_name: Name of the client
+        namespace: Experiment name (not db_name)
+        ...
+    """
+    config = {
+        "client_name": client_name,
+        "namespace": namespace,
+        "server": {"address": None, "port": None},
+        "llm": llm_config,
+        "llm_v": llm_v_config,
+        "simulation": simulation_config,
+        "agents": agents_config,
+        "logging": logging_config,
+    }
+    return config
+
+
+def create_hpc_client(exp, name, descr, population_id, form_data):
+    """Create an HPC client with comprehensive configuration from form and server config."""
+    import json
+    import shutil
+
+    from y_web.utils.path_utils import get_resource_path, get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # Get population
+    population = Population.query.filter_by(id=population_id).first()
+    if not population:
+        flash("Population not found")
+        return redirect(request.referrer)
+
+    # Check if client name already exists
+    if Client.query.filter_by(name=name).first():
+        flash("Client name already exists.", "error")
+        return redirect(request.referrer)
+
+    # Extract all form data
+    days = int(form_data.get("days", "3"))
+    percentage_new_agents_iteration = float(
+        form_data.get("percentage_new_agents_iteration", "0.0")
+    )
+    percentage_removed_agents_iteration = float(
+        form_data.get("percentage_removed_agents_iteration", "0.0")
+    )
+    max_length_thread_reading = int(form_data.get("max_length_thread_reading", "5"))
+    reading_from_follower_ratio = float(
+        form_data.get("reading_from_follower_ratio", "0.6")
+    )
+    probability_of_daily_follow = float(
+        form_data.get("probability_of_daily_follow", "0.1")
+    )
+    probability_of_secondary_follow = float(
+        form_data.get("probability_of_secondary_follow", "0.1")
+    )
+    attention_window = int(form_data.get("attention_window", "336"))
+    visibility_rounds = int(form_data.get("visibility_rounds", "36"))
+    batch_size = int(form_data.get("batch_size", "100"))
+
+    # Follow action decay parameters
+    follow_decay_enabled = form_data.get("follow_decay_enabled") == "on"
+    follow_decay_function = form_data.get("follow_decay_function", "exponential")
+    follow_decay_half_life = int(form_data.get("follow_decay_half_life", "168"))
+    follow_decay_rate = float(form_data.get("follow_decay_rate", "0.01"))
+    follow_decay_min_ratio = float(form_data.get("follow_decay_min_ratio", "0.1"))
+
+    # Action likelihoods
+    post = float(form_data.get("post", "3.0"))
+    share = float(form_data.get("share", "1.0"))
+    image = float(form_data.get("image", "0.0"))
+    comment = float(form_data.get("comment", "5.0"))
+    read = float(form_data.get("read", "2.0"))
+    news = float(form_data.get("news", "0.0"))
+    search = float(form_data.get("search", "5.0"))
+    vote = float(form_data.get("vote", "0.0"))
+    share_link = float(form_data.get("share_link", "0.0"))
+    follow = float(form_data.get("follow", "0.1"))
+
+    # RecSys
+    crecsys = form_data.get("crecsys", "random")
+    frecsys = form_data.get("frecsys", "random")
+
+    # Agent archetypes
+    enable_archetypes = form_data.get("enable_archetypes") == "on"
+    agent_downcast = form_data.get("agent_downcast") == "on"
+    archetype_validator = float(form_data.get("archetype_validator", "0.33"))
+    archetype_broadcaster = float(form_data.get("archetype_broadcaster", "0.33"))
+    archetype_explorer = float(form_data.get("archetype_explorer", "0.34"))
+
+    # Archetype transitions
+    trans_val_val = float(form_data.get("trans_val_val", "0.85"))
+    trans_val_broad = float(form_data.get("trans_val_broad", "0.1"))
+    trans_val_expl = float(form_data.get("trans_val_expl", "0.05"))
+    trans_broad_val = float(form_data.get("trans_broad_val", "0.1"))
+    trans_broad_broad = float(form_data.get("trans_broad_broad", "0.8"))
+    trans_broad_expl = float(form_data.get("trans_broad_expl", "0.1"))
+    trans_expl_val = float(form_data.get("trans_expl_val", "0.05"))
+    trans_expl_broad = float(form_data.get("trans_expl_broad", "0.1"))
+    trans_expl_expl = float(form_data.get("trans_expl_expl", "0.85"))
+
+    # Extract LLM backend
+    llm_backend = form_data.get("llm_backend", "vllm")
+    
+    # Check if LLM agents are enabled
+    llm_agents_enabled = bool(exp.llm_agents_enabled) if hasattr(exp, 'llm_agents_enabled') else True
+
+    # Build LLM config based on backend and LLM agents enabled status
+    if not llm_agents_enabled:
+        # LLM agents not enabled - use Ollama defaults for consistency
+        llm_config = {
+            "address": "localhost",
+            "port": 11434,
+            "model": "llama3.2",
+            "temperature": 0.9,
+            "llm_api_key": "NULL",
+            "llm_max_tokens": -1,
+        }
+        llm_v_config = {
+            "address": "localhost",
+            "port": 11434,
+            "model": "minicpm-v",
+            "temperature": 0.5,
+            "llm_api_key": "NULL",
+            "llm_max_tokens": 300,
+        }
+    elif llm_backend == "vllm":
+        llm_config = {
+            "backend": "vllm",
+            "model": form_data.get("llm_model", "AMead10/Llama-3.2-3B-Instruct-AWQ"),
+            "temperature": float(form_data.get("llm_temperature", "0.9")),
+            "max_tokens": int(form_data.get("llm_max_tokens", "256")),
+            "max_model_len": int(form_data.get("llm_max_model_len", "4096")),
+            "tensor_parallel_size": int(form_data.get("llm_tensor_parallel_size", "1")),
+            "gpu_memory_utilization": float(
+                form_data.get("llm_gpu_memory_utilization", "0.15")
+            ),
+            "enable_flashattention": form_data.get("llm_enable_flashattention")
+            == "true",
+            "num_actors": int(form_data.get("llm_num_actors", "4")),
+            "gpu_per_actor": float(form_data.get("llm_gpu_per_actor", "1.0")),
+            "reuse_actors": form_data.get("llm_reuse_actors") == "true",
+            "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
+        }
+
+        llm_v_config = {
+            "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
+            "temperature": float(form_data.get("llm_v_temperature", "0.5")),
+            "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
+            "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
+            "gpu_memory_utilization": float(
+                form_data.get("llm_v_gpu_memory_utilization", "0.15")
+            ),
+        }
+    else:  # ollama
+        llm_config = {
+            "address": "localhost",
+            "port": 11434,
+            "model": form_data.get("user_type", "llama3.2"),
+            "temperature": float(form_data.get("llm_temperature", "0.7")),
+            "llm_api_key": "NULL",
+            "llm_max_tokens": -1,
+        }
+        llm_v_config = {}
+
+    # Get activity profiles for population
+    activity_profiles = (
+        db.session.query(PopulationActivityProfile)
+        .filter(PopulationActivityProfile.population == population_id)
+        .all()
+    )
+    activity_profiles = [a.activity_profile for a in activity_profiles]
+    activity_profiles = (
+        db.session.query(ActivityProfile)
+        .filter(ActivityProfile.id.in_([a for a in activity_profiles]))
+        .all()
+    )
+    profiles = {ap.name: ap.hours for ap in activity_profiles}
+
+    # Fetch optional hourly activity rates
+    hourly_activity_custom = {}
+    for hour in range(24):
+        hourly_val = form_data.get(f"hourly_{hour}")
+        if hourly_val and hourly_val.strip():
+            try:
+                hourly_activity_custom[str(hour)] = float(hourly_val)
+            except ValueError:
+                pass
+
+    default_hourly_activity = {
+        "0": 0.023,
+        "1": 0.021,
+        "2": 0.020,
+        "3": 0.020,
+        "4": 0.018,
+        "5": 0.017,
+        "6": 0.017,
+        "7": 0.018,
+        "8": 0.020,
+        "9": 0.020,
+        "10": 0.021,
+        "11": 0.022,
+        "12": 0.024,
+        "13": 0.027,
+        "14": 0.030,
+        "15": 0.032,
+        "16": 0.032,
+        "17": 0.032,
+        "18": 0.032,
+        "19": 0.031,
+        "20": 0.030,
+        "21": 0.029,
+        "22": 0.027,
+        "23": 0.025,
+    }
+
+    hourly_activity = {
+        str(h): (
+            hourly_activity_custom.get(str(h), default_hourly_activity[str(h)])
+            if hourly_activity_custom
+            else default_hourly_activity[str(h)]
+        )
+        for h in range(24)
+    }
+
+    # Get experiment topics
+    topics = Exp_Topic.query.filter_by(exp_id=exp.idexp).all()
+    topics_ids = [t.topic_id for t in topics]
+    topics_objs = (
+        db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    )
+    discussion_topics = [t.name for t in topics_objs]
+    topics = discussion_topics  # Use topic names (strings) for JSON serialization
+
+    # Read server config to get shared values
+    if "database_server.db" in exp.db_name:
+        uid = exp.db_name.split(os.sep)[1]
+    else:
+        uid = exp.db_name.removeprefix("experiments_")
+
+    exp_dir = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}"
+    server_config_path = f"{exp_dir}{os.sep}config_server.json"
+
+    # Get sentiment and emotion annotation from server config
+    annotations = exp.annotations.split(",") if exp.annotations else []
+    enable_sentiment = "sentiment" in annotations
+    emotion_annotation = "emotion" in annotations
+    enable_toxicity = "toxicity" in annotations
+    perspective_api_key = (
+        exp.perspective_api if hasattr(exp, "perspective_api") else None
+    )
+
+    # Build simulation config (with annotation fields inside)
+    simulation_config = {
+        "num_days": days,
+        "num_slots_per_day": 24,
+        "heartbeat_interval": 5,
+        "note": "num_days=0 means infinite simulation, set to a positive number to limit duration. heartbeat_interval in seconds (default: 5).",
+        "percentage_new_agents_iteration": percentage_new_agents_iteration,
+        "percentage_removed_agents_iteration": percentage_removed_agents_iteration,
+        "discussion_topics": discussion_topics,
+        "activity_profiles": profiles,
+        "hourly_activity": hourly_activity,
+        "actions_likelihood": {
+            "post": post,
+            "image": image,
+            "news": news,
+            "comment": comment,
+            "read": read,
+            "share": share,
+            "search": search,
+            "cast": vote,
+            "share_link": share_link,
+            "follow": follow,
+        },
+        "agent_archetypes": {
+            "enabled": enable_archetypes,
+            "agent_downcast": agent_downcast,
+            "distribution": {
+                "validator": archetype_validator,
+                "broadcaster": archetype_broadcaster,
+                "explorer": archetype_explorer,
+            },
+        },
+        "enable_sentiment": enable_sentiment,
+        "emotion_annotation": emotion_annotation,
+        "enable_toxicity": enable_toxicity,
+        "perspective_api_key": perspective_api_key,
+    }
+
+    # Build agents config
+    agents_config = {
+        "reading_from_follower_ratio": reading_from_follower_ratio,
+        "max_length_thread_reading": max_length_thread_reading,
+        "attention_window": attention_window,
+        "probability_of_daily_follow": probability_of_daily_follow,
+        "probability_of_secondary_follow": probability_of_secondary_follow,
+        "follow_action_decay": {
+            "enabled": follow_decay_enabled,
+            "decay_function": follow_decay_function,
+            "half_life_rounds": follow_decay_half_life,
+            "decay_rate": follow_decay_rate,
+            "min_probability_ratio": follow_decay_min_ratio,
+        },
+        "batch_size": batch_size,
+        "churn": {
+            "enabled": True,
+            "churn_probability": 0.01,
+            "inactivity_threshold": 5,
+            "churn_percentage": 0.1,
+        },
+        "new_agents": {
+            "enabled": True,
+            "probability_new_agents": 0.01,
+            "percentage_new_agents": 0.01,
+        },
+    }
+
+    # Logging config
+    logging_config = {
+        "enable_execution_log": True,
+        "enable_actor_log": True,
+        "enable_client_log": True,
+        "enable_console_log": True,
+        "enable_llm_usage_log": True,
+    }
+
+    # Generate HPC client config
+    config = generate_hpc_client_config(
+        client_name=name,
+        namespace=exp.exp_name,
+        llm_backend=llm_backend,
+        llm_config=llm_config,
+        llm_v_config=llm_v_config,
+        simulation_config=simulation_config,
+        agents_config=agents_config,
+        logging_config=logging_config,
+        enable_sentiment=enable_sentiment,
+        emotion_annotation=emotion_annotation,
+        enable_toxicity=enable_toxicity,
+        perspective_api_key=perspective_api_key,
+    )
+
+    # Save config file using standard naming pattern
+    config_filename = f"{exp_dir}{os.sep}client_{name}-{population.name}.json"
+    with open(config_filename, "w") as f:
+        json.dump(config, f, indent=2)
+
+    # Create agent population file (same as standard pipeline)
+    population_filename = f"{exp_dir}{os.sep}{population.name}.json"
+
+    # Get agents for this population
+    agents = Agent_Population.query.filter_by(population_id=population.id).all()
+    agents = [Agent.query.filter_by(id=a.agent_id).first() for a in agents]
+
+    # Assign archetypes to agents based on distribution probabilities
+    num_agents = len(agents)
+    archetype_assignments = []
+
+    if enable_archetypes and num_agents > 0:
+        # Build list of active archetypes and their probabilities
+        active_archetypes = []
+        active_probabilities = []
+
+        if archetype_validator > 0:
+            active_archetypes.append("validator")
+            active_probabilities.append(archetype_validator)
+
+        if archetype_broadcaster > 0:
+            active_archetypes.append("broadcaster")
+            active_probabilities.append(archetype_broadcaster)
+
+        if archetype_explorer > 0:
+            active_archetypes.append("explorer")
+            active_probabilities.append(archetype_explorer)
+
+        # Normalize probabilities if they don't sum to 1
+        if len(active_probabilities) > 0:
+            total_prob = sum(active_probabilities)
+            if total_prob > 0:
+                active_probabilities = [p / total_prob for p in active_probabilities]
+                # Assign archetypes to agents using numpy random choice
+                import numpy as np
+
+                archetype_assignments = np.random.choice(
+                    active_archetypes, size=num_agents, p=active_probabilities
+                ).tolist()
+            else:
+                archetype_assignments = [None] * num_agents
+        else:
+            archetype_assignments = [None] * num_agents
+    else:
+        archetype_assignments = [None] * num_agents
+
+    # Build agent population JSON
+    import random
+
+    import faker
+
+    population_data = {"agents": []}
+    for idx, agent in enumerate(agents):
+        custom_prompt = Agent_Profile.query.filter_by(agent_id=agent.id).first()
+        custom_prompt = custom_prompt.profile if custom_prompt else None
+
+        # Randomly select interests from topics
+        fake = faker.Faker()
+        interests = list(
+            set(
+                fake.random_elements(
+                    elements=set(topics), length=fake.random_int(min=1, max=5)
+                )
+            )
+        )
+
+        activity_profile_obj = (
+            db.session.query(ActivityProfile)
+            .filter_by(id=agent.activity_profile)
+            .first()
+        )
+        activity_profile_name = (
+            activity_profile_obj.name if activity_profile_obj else "Always On"
+        )
+
+        # Get opinions enabled from experiment annotations
+        opinions_enabled = "opinions" in (
+            exp.annotations.split(",") if exp.annotations else []
+        )
+
+        agent_data = {
+            "name": agent.name,
+            "email": f"{agent.name}@ysocial.it",
+            "password": f"{agent.name}",
+            "age": agent.age,
+            "type": "normal",
+            "leaning": agent.leaning,
+            "interests": [interests, len(interests)],
+            "oe": agent.oe,
+            "co": agent.co,
+            "ex": agent.ex,
+            "ag": agent.ag,
+            "ne": agent.ne,
+            "rec_sys": crecsys,
+            "frec_sys": frecsys,
+            "language": agent.language,
+            "owner": exp.owner,
+            "education_level": agent.education_level,
+            "round_actions": int(agent.round_actions),
+            "gender": agent.gender,
+            "nationality": agent.nationality,
+            "toxicity": agent.toxicity,
+            "is_page": 0,
+            "prompts": custom_prompt,
+            "daily_activity_level": agent.daily_activity_level,
+            "profession": agent.profession,
+            "activity_profile": activity_profile_name,
+            "archetype": archetype_assignments[idx],
+            "opinions": (
+                {i: random.random() for i in interests} if opinions_enabled else None
+            ),
+            "llm": bool(exp.llm_agents_enabled),
+        }
+        population_data["agents"].append(agent_data)
+
+    # Add pages to population data
+    pages = Page_Population.query.filter_by(population_id=population.id).all()
+    pages = [Page.query.filter_by(id=p.page_id).first() for p in pages]
+
+    for page in pages:
+        # Get page topics
+        page_topics = (
+            db.session.query(Exp_Topic, Topic_List)
+            .join(Topic_List)
+            .filter(Exp_Topic.exp_id == exp.idexp, Exp_Topic.topic_id == Topic_List.id)
+            .all()
+        )
+        page_topics = [t[1].name for t in page_topics]
+        page_topics = list(set(page_topics) & set(topics))
+
+        activity_profile_obj = (
+            db.session.query(ActivityProfile)
+            .filter_by(id=page.activity_profile)
+            .first()
+        )
+        activity_profile_name = (
+            activity_profile_obj.name if activity_profile_obj else "Always On"
+        )
+
+        page_data = {
+            "name": page.name,
+            "email": f"{page.name}@ysocial.it",
+            "password": f"{page.name}",
+            "age": 0,
+            "type": "normal",
+            "leaning": page.leaning,
+            "interests": [page_topics, len(page_topics)],
+            "oe": "",
+            "co": "",
+            "ex": "",
+            "ag": "",
+            "ne": "",
+            "rec_sys": "",
+            "frec_sys": "",
+            "language": "english",
+            "owner": exp.owner,
+            "education_level": "",
+            "round_actions": 3,
+            "gender": "",
+            "nationality": "",
+            "toxicity": "none",
+            "is_page": 1,
+            "feed_url": page.feed,
+            "activity_profile": activity_profile_name,
+        }
+        population_data["agents"].append(page_data)
+
+    # Save population file
+    with open(population_filename, "w") as f:
+        json.dump(population_data, f, indent=4)
+
+    # Copy prompts file into the experiment folder
+    # For HPC experiments, use prompts_hpc.json from data_schema and rename to prompts.json
+    # Always copy for HPC to ensure correct prompts file (overwrites if exists)
+    prompts_dest = f"{exp_dir}{os.sep}prompts.json"
+    
+    if exp.platform_type == "microblogging":
+        prompts_src = get_resource_path(os.path.join("data_schema", "prompts_hpc.json"))
+        shutil.copyfile(prompts_src, prompts_dest)
+    elif exp.platform_type == "forum":
+        prompts_src = get_resource_path(
+            os.path.join("data_schema", "prompts_forum.json")
+        )
+        shutil.copyfile(prompts_src, prompts_dest)
+
+    # Create population assignment if not exists
+    pop_exp = Population_Experiment.query.filter_by(
+        id_population=population_id, id_exp=exp.idexp
+    ).first()
+    if not pop_exp:
+        pop_exp = Population_Experiment(id_population=population_id, id_exp=exp.idexp)
+        db.session.add(pop_exp)
+        db.session.commit()
+
+    # Create client record in database
+    client = Client(
+        name=name,
+        descr=descr,
+        id_exp=exp.idexp,
+        population_id=population_id,
+        days=days,
+        percentage_new_agents_iteration=percentage_new_agents_iteration,
+        percentage_removed_agents_iteration=percentage_removed_agents_iteration,
+        max_length_thread_reading=max_length_thread_reading,
+        reading_from_follower_ratio=reading_from_follower_ratio,
+        probability_of_daily_follow=probability_of_daily_follow,
+        probability_of_secondary_follow=probability_of_secondary_follow,
+        attention_window=attention_window,
+        visibility_rounds=visibility_rounds,
+        post=post,
+        share=share,
+        image=image,
+        comment=comment,
+        read=read,
+        news=news,
+        search=search,
+        vote=vote,
+        share_link=share_link,
+        crecsys=crecsys,
+        frecsys=frecsys,
+        archetype_validator=archetype_validator,
+        archetype_broadcaster=archetype_broadcaster,
+        archetype_explorer=archetype_explorer,
+        trans_val_val=trans_val_val,
+        trans_val_broad=trans_val_broad,
+        trans_val_expl=trans_val_expl,
+        trans_broad_broad=trans_broad_broad,
+        trans_broad_val=trans_broad_val,
+        trans_broad_expl=trans_broad_expl,
+        trans_expl_expl=trans_expl_expl,
+        trans_expl_val=trans_expl_val,
+        trans_expl_broad=trans_expl_broad,
+        status=0,
+    )
+    db.session.add(client)
+    db.session.commit()
+
+    flash(f"HPC client '{name}' created successfully")
+
+    # Check if opinions annotation is present and redirect to opinion configuration
+    opinions_enabled = "opinions" in (
+        exp.annotations.split(",") if exp.annotations else []
+    )
+    if opinions_enabled:
+        return redirect(
+            url_for(
+                "clientsr.opinion_configuration", idexp=exp.idexp, client_id=client.id
+            )
+        )
+
+    return redirect(f"/admin/experiment_details/{exp.idexp}")
 
 
 @clientsr.route("/admin/create_client", methods=["POST"])
@@ -294,6 +921,18 @@ def create_client():
     descr = request.form.get("descr")
     exp_id = request.form.get("id_exp")
     population_id = request.form.get("population_id")
+
+    # Check if this is an HPC client
+    is_hpc = request.form.get("is_hpc") == "true"
+
+    # Check if LLM agents are enabled for this experiment
+    exp = Exps.query.filter_by(idexp=exp_id).first()
+
+    # For HPC clients, use simplified config generation
+    if is_hpc:
+        return create_hpc_client(exp, name, descr, population_id, request.form)
+
+    # Continue with standard client creation for non-HPC
     days = request.form.get("days")
     percentage_new_agents_iteration = request.form.get(
         "percentage_new_agents_iteration"
@@ -319,8 +958,6 @@ def create_client():
     vote = request.form.get("vote")
     share_link = request.form.get("share_link")
 
-    # Check if LLM agents are enabled for this experiment
-    exp = Exps.query.filter_by(idexp=exp_id).first()
     llm_agents_enabled = (
         exp.llm_agents_enabled if (exp and hasattr(exp, "llm_agents_enabled")) else True
     )
@@ -2002,13 +2639,24 @@ def opinion_configuration(idexp):
     else:
         exp_folder = exp.db_name.removeprefix("experiments_")
 
-    population_file = os.path.join(
-        writable_base,
-        "y_web",
-        "experiments",
-        exp_folder,
-        f"{population.name.replace(' ', '')}.json",
-    )
+    # For HPC experiments, look for client_{client.name}-{population.name}.json
+    # For standard experiments, look for {population.name}.json
+    if exp.simulator_type == "HPC":
+        population_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"{population.name.replace(' ', '')}.json",
+        )
+    else:
+        population_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"{population.name.replace(' ', '')}.json",
+        )
 
     # Load age classes from database to map individual ages to age groups
     age_classes = AgeClass.query.all()
@@ -2482,77 +3130,174 @@ def set_opinion_distributions():
         flash(f"Error saving population file: {str(e)}", "error")
         return redirect(url_for("experiments.experiment_details", uid=idexp))
 
-    # Update client configuration JSON with opinion dynamics settings
-    # Get opinion update rule from form
-    update_rule = request.form.get("update_rule", "bounded_confidence")
+    # Check if this is an HPC experiment
+    is_hpc = exp.simulator_type == "HPC" if hasattr(exp, "simulator_type") else False
 
-    # Build opinion dynamics configuration based on selected rule
-    opinion_dynamics = {"model_name": update_rule, "parameters": {}}
+    # Check if opinions are enabled for the experiment
+    annotations = (
+        {an.strip(): None for an in exp.annotations.split(",")}
+        if exp.annotations and exp.annotations.strip()
+        else {}
+    )
+    opinions_enabled = "opinions" in annotations
 
-    if update_rule == "bounded_confidence":
-        # Collect bounded confidence parameters
-        bc_epsilon = request.form.get("bc_epsilon", "0.25")
-        bc_mu = request.form.get("bc_mu", "0.5")
-        bc_theta = request.form.get("bc_theta", "0")
-        bc_cold_start = request.form.get("bc_cold_start", "neutral")
+    # Build opinion dynamics configuration for HPC clients
+    if is_hpc:
+        if opinions_enabled:
+            # Get opinion update rule from form
+            update_rule = request.form.get("update_rule", "bounded_confidence")
 
-        opinion_dynamics["parameters"] = {
-            "epsilon": float(bc_epsilon),
-            "mu": float(bc_mu),
-            "theta": float(bc_theta),
-            "cold_start": bc_cold_start,
-        }
-    elif update_rule == "llm_evaluation":
-        # Collect LLM evaluation parameters
-        llm_cold_start = request.form.get("llm_cold_start", "neutral")
-        llm_evaluation_scope = request.form.get(
-            "llm_evaluation_scope", "interlocutor_only"
+            # Build HPC-specific opinion dynamics configuration
+            opinion_dynamics = {"enabled": True, "model_name": update_rule}
+
+            if update_rule == "bounded_confidence":
+                # Collect bounded confidence parameters
+                bc_epsilon = request.form.get("bc_epsilon", "0.25")
+                bc_mu = request.form.get("bc_mu", "0.5")
+                bc_theta = request.form.get("bc_theta", "0.0")
+                bc_cold_start = request.form.get("bc_cold_start", "neutral")
+
+                opinion_dynamics["parameters"] = {
+                    "epsilon": float(bc_epsilon),
+                    "mu": float(bc_mu),
+                    "theta": float(bc_theta),
+                    "cold_start": bc_cold_start,
+                }
+            elif update_rule == "llm_evaluation":
+                # Collect LLM evaluation parameters
+                llm_cold_start = request.form.get("llm_cold_start", "neutral")
+                llm_evaluation_scope = request.form.get(
+                    "llm_evaluation_scope", "neighbors"
+                )
+
+                opinion_dynamics["note"] = (
+                    "Uses LLM-based opinion evaluation with natural language reasoning. Requires LLM agents."
+                )
+                opinion_dynamics["parameters"] = {
+                    "evaluation_scope": llm_evaluation_scope,
+                    "cold_start": llm_cold_start,
+                    "note": f"evaluation_scope='{llm_evaluation_scope}' considers opinions of followed users. cold_start='{llm_cold_start}' initializes new opinions at 0.5.",
+                }
+
+            # Add opinion groups from database
+            opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+            opinion_groups_dict = {}
+            for group in opinion_groups:
+                opinion_groups_dict[group.name.rstrip()] = [
+                    group.lower_bound,
+                    group.upper_bound,
+                ]
+
+            opinion_dynamics["opinion_groups"] = opinion_groups_dict
+        else:
+            # Opinion dynamics disabled for HPC
+            opinion_dynamics = {
+                "enabled": False,
+                "note": "Opinion dynamics disabled for this experiment. No opinion evolution occurs during simulation.",
+            }
+
+        # Load and update HPC client configuration JSON file
+        client_config_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"client_{client.name}-{population.name}.json",
         )
 
-        opinion_dynamics["parameters"] = {
-            "cold_start": llm_cold_start,
-            "evaluation_scope": llm_evaluation_scope,
-        }
+        if os.path.exists(client_config_file):
+            try:
+                with open(client_config_file, "r") as f:
+                    client_config = json.load(f)
 
-    # Add opinion groups from database
-    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-    opinion_groups_dict = {}
-    for group in opinion_groups:
-        opinion_groups_dict[group.name.rstrip()] = [
-            group.lower_bound,
-            group.upper_bound,
-        ]
+                # Add opinion_dynamics at root level for HPC clients
+                client_config["opinion_dynamics"] = opinion_dynamics
 
-    opinion_dynamics["opinion_groups"] = opinion_groups_dict
+                # Save updated configuration
+                with open(client_config_file, "w") as f:
+                    json.dump(client_config, f, indent=4)
 
-    # Load and update client configuration JSON file
-    client_config_file = os.path.join(
-        writable_base,
-        "y_web",
-        "experiments",
-        exp_folder,
-        f"client_{client.name}-{population.name}.json",
-    )
-
-    if os.path.exists(client_config_file):
-        try:
-            with open(client_config_file, "r") as f:
-                client_config = json.load(f)
-
-            # Add opinion_dynamics to simulation section
-            if "simulation" not in client_config:
-                client_config["simulation"] = {}
-
-            client_config["simulation"]["opinion_dynamics"] = opinion_dynamics
-
-            # Save updated configuration
-            with open(client_config_file, "w") as f:
-                json.dump(client_config, f, indent=4)
-
-            flash("Opinion dynamics configuration saved successfully.", "success")
-        except Exception as e:
-            flash(f"Error updating client configuration: {str(e)}", "warning")
+                flash("Opinion dynamics configuration saved successfully.", "success")
+            except Exception as e:
+                flash(f"Error updating client configuration: {str(e)}", "warning")
+        else:
+            flash(
+                f"Client configuration file not found: {client_config_file}", "warning"
+            )
     else:
-        flash(f"Client configuration file not found: {client_config_file}", "warning")
+        # Standard client configuration (original behavior)
+        # Get opinion update rule from form
+        update_rule = request.form.get("update_rule", "bounded_confidence")
+
+        # Build opinion dynamics configuration based on selected rule
+        opinion_dynamics = {"model_name": update_rule, "parameters": {}}
+
+        if update_rule == "bounded_confidence":
+            # Collect bounded confidence parameters
+            bc_epsilon = request.form.get("bc_epsilon", "0.25")
+            bc_mu = request.form.get("bc_mu", "0.5")
+            bc_theta = request.form.get("bc_theta", "0")
+            bc_cold_start = request.form.get("bc_cold_start", "neutral")
+
+            opinion_dynamics["parameters"] = {
+                "epsilon": float(bc_epsilon),
+                "mu": float(bc_mu),
+                "theta": float(bc_theta),
+                "cold_start": bc_cold_start,
+            }
+        elif update_rule == "llm_evaluation":
+            # Collect LLM evaluation parameters
+            llm_cold_start = request.form.get("llm_cold_start", "neutral")
+            llm_evaluation_scope = request.form.get(
+                "llm_evaluation_scope", "interlocutor_only"
+            )
+
+            opinion_dynamics["parameters"] = {
+                "cold_start": llm_cold_start,
+                "evaluation_scope": llm_evaluation_scope,
+            }
+
+        # Add opinion groups from database
+        opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+        opinion_groups_dict = {}
+        for group in opinion_groups:
+            opinion_groups_dict[group.name.rstrip()] = [
+                group.lower_bound,
+                group.upper_bound,
+            ]
+
+        opinion_dynamics["opinion_groups"] = opinion_groups_dict
+
+        # Load and update client configuration JSON file
+        client_config_file = os.path.join(
+            writable_base,
+            "y_web",
+            "experiments",
+            exp_folder,
+            f"client_{client.name}-{population.name}.json",
+        )
+
+        if os.path.exists(client_config_file):
+            try:
+                with open(client_config_file, "r") as f:
+                    client_config = json.load(f)
+
+                # Add opinion_dynamics to simulation section
+                if "simulation" not in client_config:
+                    client_config["simulation"] = {}
+
+                client_config["simulation"]["opinion_dynamics"] = opinion_dynamics
+
+                # Save updated configuration
+                with open(client_config_file, "w") as f:
+                    json.dump(client_config, f, indent=4)
+
+                flash("Opinion dynamics configuration saved successfully.", "success")
+            except Exception as e:
+                flash(f"Error updating client configuration: {str(e)}", "warning")
+        else:
+            flash(
+                f"Client configuration file not found: {client_config_file}", "warning"
+            )
 
     return redirect(url_for("experiments.experiment_details", uid=idexp))
