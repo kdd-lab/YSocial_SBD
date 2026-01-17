@@ -1645,9 +1645,7 @@ def start_hpc_server(exp):
     if "database_server.db" in exp.db_name:
         # Extract experiment uid from db_name path
         # db_name format: "experiments/uid/database_server.db"
-        config = os.path.join(
-            y_web_dir, exp.db_name.split("database_server.db")[0]
-        )
+        config = os.path.join(y_web_dir, exp.db_name.split("database_server.db")[0])
         exp_uid = exp.db_name.split(os.sep)[1]
     else:
         uid = exp.db_name.removeprefix("experiments_")
