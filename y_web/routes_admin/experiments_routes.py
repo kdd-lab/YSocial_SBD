@@ -5508,6 +5508,11 @@ def auto_create_groups():
             400,
         )
 
+    # Separate HPC and Standard experiments
+    # HPC experiments must be alone in their own groups
+    hpc_exps = [exp for exp in available_exps if exp.simulator_type == "HPC"]
+    standard_exps = [exp for exp in available_exps if exp.simulator_type != "HPC"]
+
     # Get current max order index
     max_order = (
         db.session.query(db.func.max(ExperimentScheduleGroup.order_index)).scalar() or 0
@@ -5517,8 +5522,35 @@ def auto_create_groups():
     created_groups = []
     group_num = 1
 
-    for i in range(0, len(available_exps), experiments_per_group):
-        group_exps = available_exps[i : i + experiments_per_group]
+    # First, create individual groups for each HPC experiment
+    for exp in hpc_exps:
+        group = ExperimentScheduleGroup(
+            name=f"Auto Group {max_order + group_num} (HPC)",
+            order_index=max_order + group_num,
+            is_completed=0,
+        )
+        db.session.add(group)
+        db.session.commit()
+
+        # Add HPC experiment to its own group
+        item = ExperimentScheduleItem(
+            group_id=group.id, experiment_id=exp.idexp, order_index=0
+        )
+        db.session.add(item)
+        db.session.commit()
+
+        created_groups.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "experiment_count": 1,
+            }
+        )
+        group_num += 1
+
+    # Then, create groups for Standard experiments
+    for i in range(0, len(standard_exps), experiments_per_group):
+        group_exps = standard_exps[i : i + experiments_per_group]
 
         # Create group
         group = ExperimentScheduleGroup(
