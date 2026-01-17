@@ -2570,6 +2570,10 @@ def prompts_hpc(uid):
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
     
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for('experiments.experiments'))
+    
     # Ensure this is an HPC experiment
     if experiment.simulator_type != "HPC":
         flash("This page is only for HPC experiments. Redirecting to standard prompts page.", "warning")
@@ -2582,7 +2586,8 @@ def prompts_hpc(uid):
     )
 
     # read the prompts file
-    prompts = json.load(open(prompts_path))
+    with open(prompts_path) as f:
+        prompts = json.load(f)
 
     return render_template("admin/prompts_hpc.html", experiment=experiment, prompts=prompts)
 
@@ -2631,6 +2636,10 @@ def update_prompts_hpc(uid):
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
     
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for('experiments.experiments'))
+    
     # Ensure this is an HPC experiment
     if experiment.simulator_type != "HPC":
         flash("This update is only for HPC experiments.", "error")
@@ -2643,7 +2652,8 @@ def update_prompts_hpc(uid):
     )
 
     # read the prompts file
-    prompts = json.load(open(prompts_filename))
+    with open(prompts_filename) as f:
+        prompts = json.load(f)
 
     # Update prompts based on form data
     # Handle persona_template
@@ -2682,7 +2692,8 @@ def update_prompts_hpc(uid):
             prompts[action]['user_template'] = request.form[user_key]
 
     # write the updated prompts
-    json.dump(prompts, open(prompts_filename, "w"), indent=2)
+    with open(prompts_filename, "w") as f:
+        json.dump(prompts, f, indent=2)
     
     flash("HPC prompts updated successfully!", "success")
 
