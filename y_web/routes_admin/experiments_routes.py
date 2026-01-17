@@ -1369,13 +1369,14 @@ def create_experiment():
     # copy the clean database to the experiments folder
     if platform_type == "microblogging" or platform_type == "forum":
         if db_type == "sqlite":
-            clean_db_source = get_resource_path(
-                os.path.join("data_schema", "database_clean_server.db")
-            )
-            shutil.copyfile(
-                clean_db_source,
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
-            )
+            if simulator_type == "Standard":
+                clean_db_source = get_resource_path(
+                    os.path.join("data_schema", "database_clean_server.db")
+                )
+                shutil.copyfile(
+                    clean_db_source,
+                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
+                )
         elif db_type == "postgresql":
             from urllib.parse import urlparse
 
