@@ -2014,14 +2014,16 @@ def stop_hpc_server(exp_id):
         # Get experiment folder path to clean up ray_config.log
         writable_base = get_writable_path()
         y_web_dir = os.path.join(writable_base, "y_web")
-        
+
         if "database_server.db" in exp.db_name:
             # db_name format: "experiments/uid/database_server.db"
-            exp_folder = os.path.join(y_web_dir, exp.db_name.split("database_server.db")[0])
+            exp_folder = os.path.join(
+                y_web_dir, exp.db_name.split("database_server.db")[0]
+            )
         else:
             uid = exp.db_name.removeprefix("experiments_")
             exp_folder = os.path.join(y_web_dir, "experiments", uid)
-        
+
         # Delete ray_config.log if present
         ray_config_log = os.path.join(exp_folder, "ray_config.log")
         if os.path.exists(ray_config_log):
