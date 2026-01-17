@@ -231,7 +231,7 @@ def pause_client(uid, idexp):
     # get client and experiment
     client = Client.query.filter_by(id=uid).first()
     exp = Exps.query.filter_by(idexp=idexp).first()
-    
+
     if exp.simulator_type == "HPC":
         stop_hpc_client(client)
     else:
@@ -255,7 +255,7 @@ def stop_client(uid, idexp):
     # get client and experiment
     client = Client.query.filter_by(id=uid).first()
     exp = Exps.query.filter_by(idexp=idexp).first()
-    
+
     if exp.simulator_type == "HPC":
         stop_hpc_client(client)
     else:
@@ -726,9 +726,9 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # Build agent population JSON
     import random
+    import uuid
 
     import faker
-    import uuid
 
     population_data = {"agents": []}
     for idx, agent in enumerate(agents):
