@@ -70,6 +70,7 @@ from y_web.models import (
 from y_web.utils import (
     start_client,
     start_server,
+    start_hpc_server,
     terminate_client,
     terminate_process_on_port,
     terminate_server_process,
@@ -1530,12 +1531,18 @@ def create_experiment():
             data_path=data_path,
         )
 
-    with open(
-        f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
-        "w",
-    ) as f:
-        json.dump(config, f, indent=4)
-
+    if simulator_type == "HPC":
+        with open(
+            f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}server_config.json",
+            "w",
+        ) as f:
+            json.dump(config, f, indent=4)
+    else:
+        with open(
+                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
+                "w",
+        ) as f:
+            json.dump(config, f, indent=4)
     # add the experiment to the database
 
     annotations = ""
@@ -2465,8 +2472,11 @@ def start_experiment(uid):
     )
     db.session.commit()
 
-    # start the yserver
-    start_server(exp)
+    if exp.simulator_type == "HPC":
+        start_hpc_server(exp)
+    else:
+        # start the yserver
+        start_server(exp)
 
     return experiment_details(uid)
 
