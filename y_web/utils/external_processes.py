@@ -1635,7 +1635,9 @@ def start_hpc_server(exp):
     # Get base path - this will be bundle location when frozen, repo root otherwise
     base_path = get_base_path()
     yserver_path = base_path
-    sys.path.append(os.path.join(yserver_path, "external", "YClient_v2")) # @todo: update with the real name YSimulator
+    sys.path.append(
+        os.path.join(yserver_path, "external", "YClient_v2")
+    )  # @todo: update with the real name YSimulator
 
     # Get writable path for experiments directory
     writable_base = get_writable_path()
