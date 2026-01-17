@@ -833,22 +833,27 @@ def get_thread(exp_id, post_id):
         except:
             profile_pic = ""
 
+    # Get shared post info safely - handle both int and UUID shared_from
+    if posts[0].shared_from == -1:
+        shared_from_info = -1
+    else:
+        shared_user = (
+            db.session.query(User_mgmt)
+            .join(Post, User_mgmt.id == Post.user_id)
+            .filter(Post.id == posts[0].shared_from)
+            .first()
+        )
+        shared_from_info = (
+            (posts[0].shared_from, shared_user.username)
+            if shared_user
+            else (posts[0].shared_from, "Unknown")
+        )
+
     discussion_tree = {
         "post": augment_text(posts[0].tweet, exp_id),
         "profile_pic": profile_pic,
         "image": image,
-        "shared_from": (
-            -1
-            if posts[0].shared_from == -1
-            else (
-                posts[0].shared_from,
-                db.session.query(User_mgmt)
-                .join(Post, User_mgmt.id == Post.user_id)
-                .filter(Post.id == posts[0].shared_from)
-                .first()
-                .username,
-            )
-        ),
+        "shared_from": shared_from_info,
         "post_id": posts[0].id,
         "author": user.username,
         "author_id": posts[0].user_id,
@@ -1059,23 +1064,28 @@ def __get_discussions(posts, username, page, exp_id):
             if len(topics) == 0:
                 topics = []
 
+            # Get shared post info safely - handle both int and UUID shared_from
+            if c.shared_from == -1:
+                shared_from_info = -1
+            else:
+                shared_user = (
+                    db.session.query(User_mgmt)
+                    .join(Post, User_mgmt.id == Post.user_id)
+                    .filter(Post.id == c.shared_from)
+                    .first()
+                )
+                shared_from_info = (
+                    (c.shared_from, shared_user.username)
+                    if shared_user
+                    else (c.shared_from, "Unknown")
+                )
+
             cms.append(
                 {
                     "post_id": c.id,
                     "profile_pic": profile_pic,
                     "author": author,
-                    "shared_from": (
-                        -1
-                        if c.shared_from == -1
-                        else (
-                            c.shared_from,
-                            db.session.query(User_mgmt)
-                            .join(Post, User_mgmt.id == Post.user_id)
-                            .filter(Post.id == c.shared_from)
-                            .first()
-                            .username,
-                        )
-                    ),
+                    "shared_from": shared_from_info,
                     "author_id": int(c.user_id),
                     "post": augment_text(text, exp_id),
                     "round": c.round,
@@ -1281,23 +1291,28 @@ def get_thread_reddit(exp_id, post_id):
             "source": Websites.query.filter_by(id=article.website_id).first().name,
         }
 
+    # Get shared post info safely - handle both int and UUID shared_from
+    if posts[0].shared_from == -1:
+        shared_from_info = -1
+    else:
+        shared_user = (
+            db.session.query(User_mgmt)
+            .join(Post, User_mgmt.id == Post.user_id)
+            .filter(Post.id == posts[0].shared_from)
+            .first()
+        )
+        shared_from_info = (
+            (posts[0].shared_from, shared_user.username)
+            if shared_user
+            else (posts[0].shared_from, "Unknown")
+        )
+
     discussion_tree = {
         "title": title,
         "post": processed_content,
         "profile_pic": profile_pic,
         "image": image,
-        "shared_from": (
-            -1
-            if posts[0].shared_from == -1
-            else (
-                posts[0].shared_from,
-                db.session.query(User_mgmt)
-                .join(Post, User_mgmt.id == Post.user_id)
-                .filter(Post.id == posts[0].shared_from)
-                .first()
-                .username,
-            )
-        ),
+        "shared_from": shared_from_info,
         "post_id": posts[0].id,
         "author": user.username,
         "author_id": posts[0].user_id,
