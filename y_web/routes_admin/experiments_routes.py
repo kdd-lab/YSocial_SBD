@@ -1930,6 +1930,29 @@ def experiment_details(uid):
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
 
+    # For HPC experiments, ensure the owner exists in user_mgmt table
+    # This is needed because HPC experiments use non-autoincrement IDs
+    if experiment and experiment.simulator_type == "HPC":
+        # Get the admin user who owns this experiment
+        owner_admin = Admin_users.query.filter_by(username=experiment.owner).first()
+        if owner_admin:
+            # Check if owner already exists in user_mgmt with their admin ID
+            existing_user = User_mgmt.query.filter_by(id=owner_admin.id).first()
+            if not existing_user:
+                # Create user_mgmt entry with admin user's ID
+                import time
+                owner_user = User_mgmt(
+                    id=owner_admin.id,  # Use admin user's ID (non-autoincrement for HPC)
+                    username=owner_admin.username,
+                    email=owner_admin.email or "",
+                    password="",  # Password not needed for HPC owner entry
+                    user_type="owner",
+                    joined_on=int(time.time()),
+                )
+                db.session.add(owner_user)
+                db.session.commit()
+                print(f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}")
+
     # get experiment populations along with population names and ids
     experiment_populations = (
         db.session.query(Population_Experiment, Population)
