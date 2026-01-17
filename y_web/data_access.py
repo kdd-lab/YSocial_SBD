@@ -95,7 +95,10 @@ def get_user_recent_posts(
     if page < 1:
         page = 1
 
-    username = User_mgmt.query.filter_by(id=user_id).first().username
+    # Get username safely - handle both int and UUID user_id
+    user = User_mgmt.query.filter_by(id=user_id).first()
+    username = user.username if user else "Unknown"
+    
     if mode == "recent":
         posts = (
             Post.query.filter_by(user_id=user_id, comment_to=-1).order_by(desc(Post.id))
@@ -190,18 +193,7 @@ def get_user_recent_posts(
                     "post_id": c.id,
                     "author": author,
                     "profile_pic": profile_pic,
-                    "shared_from": (
-                        -1
-                        if c.shared_from == -1
-                        else (
-                            c.shared_from,
-                            db.session.query(User_mgmt)
-                            .join(Post, User_mgmt.id == Post.user_id)
-                            .filter(Post.id == c.shared_from)
-                            .first()
-                            .username,
-                        )
-                    ),
+                    "shared_from": (lambda: -1 if c.shared_from == -1 else (lambda u: (c.shared_from, u.username) if u else (c.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == c.shared_from).first()))(),
                     "author_id": c.user_id,
                     "post": augment_text(text, exp_id),
                     "round": c.round,
@@ -276,21 +268,10 @@ def get_user_recent_posts(
                 "article": art,
                 "image": image,
                 "thread_id": post.thread_id,
-                "shared_from": (
-                    -1
-                    if post.shared_from == -1
-                    else (
-                        post.shared_from,
-                        db.session.query(User_mgmt)
-                        .join(Post, User_mgmt.id == Post.user_id)
-                        .filter(Post.id == post.shared_from)
-                        .first()
-                        .username,
-                    )
-                ),
+                "shared_from": (lambda: -1 if post.shared_from == -1 else (lambda u: (post.shared_from, u.username) if u else (post.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == post.shared_from).first()))(),
                 "post_id": post.id,
                 "profile_pic": profile_pic,
-                "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
+                "author": (lambda u: u.username if u else "Unknown")(User_mgmt.query.filter_by(id=post.user_id).first()),
                 "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
@@ -766,18 +747,7 @@ def get_posts_associated_to_hashtags(
                     "post_id": c.id,
                     "author": author,
                     "profile_pic": profile_pic,
-                    "shared_from": (
-                        -1
-                        if c.shared_from == -1
-                        else (
-                            c.shared_from,
-                            db.session.query(User_mgmt)
-                            .join(Post, User_mgmt.id == Post.user_id)
-                            .filter(Post.id == c.shared_from)
-                            .first()
-                            .username,
-                        )
-                    ),
+                    "shared_from": (lambda: -1 if c.shared_from == -1 else (lambda u: (c.shared_from, u.username) if u else (c.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == c.shared_from).first()))(),
                     "author_id": c.user_id,
                     "post": augment_text(c.tweet.split(":")[-1], exp_id),
                     "round": c.round,
@@ -853,20 +823,9 @@ def get_posts_associated_to_hashtags(
                 "image": image,
                 "profile_pic": profile_pic,
                 "thread_id": post.thread_id,
-                "shared_from": (
-                    -1
-                    if post.shared_from == -1
-                    else (
-                        post.shared_from,
-                        db.session.query(User_mgmt)
-                        .join(Post, User_mgmt.id == Post.user_id)
-                        .filter(Post.id == post.shared_from)
-                        .first()
-                        .username,
-                    )
-                ),
+                "shared_from": (lambda: -1 if post.shared_from == -1 else (lambda u: (post.shared_from, u.username) if u else (post.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == post.shared_from).first()))(),
                 "post_id": post.id,
-                "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
+                "author": (lambda u: u.username if u else "Unknown")(User_mgmt.query.filter_by(id=post.user_id).first()),
                 "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
@@ -964,18 +923,7 @@ def get_posts_associated_to_interest(
                     "post_id": c.id,
                     "author": author,
                     "profile_pic": profile_pic,
-                    "shared_from": (
-                        -1
-                        if c.shared_from == -1
-                        else (
-                            c.shared_from,
-                            db.session.query(User_mgmt)
-                            .join(Post, User_mgmt.id == Post.user_id)
-                            .filter(Post.id == c.shared_from)
-                            .first()
-                            .username,
-                        )
-                    ),
+                    "shared_from": (lambda: -1 if c.shared_from == -1 else (lambda u: (c.shared_from, u.username) if u else (c.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == c.shared_from).first()))(),
                     "author_id": c.user_id,
                     "post": augment_text(c.tweet.split(":")[-1], exp_id),
                     "round": c.round,
@@ -1047,20 +995,9 @@ def get_posts_associated_to_interest(
                 "image": image,
                 "profile_pic": profile_pic,
                 "thread_id": post.thread_id,
-                "shared_from": (
-                    -1
-                    if post.shared_from == -1
-                    else (
-                        post.shared_from,
-                        db.session.query(User_mgmt)
-                        .join(Post, User_mgmt.id == Post.user_id)
-                        .filter(Post.id == post.shared_from)
-                        .first()
-                        .username,
-                    )
-                ),
+                "shared_from": (lambda: -1 if post.shared_from == -1 else (lambda u: (post.shared_from, u.username) if u else (post.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == post.shared_from).first()))(),
                 "post_id": post.id,
-                "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
+                "author": (lambda u: u.username if u else "Unknown")(User_mgmt.query.filter_by(id=post.user_id).first()),
                 "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
@@ -1159,18 +1096,7 @@ def get_posts_associated_to_emotion(
                     "post_id": c.id,
                     "author": author,
                     "profile_pic": profile_pic,
-                    "shared_from": (
-                        -1
-                        if c.shared_from == -1
-                        else (
-                            c.shared_from,
-                            db.session.query(User_mgmt)
-                            .join(Post, User_mgmt.id == Post.user_id)
-                            .filter(Post.id == c.shared_from)
-                            .first()
-                            .username,
-                        )
-                    ),
+                    "shared_from": (lambda: -1 if c.shared_from == -1 else (lambda u: (c.shared_from, u.username) if u else (c.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == c.shared_from).first()))(),
                     "author_id": c.user_id,
                     "post": augment_text(c.tweet.split(":")[-1], exp_id),
                     "round": c.round,
@@ -1241,21 +1167,10 @@ def get_posts_associated_to_emotion(
                 "article": art,
                 "image": image,
                 "thread_id": post.thread_id,
-                "shared_from": (
-                    -1
-                    if post.shared_from == -1
-                    else (
-                        post.shared_from,
-                        db.session.query(User_mgmt)
-                        .join(Post, User_mgmt.id == Post.user_id)
-                        .filter(Post.id == post.shared_from)
-                        .first()
-                        .username,
-                    )
-                ),
+                "shared_from": (lambda: -1 if post.shared_from == -1 else (lambda u: (post.shared_from, u.username) if u else (post.shared_from, "Unknown"))(db.session.query(User_mgmt).join(Post, User_mgmt.id == Post.user_id).filter(Post.id == post.shared_from).first()))(),
                 "post_id": post.id,
                 "profile_pic": profile_pic,
-                "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
+                "author": (lambda u: u.username if u else "Unknown")(User_mgmt.query.filter_by(id=post.user_id).first()),
                 "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
