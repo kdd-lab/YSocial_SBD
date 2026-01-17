@@ -829,15 +829,20 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     with open(population_filename, "w") as f:
         json.dump(population_data, f, indent=4)
 
-    # Copy prompts.json into the experiment folder (same as standard)
-    if exp.platform_type == "microblogging":
-        prompts_src = get_resource_path(os.path.join("data_schema", "prompts.json"))
-        shutil.copyfile(prompts_src, f"{exp_dir}{os.sep}prompts.json")
-    elif exp.platform_type == "forum":
-        prompts_src = get_resource_path(
-            os.path.join("data_schema", "prompts_forum.json")
-        )
-        shutil.copyfile(prompts_src, f"{exp_dir}{os.sep}prompts.json")
+    # Copy prompts file into the experiment folder
+    # For HPC experiments, use prompts_hpc.json from data_schema and rename to prompts.json
+    # Check if prompts.json already exists to avoid overwriting
+    prompts_dest = f"{exp_dir}{os.sep}prompts.json"
+    
+    if not os.path.exists(prompts_dest):
+        if exp.platform_type == "microblogging":
+            prompts_src = get_resource_path(os.path.join("data_schema", "prompts_hpc.json"))
+            shutil.copyfile(prompts_src, prompts_dest)
+        elif exp.platform_type == "forum":
+            prompts_src = get_resource_path(
+                os.path.join("data_schema", "prompts_forum.json")
+            )
+            shutil.copyfile(prompts_src, prompts_dest)
 
     # Create population assignment if not exists
     pop_exp = Population_Experiment.query.filter_by(
