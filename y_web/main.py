@@ -277,7 +277,7 @@ def edit_profile(exp_id, user_id):
         enumerate=enumerate,
         username=user.username,
         len=len,
-        user_id=int(user_id),
+        user_id=user_id,
         logged_username=current_user.username,
         str=str,
         logged_id=current_user.id,
@@ -388,7 +388,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         posts, additional = get_suggested_posts("all", "", page, max_post_per_page)
 
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         recsys = user.recsys_type
 
         posts, additional = get_suggested_posts(
@@ -774,7 +774,7 @@ def get_friends(exp_id, user_id, page=1):
         enumerate=enumerate,
         len=len,
         logged_username=cu.username,
-        logged_id=int(cu.id),
+        logged_id=cu.id,
         user_id=user_id,
         number_followers=number_followers,
         number_followees=number_followees,
@@ -1550,7 +1550,7 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
             additional = None
 
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         recsys = user.recsys_type
         if feed_type == "top":
             posts_query = (
@@ -1691,7 +1691,7 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if user_id == "all":
         posts, additional = get_suggested_posts("all", "", page, max_post_per_page)
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         recsys = user.recsys_type
         posts, additional = get_suggested_posts(
             user_id, recsys, page, max_post_per_page
@@ -1714,7 +1714,7 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         "components/posts.html",
         items=res,
         enumerate=enumerate,
-        user_id=int(user_id) if user_id != "all" else current_user.id,
+        user_id=user_id if user_id != "all" else current_user.id,
         str=str,
         bool=bool,
         len=len,
@@ -1776,7 +1776,7 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
             additional = None
 
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         if feed_type == "top":
             posts_query = (
                 Post.query.filter(Post.user_id != user_id, Post.comment_to == -1)
@@ -1827,7 +1827,7 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
         "reddit/components/posts.html",
         items=res,
         enumerate=enumerate,
-        user_id=int(user_id) if user_id != "all" else current_user.id,
+        user_id=user_id if user_id != "all" else current_user.id,
         str=str,
         bool=bool,
         len=len,
