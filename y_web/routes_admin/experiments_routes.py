@@ -69,8 +69,8 @@ from y_web.models import (
 )
 from y_web.utils import (
     start_client,
-    start_server,
     start_hpc_server,
+    start_server,
     terminate_client,
     terminate_process_on_port,
     terminate_server_process,
@@ -1539,8 +1539,8 @@ def create_experiment():
             json.dump(config, f, indent=4)
     else:
         with open(
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
-                "w",
+            f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
+            "w",
         ) as f:
             json.dump(config, f, indent=4)
     # add the experiment to the database
