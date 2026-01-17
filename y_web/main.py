@@ -118,11 +118,17 @@ def profile():
     return redirect(f"/{exp.idexp}/profile/{user_id}/rf/1")
 
 
-@main.get("/<int:exp_id>/profile/<int:user_id>/<string:mode>/<int:page>")
+@main.get("/<int:exp_id>/profile/<user_id>/<string:mode>/<int:page>")
 @login_required
 def profile_logged(exp_id, user_id, page=1, mode="recent"):
     """Handle profile logged operation."""
-    user_id = int(user_id)
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     user = User_mgmt.query.get(user_id)
 
     is_following = (
@@ -235,10 +241,17 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
     )
 
 
-@main.get("/<int:exp_id>/edit_profile/<int:user_id>")
+@main.get("/<int:exp_id>/edit_profile/<user_id>")
 @login_required
 def edit_profile(exp_id, user_id):
     """Handle edit profile operation."""
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     profile_pic = ""
@@ -273,10 +286,17 @@ def edit_profile(exp_id, user_id):
     )
 
 
-@main.route("/<int:exp_id>/update_profile_data/<int:user_id>", methods=["POST"])
+@main.route("/<int:exp_id>/update_profile_data/<user_id>", methods=["POST"])
 @login_required
 def update_profile_data(exp_id, user_id):
     """Update profile data."""
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     user.email = request.form.get("email")
@@ -299,10 +319,17 @@ def update_profile_data(exp_id, user_id):
     return redirect(request.referrer)
 
 
-@main.route("/<int:exp_id>/update_password/<int:user_id>", methods=["POST"])
+@main.route("/<int:exp_id>/update_password/<user_id>", methods=["POST"])
 @login_required
 def update_password(exp_id, user_id):
     """Update password."""
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     npassword = request.form.get("new_password")
@@ -450,7 +477,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     )
 
 
-@main.get("/<int:exp_id>/hashtag_posts/<int:hashtag_id>/<int:page>")
+@main.get("/<int:exp_id>/hashtag_posts/<hashtag_id>/<int:page>")
 @login_required
 def get_post_hashtags(exp_id, hashtag_id, page=1):
     """
@@ -463,6 +490,12 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
     Returns:
         Rendered template with hashtag posts
     """
+    # Handle both int and UUID hashtag_id formats (Standard vs HPC experiments)
+    try:
+        hashtag_id = int(hashtag_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     res = get_posts_associated_to_hashtags(
         hashtag_id, page, per_page=10, current_user=current_user.id, exp_id=exp_id
     )
@@ -515,7 +548,7 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/interest/<int:interest_id>/<int:page>")
+@main.get("/<int:exp_id>/interest/<interest_id>/<int:page>")
 @login_required
 def get_post_interest(exp_id, interest_id, page=1):
     """
@@ -528,6 +561,12 @@ def get_post_interest(exp_id, interest_id, page=1):
     Returns:
         Rendered template with interest-related posts
     """
+    # Handle both int and UUID interest_id formats (Standard vs HPC experiments)
+    try:
+        interest_id = int(interest_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     res = get_posts_associated_to_interest(
         interest_id, page, per_page=10, current_user=current_user.id, exp_id=exp_id
     )
@@ -580,7 +619,7 @@ def get_post_interest(exp_id, interest_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/emotion/<int:emotion_id>/<int:page>")
+@main.get("/<int:exp_id>/emotion/<emotion_id>/<int:page>")
 @login_required
 def get_post_emotion(exp_id, emotion_id, page=1):
     """
@@ -593,6 +632,12 @@ def get_post_emotion(exp_id, emotion_id, page=1):
     Returns:
         Rendered template with emotion-tagged posts
     """
+    # Handle both int and UUID emotion_id formats (Standard vs HPC experiments)
+    try:
+        emotion_id = int(emotion_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     res = get_posts_associated_to_emotion(
         emotion_id, page, per_page=10, current_user=current_user.id, exp_id=exp_id
     )
@@ -646,7 +691,7 @@ def get_post_emotion(exp_id, emotion_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/friends/<int:user_id>/<int:page>")
+@main.get("/<int:exp_id>/friends/<user_id>/<int:page>")
 @login_required
 def get_friends(exp_id, user_id, page=1):
     """
@@ -659,6 +704,12 @@ def get_friends(exp_id, user_id, page=1):
     Returns:
         Rendered template showing followers and followees
     """
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     followers, followees, number_followers, number_followees = get_user_friends(
         user_id, limit=12, page=page
     )
@@ -734,11 +785,18 @@ def get_friends(exp_id, user_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/thread/<int:post_id>")
+@main.get("/<int:exp_id>/thread/<post_id>")
 @login_required
 def get_thread(exp_id, post_id):
     # get thread_id for post_id
     """Get thread."""
+    # Handle both int and UUID post_id formats (Standard vs HPC experiments)
+    try:
+        post_id = int(post_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -1159,11 +1217,18 @@ def __get_discussions(posts, username, page, exp_id):
 #### Thread
 
 
-@main.get("/<int:exp_id>/rthread/<int:post_id>")
+@main.get("/<int:exp_id>/rthread/<post_id>")
 @login_required
 def get_thread_reddit(exp_id, post_id):
     # get thread_id for post_id
     """Get thread reddit."""
+    # Handle both int and UUID post_id formats (Standard vs HPC experiments)
+    try:
+        post_id = int(post_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -1755,10 +1820,16 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/hashtag_posts/<int:hashtag_id>/<int:page>")
+@main.get("/<int:exp_id>/api/hashtag_posts/<hashtag_id>/<int:page>")
 @login_required
 def api_hashtag_posts(exp_id, hashtag_id, page=1):
     """
+    # Handle both int and UUID hashtag_id formats (Standard vs HPC experiments)
+    try:
+        hashtag_id = int(hashtag_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     API endpoint for infinite scrolling in hashtag posts.
 
     Returns rendered HTML for posts.
@@ -1778,10 +1849,16 @@ def api_hashtag_posts(exp_id, hashtag_id, page=1):
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/interest/<int:interest_id>/<int:page>")
+@main.get("/<int:exp_id>/api/interest/<interest_id>/<int:page>")
 @login_required
 def api_interest_posts(exp_id, interest_id, page=1):
     """
+    # Handle both int and UUID interest_id formats (Standard vs HPC experiments)
+    try:
+        interest_id = int(interest_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     API endpoint for infinite scrolling in interest posts.
 
     Returns rendered HTML for posts.
@@ -1801,10 +1878,16 @@ def api_interest_posts(exp_id, interest_id, page=1):
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/emotion/<int:emotion_id>/<int:page>")
+@main.get("/<int:exp_id>/api/emotion/<emotion_id>/<int:page>")
 @login_required
 def api_emotion_posts(exp_id, emotion_id, page=1):
     """
+    # Handle both int and UUID emotion_id formats (Standard vs HPC experiments)
+    try:
+        emotion_id = int(emotion_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     API endpoint for infinite scrolling in emotion posts.
 
     Returns rendered HTML for posts.
@@ -1828,7 +1911,7 @@ def api_emotion_posts(exp_id, emotion_id, page=1):
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/profile/<int:user_id>/<string:mode>/<int:page>")
+@main.get("/<int:exp_id>/api/profile/<user_id>/<string:mode>/<int:page>")
 @login_required
 def api_profile_posts(exp_id, user_id, page=1, mode="recent"):
     """
@@ -1836,6 +1919,13 @@ def api_profile_posts(exp_id, user_id, page=1, mode="recent"):
 
     Returns rendered HTML for posts.
     """
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+    
     rp = get_user_recent_posts(user_id, page, 10, mode, current_user.id, exp_id)
     html = render_template(
         "components/posts.html",
