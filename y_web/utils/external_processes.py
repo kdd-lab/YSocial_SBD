@@ -2043,6 +2043,183 @@ def stop_hpc_server(exp_id):
         return False
 
 
+def start_hpc_client(exp, cli, population):
+    """
+    Start an HPC client using subprocess.Popen.
+
+    This function launches an HPC client process for an experiment using the
+    run_client.py script from the external/YClient_v2 folder. The process PID
+    is stored in the database for later management and graceful termination.
+
+    Args:
+        exp: the experiment object
+        cli: the client object
+        population: the population object
+
+    Returns:
+        subprocess.Popen: The started process object
+    """
+    # Get base path - this will be bundle location when frozen, repo root otherwise
+    base_path = get_base_path()
+    
+    # Get writable path for experiments directory
+    writable_base = get_writable_path()
+    y_web_dir = os.path.join(writable_base, "y_web")
+    
+    # Construct experiment folder path
+    if "database_server.db" in exp.db_name:
+        # db_name format: "experiments/uid/database_server.db"
+        exp_folder = os.path.join(y_web_dir, exp.db_name.split("database_server.db")[0].rstrip('/\\'))
+    else:
+        uid = exp.db_name.removeprefix("experiments_")
+        exp_folder = os.path.join(y_web_dir, "experiments", uid)
+    
+    # Construct paths for config, agents, and prompts files
+    client_config = os.path.join(exp_folder, f"client_{cli.name}-{population.name}.json")
+    agents_file = os.path.join(exp_folder, f"{population.name}.json")
+    prompts_file = os.path.join(exp_folder, "prompts.json")
+    
+    # Validate that required files exist
+    for file_path, file_name in [(client_config, "client config"), (agents_file, "agents"), (prompts_file, "prompts")]:
+        if not Path(file_path).exists():
+            raise FileNotFoundError(
+                f"{file_name.capitalize()} file not found: {file_path}\n"
+                f"Please ensure the HPC experiment is properly configured."
+            )
+    
+    # Determine the script path based on platform type
+    if exp.platform_type == "microblogging":
+        script_path = os.path.join(base_path, "external", "YClient_v2", "run_client.py")
+    else:
+        raise NotImplementedError(f"Unsupported platform {exp.platform_type}")
+    
+    # Validate that script_path exists (skip check for PyInstaller bundles)
+    is_frozen = getattr(sys, "frozen", False)
+    has_meipass = hasattr(sys, "_MEIPASS")
+    is_bundle_exe = "python" not in Path(sys.executable).name.lower()
+    
+    if not (is_frozen or has_meipass or is_bundle_exe) and not Path(script_path).exists():
+        raise FileNotFoundError(
+            f"Client script not found: {script_path}\n"
+            f"Please ensure the YClient_v2 submodule is initialized.\n"
+            f"Run: git submodule update --init --recursive"
+        )
+    
+    # Get the Python executable to use
+    python_cmd = detect_env_handler()
+    
+    # Build the command
+    if is_frozen or has_meipass or is_bundle_exe:
+        # Running from PyInstaller bundle
+        cmd = [
+            sys.executable,
+            "--run-hpc-client-subprocess",
+            "--config", client_config,
+            "--agents", agents_file,
+            "--prompts", prompts_file,
+        ]
+    elif isinstance(python_cmd, str) and " " in python_cmd and not os.path.isabs(python_cmd):
+        # Handle commands like "pipenv run python"
+        cmd_parts = python_cmd.split()
+        cmd = cmd_parts + [script_path, "--config", client_config, "--agents", agents_file, "--prompts", prompts_file]
+    else:
+        # Simple python executable path (may contain spaces on Windows)
+        cmd = [python_cmd, script_path, "--config", client_config, "--agents", agents_file, "--prompts", prompts_file]
+    
+    print(f"Starting HPC client {cli.name} for experiment {exp.idexp}...")
+    print(f"Config: {client_config}")
+    print(f"Agents: {agents_file}")
+    print(f"Prompts: {prompts_file}")
+    
+    try:
+        # Start the process with Popen
+        if sys.platform.startswith("win"):
+            try:
+                creationflags = subprocess.CREATE_NO_WINDOW
+            except AttributeError:
+                creationflags = 0x08000000
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                creationflags=creationflags,
+            )
+        else:
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        print(f"HPC client process started with PID: {process.pid}")
+    except Exception as e:
+        print(f"Error starting HPC client process: {e}")
+        raise
+    
+    # Save the PID to the database for persistent tracking
+    cli.pid = process.pid
+    db.session.commit()
+    
+    return process
+
+
+def stop_hpc_client(cli):
+    """
+    Terminate an HPC client process using the PID stored in the database.
+
+    This function terminates an HPC client process that was started using the
+    start_hpc_client() function and has its PID stored in the database.
+    It handles graceful shutdown using SIGTERM, followed by SIGKILL if needed.
+    It clears the PID from the database after termination.
+
+    Args:
+        cli: the client object whose HPC client process should be terminated
+
+    Returns:
+        bool: True if process was found and terminated, False otherwise
+    """
+    try:
+        if not cli.pid:
+            print(f"No tracked HPC client process found for client {cli.name}")
+            return False
+
+        pid = cli.pid
+        print(f"Terminating HPC client process with PID {pid}...")
+
+        try:
+            # Try graceful termination first
+            os.kill(pid, signal.SIGTERM)
+
+            # Wait up to 5 seconds for graceful shutdown
+            for _ in range(50):  # 50 * 0.1s = 5 seconds
+                try:
+                    os.kill(pid, 0)  # Check if process still exists
+                    time.sleep(0.1)
+                except OSError:
+                    # Process no longer exists
+                    print(f"HPC client process {pid} terminated gracefully.")
+                    break
+            else:
+                # If we get here, process is still running after timeout
+                print(
+                    f"HPC client process {pid} did not terminate gracefully, forcing kill..."
+                )
+                __terminate_process(pid)
+                time.sleep(0.5)
+                print(f"HPC client process {pid} killed.")
+
+        except OSError as e:
+            # Process doesn't exist
+            print(f"HPC client process {pid} no longer exists: {e}")
+
+        # Clear PID from database
+        cli.pid = None
+        db.session.commit()
+        return True
+
+    except Exception as e:
+        print(f"Error terminating HPC client process: {e}")
+        return False
+
+
 def _register_server_with_watchdog(exp, pid, log_dir):
     """
     Register a server process with the watchdog for monitoring.

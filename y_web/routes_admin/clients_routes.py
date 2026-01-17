@@ -54,6 +54,8 @@ from y_web.utils import (
     get_llm_models,
     get_ollama_models,
     start_client,
+    start_hpc_client,
+    stop_hpc_client,
     terminate_client,
 )
 from y_web.utils.desktop_file_handler import send_file_desktop
@@ -173,7 +175,10 @@ def run_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    start_client(exp, client, population, resume=True)
+    if exp.simulator_type == "HPC":
+        start_hpc_client(exp, client, population)
+    else:
+        start_client(exp, client, population, resume=True)
 
     # set the population_experiment running_status
     db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
@@ -199,7 +204,10 @@ def resume_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    start_client(exp, client, population, resume=True)
+    if exp.simulator_type == "HPC":
+        start_hpc_client(exp, client, population)
+    else:
+        start_client(exp, client, population, resume=True)
 
     # set the population_experiment running_status
     db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
@@ -220,9 +228,14 @@ def pause_client(uid, idexp):
     db.session.query(Client).filter_by(id=uid).update({Client.status: 0})
     db.session.commit()
 
-    # get client
+    # get client and experiment
     client = Client.query.filter_by(id=uid).first()
-    terminate_client(client, pause=True)
+    exp = Exps.query.filter_by(idexp=idexp).first()
+    
+    if exp.simulator_type == "HPC":
+        stop_hpc_client(client)
+    else:
+        terminate_client(client, pause=True)
 
     return experiment_details(idexp)  # redirect(request.referrer)
 
@@ -239,9 +252,14 @@ def stop_client(uid, idexp):
     db.session.query(Client).filter_by(id=uid).update({Client.status: 0})
     db.session.commit()
 
-    # get client
+    # get client and experiment
     client = Client.query.filter_by(id=uid).first()
-    terminate_client(client, pause=False)
+    exp = Exps.query.filter_by(idexp=idexp).first()
+    
+    if exp.simulator_type == "HPC":
+        stop_hpc_client(client)
+    else:
+        terminate_client(client, pause=False)
 
     return experiment_details(idexp)  # redirect(request.referrer)
 

@@ -69,8 +69,10 @@ from y_web.models import (
 )
 from y_web.utils import (
     start_client,
+    start_hpc_client,
     start_hpc_server,
     start_server,
+    stop_hpc_client,
     stop_hpc_server,
     terminate_client,
     terminate_process_on_port,
@@ -2517,7 +2519,10 @@ def stop_experiment(uid):
                 print(
                     f"Stopping client {client.name} (ID: {client.id}, PID: {client.pid}) for experiment {uid}"
                 )
-                terminate_client(client, pause=False)
+                if exp.simulator_type == "HPC":
+                    stop_hpc_client(client)
+                else:
+                    terminate_client(client, pause=False)
 
             # Update client status in database
             client.status = 0
@@ -5028,7 +5033,10 @@ def start_schedule():
                         id=client.population_id
                     ).first()
                     if population:
-                        start_client(exp, client, population, resume=True)
+                        if exp.simulator_type == "HPC":
+                            start_hpc_client(exp, client, population)
+                        else:
+                            start_client(exp, client, population, resume=True)
                         # Mark client as running
                         client.status = 1
                         db.session.commit()
@@ -5092,7 +5100,10 @@ def stop_schedule():
                 for client in clients:
                     if client.status == 1:
                         if client.pid:
-                            terminate_client(client, pause=False)
+                            if exp.simulator_type == "HPC":
+                                stop_hpc_client(client)
+                            else:
+                                terminate_client(client, pause=False)
                         client.status = 0
                         db.session.commit()
 
@@ -5186,7 +5197,10 @@ def check_schedule_progress():
             for client in clients:
                 if client.status == 1:
                     if client.pid:
-                        terminate_client(client, pause=False)
+                        if exp.simulator_type == "HPC":
+                            stop_hpc_client(client)
+                        else:
+                            terminate_client(client, pause=False)
                     client.status = 0
                     db.session.commit()
 
@@ -5302,7 +5316,10 @@ def check_schedule_progress():
                         id=client.population_id
                     ).first()
                     if population:
-                        start_client(exp, client, population, resume=True)
+                        if exp.simulator_type == "HPC":
+                            start_hpc_client(exp, client, population)
+                        else:
+                            start_client(exp, client, population, resume=True)
                         client.status = 1
                         db.session.commit()
 

@@ -140,6 +140,24 @@ class TestExternalProcesses:
         except ImportError as e:
             pytest.skip(f"Required dependencies not installed: {e}")
 
+    def test_start_hpc_client_import(self):
+        """Test that start_hpc_client can be imported"""
+        try:
+            from y_web.utils.external_processes import start_hpc_client
+
+            assert callable(start_hpc_client)
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
+    def test_stop_hpc_client_import(self):
+        """Test that stop_hpc_client can be imported"""
+        try:
+            from y_web.utils.external_processes import stop_hpc_client
+
+            assert callable(stop_hpc_client)
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
     def test_get_server_process_status_import(self):
         """Test that get_server_process_status can be imported"""
         try:
