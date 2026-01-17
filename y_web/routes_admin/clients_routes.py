@@ -728,6 +728,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     import random
 
     import faker
+    import uuid
 
     population_data = {"agents": []}
     for idx, agent in enumerate(agents):
@@ -759,6 +760,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         )
 
         agent_data = {
+            "id": str(uuid.uuid4()),
             "name": agent.name,
             "email": f"{agent.name}@ysocial.it",
             "password": f"{agent.name}",
@@ -818,6 +820,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         )
 
         page_data = {
+            "id": str(uuid.uuid4()),
             "name": page.name,
             "email": f"{page.name}@ysocial.it",
             "password": f"{page.name}",
