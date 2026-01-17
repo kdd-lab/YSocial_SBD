@@ -520,6 +520,36 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 print(f"Error injecting blog post info: {e}")
         return dict(new_blog_post_available=False, blog_post=None)
 
+    # Add custom Jinja filter for user ID to image mapping
+    # This supports both int IDs (Standard experiments) and UUID IDs (HPC experiments)
+    @app.template_filter('user_image_id')
+    def user_image_id_filter(user_id):
+        """
+        Convert user ID to a consistent image ID for profile pictures.
+        
+        For integer IDs (Standard experiments): returns the ID as string
+        For UUID strings (HPC experiments): returns a hash-based consistent numeric ID as string
+        
+        Args:
+            user_id: User ID (int or UUID string)
+            
+        Returns:
+            String numeric ID for image filename (1-1000 range for UUIDs)
+        """
+        if user_id is None:
+            return '1'  # Default fallback
+        
+        # Try to use as integer (Standard experiments)
+        try:
+            return str(int(user_id))
+        except (ValueError, TypeError):
+            # UUID string (HPC experiments) - create consistent hash
+            import hashlib
+            # Use MD5 hash for consistent mapping
+            hash_value = int(hashlib.md5(str(user_id).encode()).hexdigest(), 16)
+            # Map to range 1-1000 for available profile images
+            return str((hash_value % 1000) + 1)
+
     # Register your blueprints here as before
     from .auth import auth as auth_blueprint
 
