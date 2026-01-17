@@ -2540,6 +2540,11 @@ def prompts(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+    
+    # Check if this is an HPC experiment and route to appropriate template
+    if experiment.simulator_type == "HPC":
+        return redirect(url_for('experiments.prompts_hpc', uid=uid))
+    
     # get the prompts file for the experiment
     prompts = os.path.join(
         BASE_DIR,
@@ -2550,6 +2555,36 @@ def prompts(uid):
     prompts = json.load(open(prompts))
 
     return render_template("admin/prompts.html", experiment=experiment, prompts=prompts)
+
+
+@experiments.route("/admin/prompts_hpc/<int:uid>")
+@login_required
+def prompts_hpc(uid):
+    """Handle HPC prompts operation."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # get experiment details
+    experiment = Exps.query.filter_by(idexp=uid).first()
+    
+    # Ensure this is an HPC experiment
+    if experiment.simulator_type != "HPC":
+        flash("This page is only for HPC experiments. Redirecting to standard prompts page.", "warning")
+        return redirect(url_for('experiments.prompts', uid=uid))
+    
+    # get the prompts file for the experiment
+    prompts_path = os.path.join(
+        BASE_DIR,
+        f"y_web{os.sep}experiments{os.sep}{experiment.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+    )
+
+    # read the prompts file
+    prompts = json.load(open(prompts_path))
+
+    return render_template("admin/prompts_hpc.html", experiment=experiment, prompts=prompts)
 
 
 @experiments.route("/admin/update_prompts/<int:uid>", methods=["POST"])
@@ -2579,6 +2614,77 @@ def update_prompts(uid):
 
     # write the updated prompts
     json.dump(prompts, open(prompts_filename, "w"), indent=4)
+
+    return redirect(request.referrer)
+
+
+@experiments.route("/admin/update_prompts_hpc/<int:uid>", methods=["POST"])
+@login_required
+def update_prompts_hpc(uid):
+    """Update HPC prompts."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # get experiment details
+    experiment = Exps.query.filter_by(idexp=uid).first()
+    
+    # Ensure this is an HPC experiment
+    if experiment.simulator_type != "HPC":
+        flash("This update is only for HPC experiments.", "error")
+        return redirect(request.referrer)
+    
+    # get the prompts file for the experiment
+    prompts_filename = os.path.join(
+        BASE_DIR,
+        f"y_web{os.sep}experiments{os.sep}{experiment.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+    )
+
+    # read the prompts file
+    prompts = json.load(open(prompts_filename))
+
+    # Update prompts based on form data
+    # Handle persona_template
+    if 'persona_template' in request.form:
+        prompts['persona_template'] = request.form['persona_template']
+    
+    # Handle personas (archetypes)
+    if 'personas' not in prompts:
+        prompts['personas'] = {}
+    if 'personas_0' in request.form:
+        prompts['personas']['0'] = request.form['personas_0']
+    if 'personas_1' in request.form:
+        prompts['personas']['1'] = request.form['personas_1']
+    if 'personas_2' in request.form:
+        prompts['personas']['2'] = request.form['personas_2']
+    
+    # Handle all action prompts (system_template and user_template pairs)
+    action_types = [
+        'generate_post', 'decide_reaction', 'generate_comment', 'generate_read_reaction',
+        'decide_search_action', 'generate_news_commentary', 'decide_follow',
+        'decide_secondary_follow', 'extract_article_topics', 'extract_emotions',
+        'describe_image', 'generate_image_commentary', 'infer_article_opinion',
+        'evaluate_opinion', 'generate_share_commentary'
+    ]
+    
+    for action in action_types:
+        if action not in prompts:
+            prompts[action] = {}
+        
+        system_key = f"{action}_system_template"
+        user_key = f"{action}_user_template"
+        
+        if system_key in request.form:
+            prompts[action]['system_template'] = request.form[system_key]
+        if user_key in request.form:
+            prompts[action]['user_template'] = request.form[user_key]
+
+    # write the updated prompts
+    json.dump(prompts, open(prompts_filename, "w"), indent=2)
+    
+    flash("HPC prompts updated successfully!", "success")
 
     return redirect(request.referrer)
 
