@@ -1070,6 +1070,11 @@ def __get_discussions(posts, username, page, exp_id):
         emotions = get_elicited_emotions(post.id)
         aa = User_mgmt.query.filter_by(id=post.user_id).first()
 
+        # Handle case where user doesn't exist
+        if aa is None:
+            # Skip this post if the author doesn't exist in user_mgmt
+            continue
+
         profile_pic = ""
         if aa.is_page == 1:
             pg = Page.query.filter_by(name=aa.username).first()
@@ -1092,26 +1097,35 @@ def __get_discussions(posts, username, page, exp_id):
         if len(topics) == 0:
             topics = []
 
+        # Get author username safely
+        author_user = User_mgmt.query.filter_by(id=post.user_id).first()
+        author_username = author_user.username if author_user else "Unknown"
+
+        # Get shared post info safely
+        if post.shared_from == -1:
+            shared_from_info = -1
+        else:
+            shared_user = (
+                db.session.query(User_mgmt)
+                .join(Post, User_mgmt.id == Post.user_id)
+                .filter(Post.id == post.shared_from)
+                .first()
+            )
+            shared_from_info = (
+                (post.shared_from, shared_user.username)
+                if shared_user
+                else (post.shared_from, "Unknown")
+            )
+
         res.append(
             {
                 "article": art,
                 "image": image,
                 "profile_pic": profile_pic,
                 "thread_id": post.thread_id,
-                "shared_from": (
-                    -1
-                    if post.shared_from == -1
-                    else (
-                        post.shared_from,
-                        db.session.query(User_mgmt)
-                        .join(Post, User_mgmt.id == Post.user_id)
-                        .filter(Post.id == post.shared_from)
-                        .first()
-                        .username,
-                    )
-                ),
+                "shared_from": shared_from_info,
                 "post_id": post.id,
-                "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
+                "author": author_username,
                 "author_id": int(post.user_id),
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
