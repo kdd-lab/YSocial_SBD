@@ -12,6 +12,7 @@ import pathlib
 import re
 import shutil
 import socket
+import time
 import uuid
 from collections import defaultdict
 
@@ -1940,7 +1941,6 @@ def experiment_details(uid):
             existing_user = User_mgmt.query.filter_by(id=owner_admin.id).first()
             if not existing_user:
                 # Create user_mgmt entry with admin user's ID
-                import time
                 owner_user = User_mgmt(
                     id=owner_admin.id,  # Use admin user's ID (non-autoincrement for HPC)
                     username=owner_admin.username,
@@ -1951,7 +1951,9 @@ def experiment_details(uid):
                 )
                 db.session.add(owner_user)
                 db.session.commit()
-                print(f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}")
+                current_app.logger.info(
+                    f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}"
+                )
 
     # get experiment populations along with population names and ids
     experiment_populations = (
