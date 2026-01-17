@@ -45,28 +45,28 @@
                                     <div class="box-line">
                                         <span class="left">Persona Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="persona_template" class="textarea">{{ prompts.get('persona_template', '') }}</textarea>
+                                            <textarea rows="3" name="persona_template" class="textarea">{{ prompts.persona_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Validator Persona</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="personas_0" class="textarea">{{ prompts.get('personas', {}).get('0', '') }}</textarea>
+                                            <textarea rows="2" name="personas_0" class="textarea">{{ prompts.personas['0']|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Broadcaster Persona</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="personas_1" class="textarea">{{ prompts.get('personas', {}).get('1', '') }}</textarea>
+                                            <textarea rows="2" name="personas_1" class="textarea">{{ prompts.personas['1']|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Explorer Persona</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="personas_2" class="textarea">{{ prompts.get('personas', {}).get('2', '') }}</textarea>
+                                            <textarea rows="2" name="personas_2" class="textarea">{{ prompts.personas['2']|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -79,14 +79,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="generate_post_system_template" class="textarea">{{ prompts.get('generate_post', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="generate_post_system_template" class="textarea">{{ prompts.generate_post.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="4" name="generate_post_user_template" class="textarea">{{ prompts.get('generate_post', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="4" name="generate_post_user_template" class="textarea">{{ prompts.generate_post.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -99,14 +99,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="decide_reaction_system_template" class="textarea">{{ prompts.get('decide_reaction', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="decide_reaction_system_template" class="textarea">{{ prompts.decide_reaction.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="decide_reaction_user_template" class="textarea">{{ prompts.get('decide_reaction', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="2" name="decide_reaction_user_template" class="textarea">{{ prompts.decide_reaction.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -119,14 +119,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="generate_comment_system_template" class="textarea">{{ prompts.get('generate_comment', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="generate_comment_system_template" class="textarea">{{ prompts.generate_comment.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="5" name="generate_comment_user_template" class="textarea">{{ prompts.get('generate_comment', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="5" name="generate_comment_user_template" class="textarea">{{ prompts.generate_comment.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -139,14 +139,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="generate_read_reaction_system_template" class="textarea">{{ prompts.get('generate_read_reaction', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="2" name="generate_read_reaction_system_template" class="textarea">{{ prompts.generate_read_reaction.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="7" name="generate_read_reaction_user_template" class="textarea">{{ prompts.get('generate_read_reaction', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="7" name="generate_read_reaction_user_template" class="textarea">{{ prompts.generate_read_reaction.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -159,14 +159,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="decide_search_action_system_template" class="textarea">{{ prompts.get('decide_search_action', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="2" name="decide_search_action_system_template" class="textarea">{{ prompts.decide_search_action.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="8" name="decide_search_action_user_template" class="textarea">{{ prompts.get('decide_search_action', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="8" name="decide_search_action_user_template" class="textarea">{{ prompts.decide_search_action.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -179,14 +179,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="generate_news_commentary_system_template" class="textarea">{{ prompts.get('generate_news_commentary', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="generate_news_commentary_system_template" class="textarea">{{ prompts.generate_news_commentary.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="5" name="generate_news_commentary_user_template" class="textarea">{{ prompts.get('generate_news_commentary', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="5" name="generate_news_commentary_user_template" class="textarea">{{ prompts.generate_news_commentary.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -199,28 +199,28 @@
                                     <div class="box-line">
                                         <span class="left">Decide Follow (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="1" name="decide_follow_system_template" class="textarea">{{ prompts.get('decide_follow', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="1" name="decide_follow_system_template" class="textarea">{{ prompts.decide_follow.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Decide Follow (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="decide_follow_user_template" class="textarea">{{ prompts.get('decide_follow', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="2" name="decide_follow_user_template" class="textarea">{{ prompts.decide_follow.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Decide Secondary Follow (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="1" name="decide_secondary_follow_system_template" class="textarea">{{ prompts.get('decide_secondary_follow', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="1" name="decide_secondary_follow_system_template" class="textarea">{{ prompts.decide_secondary_follow.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Decide Secondary Follow (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="decide_secondary_follow_user_template" class="textarea">{{ prompts.get('decide_secondary_follow', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="3" name="decide_secondary_follow_user_template" class="textarea">{{ prompts.decide_secondary_follow.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -233,49 +233,49 @@
                                     <div class="box-line">
                                         <span class="left">Extract Topics (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="extract_article_topics_system_template" class="textarea">{{ prompts.get('extract_article_topics', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="2" name="extract_article_topics_system_template" class="textarea">{{ prompts.extract_article_topics.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Extract Topics (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="extract_article_topics_user_template" class="textarea">{{ prompts.get('extract_article_topics', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="3" name="extract_article_topics_user_template" class="textarea">{{ prompts.extract_article_topics.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Extract Emotions (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="extract_emotions_system_template" class="textarea">{{ prompts.get('extract_emotions', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="extract_emotions_system_template" class="textarea">{{ prompts.extract_emotions.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Extract Emotions (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="extract_emotions_user_template" class="textarea">{{ prompts.get('extract_emotions', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="3" name="extract_emotions_user_template" class="textarea">{{ prompts.extract_emotions.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Infer Opinion (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="infer_article_opinion_system_template" class="textarea">{{ prompts.get('infer_article_opinion', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="2" name="infer_article_opinion_system_template" class="textarea">{{ prompts.infer_article_opinion.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Infer Opinion (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="6" name="infer_article_opinion_user_template" class="textarea">{{ prompts.get('infer_article_opinion', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="6" name="infer_article_opinion_user_template" class="textarea">{{ prompts.infer_article_opinion.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Evaluate Opinion (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="evaluate_opinion_system_template" class="textarea">{{ prompts.get('evaluate_opinion', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="2" name="evaluate_opinion_system_template" class="textarea">{{ prompts.evaluate_opinion.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -288,28 +288,28 @@
                                     <div class="box-line">
                                         <span class="left">Describe Image (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="describe_image_system_template" class="textarea">{{ prompts.get('describe_image', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="2" name="describe_image_system_template" class="textarea">{{ prompts.describe_image.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Describe Image (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="2" name="describe_image_user_template" class="textarea">{{ prompts.get('describe_image', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="2" name="describe_image_user_template" class="textarea">{{ prompts.describe_image.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Image Commentary (System)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="generate_image_commentary_system_template" class="textarea">{{ prompts.get('generate_image_commentary', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="generate_image_commentary_system_template" class="textarea">{{ prompts.generate_image_commentary.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">Image Commentary (User)</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="5" name="generate_image_commentary_user_template" class="textarea">{{ prompts.get('generate_image_commentary', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="5" name="generate_image_commentary_user_template" class="textarea">{{ prompts.generate_image_commentary.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
@@ -322,14 +322,14 @@
                                     <div class="box-line">
                                         <span class="left">System Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="3" name="generate_share_commentary_system_template" class="textarea">{{ prompts.get('generate_share_commentary', {}).get('system_template', '') }}</textarea>
+                                            <textarea rows="3" name="generate_share_commentary_system_template" class="textarea">{{ prompts.generate_share_commentary.system_template|default('') }}</textarea>
                                         </span>
                                     </div>
                                     
                                     <div class="box-line">
                                         <span class="left">User Template</span>
                                         <span class="right" style="width: 70%;">
-                                            <textarea rows="5" name="generate_share_commentary_user_template" class="textarea">{{ prompts.get('generate_share_commentary', {}).get('user_template', '') }}</textarea>
+                                            <textarea rows="5" name="generate_share_commentary_user_template" class="textarea">{{ prompts.generate_share_commentary.user_template|default('') }}</textarea>
                                         </span>
                                     </div>
 
