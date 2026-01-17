@@ -400,6 +400,7 @@ def change_active_experiment(exp_id):
 
                 if user is None:
                     new_user = User_mgmt(
+                        id=current_user,
                         email=current_user.email,
                         username=current_user.username,
                         password=current_user.password,
@@ -1938,7 +1939,7 @@ def experiment_details(uid):
         owner_admin = Admin_users.query.filter_by(username=experiment.owner).first()
         if owner_admin:
             # Check if owner already exists in user_mgmt with their admin ID
-            existing_user = User_mgmt.query.filter_by(id=owner_admin.id).first()
+            existing_user = User_mgmt.query.filter_by(username=owner_admin.username).first()
             if not existing_user:
                 # Create user_mgmt entry with admin user's ID
                 owner_user = User_mgmt(
