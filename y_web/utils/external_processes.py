@@ -1966,7 +1966,8 @@ def stop_hpc_server(exp_id):
     This function terminates an HPC server process that was started using the
     start_hpc_server() function and has its PID stored in the database.
     It handles graceful shutdown using SIGTERM, followed by SIGKILL if needed.
-    It clears the PID from the database after termination.
+    It clears the PID from the database after termination and removes the
+    ray_config.log file if present.
 
     Args:
         exp_id: the experiment ID whose HPC server process should be terminated
@@ -2009,6 +2010,26 @@ def stop_hpc_server(exp_id):
         except OSError as e:
             # Process doesn't exist
             print(f"HPC server process {pid} no longer exists: {e}")
+
+        # Get experiment folder path to clean up ray_config.log
+        writable_base = get_writable_path()
+        y_web_dir = os.path.join(writable_base, "y_web")
+        
+        if "database_server.db" in exp.db_name:
+            # db_name format: "experiments/uid/database_server.db"
+            exp_folder = os.path.join(y_web_dir, exp.db_name.split("database_server.db")[0])
+        else:
+            uid = exp.db_name.removeprefix("experiments_")
+            exp_folder = os.path.join(y_web_dir, "experiments", uid)
+        
+        # Delete ray_config.log if present
+        ray_config_log = os.path.join(exp_folder, "ray_config.log")
+        if os.path.exists(ray_config_log):
+            try:
+                os.remove(ray_config_log)
+                print(f"Removed ray_config.log from {exp_folder}")
+            except Exception as e:
+                print(f"Warning: Could not remove ray_config.log: {e}")
 
         # Clear PID from database
         exp.server_pid = None
