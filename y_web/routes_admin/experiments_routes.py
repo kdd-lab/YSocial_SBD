@@ -71,6 +71,7 @@ from y_web.utils import (
     start_client,
     start_hpc_server,
     start_server,
+    stop_hpc_server,
     terminate_client,
     terminate_process_on_port,
     terminate_server_process,
@@ -2524,7 +2525,10 @@ def stop_experiment(uid):
     # Step 3: Now stop the yserver after all clients are terminated
     # Try the new subprocess-based termination first
     # If that fails or no process is tracked, fall back to port-based termination
-    terminated = terminate_server_process(uid)
+    if exp.simulator_type == "HPC":
+        terminated = stop_hpc_server(uid)
+    else:
+        terminated = terminate_server_process(uid)
     if not terminated:
         # Fallback to port-based termination for backward compatibility
         terminate_process_on_port(exp.port)
@@ -5092,7 +5096,10 @@ def stop_schedule():
                         db.session.commit()
 
                 # Stop server
-                terminated = terminate_server_process(exp.idexp)
+                if exp.simulator_type == "HPC":
+                    terminated = stop_hpc_server(exp.idexp)
+                else:
+                    terminated = terminate_server_process(exp.idexp)
                 if not terminated:
                     terminate_process_on_port(exp.port)
 
@@ -5183,7 +5190,10 @@ def check_schedule_progress():
                     db.session.commit()
 
             # Stop server
-            terminated = terminate_server_process(exp.idexp)
+            if exp.simulator_type == "HPC":
+                terminated = stop_hpc_server(exp.idexp)
+            else:
+                terminated = terminate_server_process(exp.idexp)
             if not terminated:
                 terminate_process_on_port(exp.port)
 

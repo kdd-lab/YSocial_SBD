@@ -1959,6 +1959,67 @@ def start_hpc_server(exp):
     return process
 
 
+def stop_hpc_server(exp_id):
+    """
+    Terminate an HPC server process using the PID stored in the database.
+
+    This function terminates an HPC server process that was started using the
+    start_hpc_server() function and has its PID stored in the database.
+    It handles graceful shutdown using SIGTERM, followed by SIGKILL if needed.
+    It clears the PID from the database after termination.
+
+    Args:
+        exp_id: the experiment ID whose HPC server process should be terminated
+
+    Returns:
+        bool: True if process was found and terminated, False otherwise
+    """
+    try:
+        # Get experiment from database
+        exp = db.session.query(Exps).filter_by(idexp=exp_id).first()
+        if not exp or not exp.server_pid:
+            print(f"No tracked HPC server process found for experiment {exp_id}")
+            return False
+
+        pid = exp.server_pid
+        print(f"Terminating HPC server process with PID {pid}...")
+
+        try:
+            # Try graceful termination first
+            os.kill(pid, signal.SIGTERM)
+
+            # Wait up to 5 seconds for graceful shutdown
+            for _ in range(50):  # 50 * 0.1s = 5 seconds
+                try:
+                    os.kill(pid, 0)  # Check if process still exists
+                    time.sleep(0.1)
+                except OSError:
+                    # Process no longer exists
+                    print(f"HPC server process {pid} terminated gracefully.")
+                    break
+            else:
+                # If we get here, process is still running after timeout
+                print(
+                    f"HPC server process {pid} did not terminate gracefully, forcing kill..."
+                )
+                __terminate_process(pid)
+                time.sleep(0.5)
+                print(f"HPC server process {pid} killed.")
+
+        except OSError as e:
+            # Process doesn't exist
+            print(f"HPC server process {pid} no longer exists: {e}")
+
+        # Clear PID from database
+        exp.server_pid = None
+        db.session.commit()
+        return True
+
+    except Exception as e:
+        print(f"Error terminating HPC server process: {e}")
+        return False
+
+
 def _register_server_with_watchdog(exp, pid, log_dir):
     """
     Register a server process with the watchdog for monitoring.
