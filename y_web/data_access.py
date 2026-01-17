@@ -95,17 +95,17 @@ def get_user_recent_posts(
     if page < 1:
         page = 1
 
-    username = User_mgmt.query.filter_by(id=int(user_id)).first().username
+    username = User_mgmt.query.filter_by(id=user_id).first().username
     if mode == "recent":
         posts = (
-            Post.query.filter_by(user_id=int(user_id), comment_to=-1).order_by(
+            Post.query.filter_by(user_id=user_id, comment_to=-1).order_by(
                 desc(Post.id)
             )
         ).paginate(page=page, per_page=per_page, error_out=False)
     elif mode == "comments":
         posts = (
             Post.query.filter(
-                Post.user_id == int(user_id), Post.comment_to != -1
+                Post.user_id == user_id, Post.comment_to != -1
             ).order_by(desc(Post.id))
         ).paginate(page=page, per_page=per_page, error_out=False)
 
@@ -113,14 +113,14 @@ def get_user_recent_posts(
         # get posts liked by the user
         posts = (
             Post.query.join(Reactions, Reactions.post_id == Post.id)
-            .filter(Reactions.type == "like", Reactions.user_id == int(user_id))
+            .filter(Reactions.type == "like", Reactions.user_id == user_id)
             .order_by(desc(Post.id))
         ).paginate(page=page, per_page=per_page, error_out=False)
 
     elif mode == "disliked":
         posts = (
             Post.query.join(Reactions, Reactions.post_id == Post.id)
-            .filter(Reactions.type == "dislike", Reactions.user_id == int(user_id))
+            .filter(Reactions.type == "dislike", Reactions.user_id == user_id)
             .order_by(desc(Post.id))
         ).paginate(page=page, per_page=per_page, error_out=False)
 
@@ -128,14 +128,14 @@ def get_user_recent_posts(
         # get all posts of user_id having shared_from is not -1
         posts = (
             Post.query.filter(
-                Post.user_id == int(user_id), Post.shared_from != -1
+                Post.user_id == user_id, Post.shared_from != -1
             ).order_by(desc(Post.id))
         ).paginate(page=page, per_page=per_page, error_out=False)
 
     else:
         # get the user posts with the most reactions
         posts = (
-            Post.query.filter_by(user_id=int(user_id), comment_to=-1)
+            Post.query.filter_by(user_id=user_id, comment_to=-1)
             .join(Reactions, Post.id == Reactions.post_id)
             .add_columns(func.count(Reactions.id).label("count"))
             .group_by(Post.id)
@@ -204,7 +204,7 @@ def get_user_recent_posts(
                             .username,
                         )
                     ),
-                    "author_id": int(c.user_id),
+                    "author_id": c.user_id,
                     "post": augment_text(text, exp_id),
                     "round": c.round,
                     "day": Rounds.query.filter_by(id=c.round).first().day,
@@ -225,7 +225,7 @@ def get_user_recent_posts(
                     is None,
                     "is_shared": len(Post.query.filter_by(shared_from=c.id).all()),
                     "emotions": emotions,
-                    "topics": get_topics(post.thread_id, int(post.user_id)),
+                    "topics": get_topics(post.thread_id, post.user_id),
                 }
             )
 
@@ -293,7 +293,7 @@ def get_user_recent_posts(
                 "post_id": post.id,
                 "profile_pic": profile_pic,
                 "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
-                "author_id": int(post.user_id),
+                "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
                 "day": day,
@@ -318,7 +318,7 @@ def get_user_recent_posts(
                 "comments": cms,
                 "t_comments": len(cms),
                 "emotions": emotions,
-                "topics": get_topics(post.id, int(post.user_id)),
+                "topics": get_topics(post.id, post.user_id),
             }
         )
 
@@ -585,7 +585,7 @@ def get_trending_emotions(limit=10, window=120):
 
     # get current round
     last_round_obj = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round = last_round_obj.id if last_round_obj else 0
+    last_round = __compute_last_round(last_round_obj) #last_round_obj.id if last_round_obj else 0
 
     # get the trending emotions
     em = (
@@ -607,6 +607,20 @@ def get_trending_emotions(limit=10, window=120):
 
     return em
 
+def __compute_last_round(last_round_obj):
+    """Compute the last round number from the last round object.
+
+    Args:
+        last_round_obj: Rounds object
+    Returns:
+    if last_round_obj is None:
+        return 0
+    """
+    if last_round_obj is None:
+        return 0
+    round = last_round_obj.day * 24 + last_round_obj.hour
+    return round
+
 
 def get_trending_hashtags(limit=10, window=120):
     """Get the trending hashtags.
@@ -620,7 +634,9 @@ def get_trending_hashtags(limit=10, window=120):
     # get current round
 
     last_round_obj = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round = last_round_obj.id if last_round_obj else 0
+    last_round = __compute_last_round(last_round_obj) #.id if last_round_obj else 0
+
+
 
     ht = (
         db.session.query(
@@ -662,7 +678,7 @@ def get_trending_topics(limit=10, window=120):
     """
     # get current round
     last_round_obj = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round = last_round_obj.id if last_round_obj else 0
+    last_round = __compute_last_round(last_round_obj) #last_round_obj.id if last_round_obj else 0
 
     # query trending topics
     tp = (
@@ -761,7 +777,7 @@ def get_posts_associated_to_hashtags(
                             .username,
                         )
                     ),
-                    "author_id": int(c.user_id),
+                    "author_id": c.user_id,
                     "post": augment_text(c.tweet.split(":")[-1], exp_id),
                     "round": c.round,
                     "day": Rounds.query.filter_by(id=c.round).first().day,
@@ -850,7 +866,7 @@ def get_posts_associated_to_hashtags(
                 ),
                 "post_id": post.id,
                 "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
-                "author_id": int(post.user_id),
+                "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
                 "day": day,
@@ -875,7 +891,7 @@ def get_posts_associated_to_hashtags(
                 "comments": cms,
                 "t_comments": len(cms),
                 "emotions": emotions,
-                "topics": get_topics(post.id, int(post.user_id)),
+                "topics": get_topics(post.id, post.user_id),
             }
         )
 
@@ -959,7 +975,7 @@ def get_posts_associated_to_interest(
                             .username,
                         )
                     ),
-                    "author_id": int(c.user_id),
+                    "author_id": c.user_id,
                     "post": augment_text(c.tweet.split(":")[-1], exp_id),
                     "round": c.round,
                     "day": Rounds.query.filter_by(id=c.round).first().day,
@@ -1044,7 +1060,7 @@ def get_posts_associated_to_interest(
                 ),
                 "post_id": post.id,
                 "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
-                "author_id": int(post.user_id),
+                "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
                 "day": day,
@@ -1069,7 +1085,7 @@ def get_posts_associated_to_interest(
                 "comments": cms,
                 "t_comments": len(cms),
                 "emotions": emotions,
-                "topics": get_topics(post.id, int(post.user_id)),
+                "topics": get_topics(post.id, ost.user_id),
             }
         )
 
@@ -1154,7 +1170,7 @@ def get_posts_associated_to_emotion(
                             .username,
                         )
                     ),
-                    "author_id": int(c.user_id),
+                    "author_id": c.user_id,
                     "post": augment_text(c.tweet.split(":")[-1], exp_id),
                     "round": c.round,
                     "day": Rounds.query.filter_by(id=c.round).first().day,
@@ -1239,7 +1255,7 @@ def get_posts_associated_to_emotion(
                 "post_id": post.id,
                 "profile_pic": profile_pic,
                 "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
-                "author_id": int(post.user_id),
+                "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
                 "day": day,
@@ -1264,7 +1280,7 @@ def get_posts_associated_to_emotion(
                 "comments": cms,
                 "t_comments": len(cms),
                 "emotions": emotions,
-                "topics": get_topics(post.id, int(post.user_id)),
+                "topics": get_topics(post.id, post.user_id),
             }
         )
 
@@ -1283,7 +1299,7 @@ def get_user_recent_interests(user_id, limit=5):
         List of tuples containing (interest_name, interest_id, engagement_count)
     """
     last_round = Rounds.query.order_by(desc(Rounds.id)).first()
-    last_round_id = last_round.id if last_round else 0
+    last_round_id = __compute_last_round(last_round) #last_round.id if last_round else 0
 
     interests = (
         db.session.query(
