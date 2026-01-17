@@ -1278,6 +1278,8 @@ def get_topics(post_id, user_id):
     """
 
     post = Post.query.filter_by(id=post_id).first()
+    if post is None:
+        return []
     if post.image_id is not None:
         return []
 
