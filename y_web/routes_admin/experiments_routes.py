@@ -2307,7 +2307,9 @@ def experiment_trends(exp_id):
             # Update client metrics if log file exists
             if os.path.exists(client_log_file):
                 try:
-                    update_client_log_metrics(exp_id, client.id, client_log_file)
+                    # Pass is_hpc flag for HPC experiments to use correct log format
+                    is_hpc = experiment.simulator_type == "HPC"
+                    update_client_log_metrics(exp_id, client.id, client_log_file, is_hpc=is_hpc)
                 except Exception as e:
                     current_app.logger.error(
                         f"Error updating client {client.id} log metrics: {e}",
@@ -2428,7 +2430,9 @@ def client_logs(client_id):
 
         # Update client metrics incrementally
         try:
-            update_client_log_metrics(experiment.idexp, client_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_client_log_metrics(experiment.idexp, client_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             current_app.logger.error(
                 f"Error updating client log metrics: {e}", exc_info=True

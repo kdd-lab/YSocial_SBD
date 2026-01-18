@@ -315,7 +315,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
     return new_offset, {"daily": daily_data, "hourly": hourly_data}
 
 
-def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=0):
+def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=0, is_hpc=False):
     """
     Parse client log file incrementally from a given offset.
 
@@ -324,6 +324,7 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
         exp_id: Experiment ID
         client_id: Client ID
         start_offset: Byte offset to start reading from
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         tuple: (new_offset, metrics_dict)
@@ -354,23 +355,56 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                 try:
                     log_entry = json.loads(line)
 
-                    method_name = log_entry.get("method_name", "unknown")
-                    execution_time = float(log_entry.get("execution_time_seconds", 0))
-                    day = log_entry.get("day")
-                    hour = log_entry.get("hour")
+                    if is_hpc:
+                        # HPC format: use only "hourly" summary entries
+                        # Format: {"time": "...", "summary_type": "hourly", "day": 1, "slot": 8, 
+                        #          "total_actions": 1, "total_execution_time_seconds": 0.0246, 
+                        #          "actions_by_method": {"follow": 1}}
+                        if log_entry.get("summary_type") != "hourly":
+                            continue
+                        
+                        day = log_entry.get("day")
+                        hour = log_entry.get("slot")  # HPC uses "slot" for hour
+                        total_execution_time = float(log_entry.get("total_execution_time_seconds", 0))
+                        actions_by_method = log_entry.get("actions_by_method", {})
+                        
+                        # Process each action method
+                        for method_name, count in actions_by_method.items():
+                            # Aggregate by day
+                            if day is not None:
+                                daily_data[day][method_name]["count"] += count
+                                # Distribute execution time proportionally across methods
+                                if actions_by_method:
+                                    method_time = total_execution_time * (count / sum(actions_by_method.values()))
+                                    daily_data[day][method_name]["execution_time"] += method_time
 
-                    # Aggregate by day
-                    if day is not None:
-                        daily_data[day][method_name]["count"] += 1
-                        daily_data[day][method_name]["execution_time"] += execution_time
+                            # Aggregate by day-hour
+                            if day is not None and hour is not None:
+                                key = f"{day}-{hour}"
+                                hourly_data[key][method_name]["count"] += count
+                                # Distribute execution time proportionally across methods
+                                if actions_by_method:
+                                    method_time = total_execution_time * (count / sum(actions_by_method.values()))
+                                    hourly_data[key][method_name]["execution_time"] += method_time
+                    else:
+                        # Standard format: individual log entries per method call
+                        method_name = log_entry.get("method_name", "unknown")
+                        execution_time = float(log_entry.get("execution_time_seconds", 0))
+                        day = log_entry.get("day")
+                        hour = log_entry.get("hour")
 
-                    # Aggregate by day-hour
-                    if day is not None and hour is not None:
-                        key = f"{day}-{hour}"
-                        hourly_data[key][method_name]["count"] += 1
-                        hourly_data[key][method_name][
-                            "execution_time"
-                        ] += execution_time
+                        # Aggregate by day
+                        if day is not None:
+                            daily_data[day][method_name]["count"] += 1
+                            daily_data[day][method_name]["execution_time"] += execution_time
+
+                        # Aggregate by day-hour
+                        if day is not None and hour is not None:
+                            key = f"{day}-{hour}"
+                            hourly_data[key][method_name]["count"] += 1
+                            hourly_data[key][method_name][
+                                "execution_time"
+                            ] += execution_time
 
                 except json.JSONDecodeError:
                     # Skip invalid JSON lines
@@ -564,7 +598,7 @@ def update_server_log_metrics(exp_id, log_file_path):
         return False
 
 
-def update_client_log_metrics(exp_id, client_id, log_file_path):
+def update_client_log_metrics(exp_id, client_id, log_file_path, is_hpc=False):
     """
     Update client log metrics by reading new log entries.
 
@@ -576,6 +610,7 @@ def update_client_log_metrics(exp_id, client_id, log_file_path):
         exp_id: Experiment ID
         client_id: Client ID
         log_file_path: Full path to the client log file
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         bool: True if successful, False otherwise
@@ -607,7 +642,7 @@ def update_client_log_metrics(exp_id, client_id, log_file_path):
 
         # Parse log file incrementally
         new_offset, metrics = parse_client_log_incremental(
-            log_file_path, exp_id, client_id, last_offset
+            log_file_path, exp_id, client_id, last_offset, is_hpc=is_hpc
         )
 
         # Update offset
