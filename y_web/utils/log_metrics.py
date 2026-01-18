@@ -357,9 +357,9 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
 
                     if is_hpc:
                         # HPC format: use only "hourly" summary entries
-                        # Format: {"time": "...", "summary_type": "hourly", "day": 1, "slot": 8, 
-                        #          "total_actions": 1, "total_execution_time_seconds": 0.0246, 
-                        #          "actions_by_method": {"follow": 1}}
+                        # Format: {"time": "...", "summary_type": "hourly", "day": 1, "slot": 8,
+                        #          "total_execution_time_seconds": 0.0246, 
+                        #          "actions_by_method": {"follow": 1, "post": 2}}
                         if log_entry.get("summary_type") != "hourly":
                             continue
                         
@@ -368,13 +368,14 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                         total_execution_time = float(log_entry.get("total_execution_time_seconds", 0))
                         actions_by_method = log_entry.get("actions_by_method", {})
                         
-                        # Calculate total actions once for proportional time distribution
+                        # Calculate time per action once for proportional distribution
                         total_actions = sum(actions_by_method.values()) if actions_by_method else 0
+                        time_per_action = (total_execution_time / total_actions) if total_actions > 0 else 0
                         
                         # Process each action method
                         for method_name, count in actions_by_method.items():
                             # Calculate proportional execution time for this method
-                            method_time = (total_execution_time * count / total_actions) if total_actions > 0 else 0
+                            method_time = time_per_action * count
                             
                             # Aggregate by day
                             if day is not None:
