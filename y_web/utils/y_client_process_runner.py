@@ -4,6 +4,7 @@ Client process runner script for YSocial.
 This script is invoked as a subprocess to run client simulations.
 It's designed to be called by start_client using subprocess.Popen.
 """
+
 import argparse
 import json
 import math

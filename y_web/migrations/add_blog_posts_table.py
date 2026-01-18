@@ -43,8 +43,7 @@ def migrate_dashboard_db():
             return True
 
         # Create the blog_posts table
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE blog_posts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT,
@@ -53,8 +52,7 @@ def migrate_dashboard_db():
                 is_read INTEGER DEFAULT 0,
                 latest_check_on TEXT
             )
-        """
-        )
+        """)
 
         conn.commit()
         conn.close()

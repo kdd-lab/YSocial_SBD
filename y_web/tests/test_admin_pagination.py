@@ -285,15 +285,13 @@ def app():
 
             return "Login failed", 401
 
-        return render_template_string(
-            """
+        return render_template_string("""
         <form method="post">
             <input name="email" type="email" required>
             <input name="password" type="password" required>
             <button type="submit">Login</button>
         </form>
-        """
-        )
+        """)
 
     app.register_blueprint(auth)
 

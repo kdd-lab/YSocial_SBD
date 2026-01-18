@@ -483,16 +483,14 @@ def create_tutorial_experiment():
                         dummy_conn.execute(text(schema_sql))
 
                     hashed_pw = generate_password_hash("admin", method="pbkdf2:sha256")
-                    stmt = text(
-                        """
+                    stmt = text("""
                         INSERT INTO user_mgmt (username, email, password, user_type, leaning, age,
                                                language, owner, joined_on, frecsys_type,
                                                round_actions, toxicity, is_page, daily_activity_level)
                         VALUES (:username, :email, :password, :user_type, :leaning, :age,
                                 :language, :owner, :joined_on, :frecsys_type,
                                 :round_actions, :toxicity, :is_page, :daily_activity_level)
-                        """
-                    )
+                        """)
                     dummy_conn.execute(
                         stmt,
                         {

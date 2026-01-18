@@ -90,23 +90,19 @@ def migrate_postgresql(host, port, database, user, password):
         cursor = conn.cursor()
 
         # Check if column already exists
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT column_name 
             FROM information_schema.columns 
             WHERE table_name = 'exps'
-        """
-        )
+        """)
         columns = [row[0] for row in cursor.fetchall()]
 
         # Add simulator_type column if it doesn't exist
         if "simulator_type" not in columns:
-            cursor.execute(
-                """
+            cursor.execute("""
                 ALTER TABLE exps 
                 ADD COLUMN simulator_type VARCHAR(20) DEFAULT 'Standard'
-            """
-            )
+            """)
             print("✓ Added simulator_type column to PostgreSQL database")
 
             # Set all existing experiments to 'Standard'
