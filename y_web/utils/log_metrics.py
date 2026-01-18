@@ -365,6 +365,9 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                             continue
                         
                         day = log_entry.get("day")
+                        if day is None:
+                            continue  # Skip entries without a valid day
+                        
                         total_execution_time = float(log_entry.get("total_execution_time_seconds", 0))
                         actions_by_method = log_entry.get("actions_by_method", {})
                         
@@ -381,12 +384,12 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                             method_time = time_per_action * count
                             
                             # For daily summaries, aggregate by day
-                            if summary_type == "daily" and day is not None:
+                            if summary_type == "daily":
                                 daily_data[day][method_name]["count"] += count
                                 daily_data[day][method_name]["execution_time"] += method_time
 
                             # For hourly summaries, aggregate by day-hour
-                            if summary_type == "hourly" and day is not None and hour is not None:
+                            elif summary_type == "hourly" and hour is not None:
                                 key = f"{day}-{hour}"
                                 hourly_data[key][method_name]["count"] += count
                                 hourly_data[key][method_name]["execution_time"] += method_time
