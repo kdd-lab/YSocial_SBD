@@ -54,6 +54,8 @@ from y_web.utils import (
     get_llm_models,
     get_ollama_models,
     start_client,
+    start_hpc_client,
+    stop_hpc_client,
     terminate_client,
 )
 from y_web.utils.desktop_file_handler import send_file_desktop
@@ -173,7 +175,10 @@ def run_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    start_client(exp, client, population, resume=True)
+    if exp.simulator_type == "HPC":
+        start_hpc_client(exp, client, population)
+    else:
+        start_client(exp, client, population, resume=True)
 
     # set the population_experiment running_status
     db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
@@ -199,7 +204,10 @@ def resume_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    start_client(exp, client, population, resume=True)
+    if exp.simulator_type == "HPC":
+        start_hpc_client(exp, client, population)
+    else:
+        start_client(exp, client, population, resume=True)
 
     # set the population_experiment running_status
     db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
@@ -220,9 +228,14 @@ def pause_client(uid, idexp):
     db.session.query(Client).filter_by(id=uid).update({Client.status: 0})
     db.session.commit()
 
-    # get client
+    # get client and experiment
     client = Client.query.filter_by(id=uid).first()
-    terminate_client(client, pause=True)
+    exp = Exps.query.filter_by(idexp=idexp).first()
+
+    if exp.simulator_type == "HPC":
+        stop_hpc_client(client)
+    else:
+        terminate_client(client, pause=True)
 
     return experiment_details(idexp)  # redirect(request.referrer)
 
@@ -239,9 +252,14 @@ def stop_client(uid, idexp):
     db.session.query(Client).filter_by(id=uid).update({Client.status: 0})
     db.session.commit()
 
-    # get client
+    # get client and experiment
     client = Client.query.filter_by(id=uid).first()
-    terminate_client(client, pause=False)
+    exp = Exps.query.filter_by(idexp=idexp).first()
+
+    if exp.simulator_type == "HPC":
+        stop_hpc_client(client)
+    else:
+        terminate_client(client, pause=False)
 
     return experiment_details(idexp)  # redirect(request.referrer)
 
@@ -708,6 +726,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # Build agent population JSON
     import random
+    import uuid
 
     import faker
 
@@ -741,11 +760,12 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         )
 
         agent_data = {
-            "name": agent.name,
+            "id": str(uuid.uuid4()),
+            "username": agent.name,
             "email": f"{agent.name}@ysocial.it",
             "password": f"{agent.name}",
             "age": agent.age,
-            "type": "normal",
+            "user_type": "agent",
             "leaning": agent.leaning,
             "interests": [interests, len(interests)],
             "oe": agent.oe,
@@ -753,8 +773,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "ex": agent.ex,
             "ag": agent.ag,
             "ne": agent.ne,
-            "rec_sys": crecsys,
-            "frec_sys": frecsys,
+            "recsys_type": crecsys,
+            "frecsys_type": frecsys,
             "language": agent.language,
             "owner": exp.owner,
             "education_level": agent.education_level,
@@ -800,11 +820,12 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         )
 
         page_data = {
-            "name": page.name,
+            "id": str(uuid.uuid4()),
+            "username": page.name,
             "email": f"{page.name}@ysocial.it",
             "password": f"{page.name}",
             "age": 0,
-            "type": "normal",
+            "user_type": "page",
             "leaning": page.leaning,
             "interests": [page_topics, len(page_topics)],
             "oe": "",
@@ -812,8 +833,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "ex": "",
             "ag": "",
             "ne": "",
-            "rec_sys": "",
-            "frec_sys": "",
+            "recsys_type": "",
+            "frecsys_type": "",
             "language": "english",
             "owner": exp.owner,
             "education_level": "",

@@ -285,7 +285,7 @@
                                                 id="user-avatar"
                                                 class="avatar-image"
                                                 {% if profile_pic_feed =="" %}
-                                                    data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(user_id) +'.png') }}"
+                                                    data-demo-src="{{ url_for('static', filename='assets/img/users/'+ user_id|user_image_id +'.png') }}"
                                                 {% else %}
                                                     data-demo-src="{{ profile_pic_feed }}"
                                                 {% endif %}
@@ -437,7 +437,7 @@
                                         <img
                                                 src="https://via.placeholder.com/300x300"
                                                 {% if profile_pic =="" %}
-                                        data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(logged_id) +'.png') }}"
+                                        data-demo-src="{{ url_for('static', filename='assets/img/users/'+ logged_id|user_image_id +'.png') }}"
                                     {% else %}
                                         data-demo-src="{{ profile_pic }}"
                                     {% endif %}

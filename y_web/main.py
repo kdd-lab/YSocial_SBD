@@ -118,11 +118,17 @@ def profile():
     return redirect(f"/{exp.idexp}/profile/{user_id}/rf/1")
 
 
-@main.get("/<int:exp_id>/profile/<int:user_id>/<string:mode>/<int:page>")
+@main.get("/<int:exp_id>/profile/<user_id>/<string:mode>/<int:page>")
 @login_required
 def profile_logged(exp_id, user_id, page=1, mode="recent"):
     """Handle profile logged operation."""
-    user_id = int(user_id)
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     user = User_mgmt.query.get(user_id)
 
     is_following = (
@@ -235,10 +241,17 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
     )
 
 
-@main.get("/<int:exp_id>/edit_profile/<int:user_id>")
+@main.get("/<int:exp_id>/edit_profile/<user_id>")
 @login_required
 def edit_profile(exp_id, user_id):
     """Handle edit profile operation."""
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     profile_pic = ""
@@ -264,7 +277,7 @@ def edit_profile(exp_id, user_id):
         enumerate=enumerate,
         username=user.username,
         len=len,
-        user_id=int(user_id),
+        user_id=user_id,
         logged_username=current_user.username,
         str=str,
         logged_id=current_user.id,
@@ -273,10 +286,17 @@ def edit_profile(exp_id, user_id):
     )
 
 
-@main.route("/<int:exp_id>/update_profile_data/<int:user_id>", methods=["POST"])
+@main.route("/<int:exp_id>/update_profile_data/<user_id>", methods=["POST"])
 @login_required
 def update_profile_data(exp_id, user_id):
     """Update profile data."""
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     user.email = request.form.get("email")
@@ -299,10 +319,17 @@ def update_profile_data(exp_id, user_id):
     return redirect(request.referrer)
 
 
-@main.route("/<int:exp_id>/update_password/<int:user_id>", methods=["POST"])
+@main.route("/<int:exp_id>/update_password/<user_id>", methods=["POST"])
 @login_required
 def update_password(exp_id, user_id):
     """Update password."""
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     user = User_mgmt.query.filter_by(id=user_id).first()
 
     npassword = request.form.get("new_password")
@@ -361,7 +388,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         posts, additional = get_suggested_posts("all", "", page, max_post_per_page)
 
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         recsys = user.recsys_type
 
         posts, additional = get_suggested_posts(
@@ -450,7 +477,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     )
 
 
-@main.get("/<int:exp_id>/hashtag_posts/<int:hashtag_id>/<int:page>")
+@main.get("/<int:exp_id>/hashtag_posts/<hashtag_id>/<int:page>")
 @login_required
 def get_post_hashtags(exp_id, hashtag_id, page=1):
     """
@@ -463,6 +490,12 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
     Returns:
         Rendered template with hashtag posts
     """
+    # Handle both int and UUID hashtag_id formats (Standard vs HPC experiments)
+    try:
+        hashtag_id = int(hashtag_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     res = get_posts_associated_to_hashtags(
         hashtag_id, page, per_page=10, current_user=current_user.id, exp_id=exp_id
     )
@@ -501,12 +534,12 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
         page=page,
         profile_pic=profile_pic,
         username=current_user.username,
-        user_id=int(current_user.id),
+        user_id=current_user.id,
         enumerate=enumerate,
         len=len,
         logged_username=current_user.username,
         trending_ht=trending_ht,
-        logged_id=int(current_user.id),
+        logged_id=current_user.id,
         hashtag_id=hashtag_id,
         current_hashtag=hashtag,
         str=str,
@@ -515,7 +548,7 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/interest/<int:interest_id>/<int:page>")
+@main.get("/<int:exp_id>/interest/<interest_id>/<int:page>")
 @login_required
 def get_post_interest(exp_id, interest_id, page=1):
     """
@@ -528,6 +561,12 @@ def get_post_interest(exp_id, interest_id, page=1):
     Returns:
         Rendered template with interest-related posts
     """
+    # Handle both int and UUID interest_id formats (Standard vs HPC experiments)
+    try:
+        interest_id = int(interest_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     res = get_posts_associated_to_interest(
         interest_id, page, per_page=10, current_user=current_user.id, exp_id=exp_id
     )
@@ -566,12 +605,12 @@ def get_post_interest(exp_id, interest_id, page=1):
         page=page,
         profile_pic=profile_pic,
         username=current_user.username,
-        user_id=int(current_user.id),
+        user_id=current_user.id,
         enumerate=enumerate,
         len=len,
         logged_username=current_user.username,
         trending_ht=trending_tp,
-        logged_id=int(current_user.id),
+        logged_id=current_user.id,
         interest_id=interest_id,
         current_interest=interest,
         str=str,
@@ -580,7 +619,7 @@ def get_post_interest(exp_id, interest_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/emotion/<int:emotion_id>/<int:page>")
+@main.get("/<int:exp_id>/emotion/<emotion_id>/<int:page>")
 @login_required
 def get_post_emotion(exp_id, emotion_id, page=1):
     """
@@ -593,6 +632,12 @@ def get_post_emotion(exp_id, emotion_id, page=1):
     Returns:
         Rendered template with emotion-tagged posts
     """
+    # Handle both int and UUID emotion_id formats (Standard vs HPC experiments)
+    try:
+        emotion_id = int(emotion_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     res = get_posts_associated_to_emotion(
         emotion_id, page, per_page=10, current_user=current_user.id, exp_id=exp_id
     )
@@ -632,12 +677,12 @@ def get_post_emotion(exp_id, emotion_id, page=1):
         page=page,
         profile_pic=profile_pic,
         username=current_user.username,
-        user_id=int(current_user.id),
+        user_id=current_user.id,
         enumerate=enumerate,
         len=len,
         logged_username=current_user.username,
         trending_ht=trending_tp,
-        logged_id=int(current_user.id),
+        logged_id=current_user.id,
         emotion_id=emotion_id,
         current_emotion=emotion,
         str=str,
@@ -646,7 +691,7 @@ def get_post_emotion(exp_id, emotion_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/friends/<int:user_id>/<int:page>")
+@main.get("/<int:exp_id>/friends/<user_id>/<int:page>")
 @login_required
 def get_friends(exp_id, user_id, page=1):
     """
@@ -659,6 +704,12 @@ def get_friends(exp_id, user_id, page=1):
     Returns:
         Rendered template showing followers and followees
     """
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     followers, followees, number_followers, number_followees = get_user_friends(
         user_id, limit=12, page=page
     )
@@ -723,7 +774,7 @@ def get_friends(exp_id, user_id, page=1):
         enumerate=enumerate,
         len=len,
         logged_username=cu.username,
-        logged_id=int(cu.id),
+        logged_id=cu.id,
         user_id=user_id,
         number_followers=number_followers,
         number_followees=number_followees,
@@ -734,11 +785,18 @@ def get_friends(exp_id, user_id, page=1):
     )
 
 
-@main.get("/<int:exp_id>/thread/<int:post_id>")
+@main.get("/<int:exp_id>/thread/<post_id>")
 @login_required
 def get_thread(exp_id, post_id):
     # get thread_id for post_id
     """Get thread."""
+    # Handle both int and UUID post_id formats (Standard vs HPC experiments)
+    try:
+        post_id = int(post_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -775,22 +833,27 @@ def get_thread(exp_id, post_id):
         except:
             profile_pic = ""
 
+    # Get shared post info safely - handle both int and UUID shared_from
+    if posts[0].shared_from == -1:
+        shared_from_info = -1
+    else:
+        shared_user = (
+            db.session.query(User_mgmt)
+            .join(Post, User_mgmt.id == Post.user_id)
+            .filter(Post.id == posts[0].shared_from)
+            .first()
+        )
+        shared_from_info = (
+            (posts[0].shared_from, shared_user.username)
+            if shared_user
+            else (posts[0].shared_from, "Unknown")
+        )
+
     discussion_tree = {
         "post": augment_text(posts[0].tweet, exp_id),
         "profile_pic": profile_pic,
         "image": image,
-        "shared_from": (
-            -1
-            if posts[0].shared_from == -1
-            else (
-                posts[0].shared_from,
-                db.session.query(User_mgmt)
-                .join(Post, User_mgmt.id == Post.user_id)
-                .filter(Post.id == posts[0].shared_from)
-                .first()
-                .username,
-            )
-        ),
+        "shared_from": shared_from_info,
         "post_id": posts[0].id,
         "author": user.username,
         "author_id": posts[0].user_id,
@@ -919,7 +982,7 @@ def get_thread(exp_id, post_id):
         user_id=current_user.id,
         username=current_user.username,
         logged_username=current_user.username,
-        logged_id=int(current_user.id),
+        logged_id=current_user.id,
         str=str,
         bool=bool,
         enumerate=enumerate,
@@ -1001,24 +1064,29 @@ def __get_discussions(posts, username, page, exp_id):
             if len(topics) == 0:
                 topics = []
 
+            # Get shared post info safely - handle both int and UUID shared_from
+            if c.shared_from == -1:
+                shared_from_info = -1
+            else:
+                shared_user = (
+                    db.session.query(User_mgmt)
+                    .join(Post, User_mgmt.id == Post.user_id)
+                    .filter(Post.id == c.shared_from)
+                    .first()
+                )
+                shared_from_info = (
+                    (c.shared_from, shared_user.username)
+                    if shared_user
+                    else (c.shared_from, "Unknown")
+                )
+
             cms.append(
                 {
                     "post_id": c.id,
                     "profile_pic": profile_pic,
                     "author": author,
-                    "shared_from": (
-                        -1
-                        if c.shared_from == -1
-                        else (
-                            c.shared_from,
-                            db.session.query(User_mgmt)
-                            .join(Post, User_mgmt.id == Post.user_id)
-                            .filter(Post.id == c.shared_from)
-                            .first()
-                            .username,
-                        )
-                    ),
-                    "author_id": int(c.user_id),
+                    "shared_from": shared_from_info,
+                    "author_id": c.user_id,
                     "post": augment_text(text, exp_id),
                     "round": c.round,
                     "day": Rounds.query.filter_by(id=c.round).first().day,
@@ -1070,6 +1138,11 @@ def __get_discussions(posts, username, page, exp_id):
         emotions = get_elicited_emotions(post.id)
         aa = User_mgmt.query.filter_by(id=post.user_id).first()
 
+        # Handle case where user doesn't exist
+        if aa is None:
+            # Skip this post if the author doesn't exist in user_mgmt
+            continue
+
         profile_pic = ""
         if aa.is_page == 1:
             pg = Page.query.filter_by(name=aa.username).first()
@@ -1092,27 +1165,36 @@ def __get_discussions(posts, username, page, exp_id):
         if len(topics) == 0:
             topics = []
 
+        # Get author username safely
+        author_user = User_mgmt.query.filter_by(id=post.user_id).first()
+        author_username = author_user.username if author_user else "Unknown"
+
+        # Get shared post info safely
+        if post.shared_from == -1:
+            shared_from_info = -1
+        else:
+            shared_user = (
+                db.session.query(User_mgmt)
+                .join(Post, User_mgmt.id == Post.user_id)
+                .filter(Post.id == post.shared_from)
+                .first()
+            )
+            shared_from_info = (
+                (post.shared_from, shared_user.username)
+                if shared_user
+                else (post.shared_from, "Unknown")
+            )
+
         res.append(
             {
                 "article": art,
                 "image": image,
                 "profile_pic": profile_pic,
                 "thread_id": post.thread_id,
-                "shared_from": (
-                    -1
-                    if post.shared_from == -1
-                    else (
-                        post.shared_from,
-                        db.session.query(User_mgmt)
-                        .join(Post, User_mgmt.id == Post.user_id)
-                        .filter(Post.id == post.shared_from)
-                        .first()
-                        .username,
-                    )
-                ),
+                "shared_from": shared_from_info,
                 "post_id": post.id,
-                "author": User_mgmt.query.filter_by(id=post.user_id).first().username,
-                "author_id": int(post.user_id),
+                "author": author_username,
+                "author_id": post.user_id,
                 "post": augment_text(post.tweet.split(":")[-1], exp_id),
                 "round": post.round,
                 "day": day,
@@ -1145,11 +1227,18 @@ def __get_discussions(posts, username, page, exp_id):
 #### Thread
 
 
-@main.get("/<int:exp_id>/rthread/<int:post_id>")
+@main.get("/<int:exp_id>/rthread/<post_id>")
 @login_required
 def get_thread_reddit(exp_id, post_id):
     # get thread_id for post_id
     """Get thread reddit."""
+    # Handle both int and UUID post_id formats (Standard vs HPC experiments)
+    try:
+        post_id = int(post_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -1202,23 +1291,28 @@ def get_thread_reddit(exp_id, post_id):
             "source": Websites.query.filter_by(id=article.website_id).first().name,
         }
 
+    # Get shared post info safely - handle both int and UUID shared_from
+    if posts[0].shared_from == -1:
+        shared_from_info = -1
+    else:
+        shared_user = (
+            db.session.query(User_mgmt)
+            .join(Post, User_mgmt.id == Post.user_id)
+            .filter(Post.id == posts[0].shared_from)
+            .first()
+        )
+        shared_from_info = (
+            (posts[0].shared_from, shared_user.username)
+            if shared_user
+            else (posts[0].shared_from, "Unknown")
+        )
+
     discussion_tree = {
         "title": title,
         "post": processed_content,
         "profile_pic": profile_pic,
         "image": image,
-        "shared_from": (
-            -1
-            if posts[0].shared_from == -1
-            else (
-                posts[0].shared_from,
-                db.session.query(User_mgmt)
-                .join(Post, User_mgmt.id == Post.user_id)
-                .filter(Post.id == posts[0].shared_from)
-                .first()
-                .username,
-            )
-        ),
+        "shared_from": shared_from_info,
         "post_id": posts[0].id,
         "author": user.username,
         "author_id": posts[0].user_id,
@@ -1367,7 +1461,7 @@ def get_thread_reddit(exp_id, post_id):
         user_id=current_user.id,
         username=current_user.username,
         logged_username=current_user.username,
-        logged_id=int(current_user.id),
+        logged_id=current_user.id,
         str=str,
         bool=bool,
         enumerate=enumerate,
@@ -1456,7 +1550,7 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
             additional = None
 
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         recsys = user.recsys_type
         if feed_type == "top":
             posts_query = (
@@ -1597,7 +1691,7 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if user_id == "all":
         posts, additional = get_suggested_posts("all", "", page, max_post_per_page)
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         recsys = user.recsys_type
         posts, additional = get_suggested_posts(
             user_id, recsys, page, max_post_per_page
@@ -1620,7 +1714,7 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         "components/posts.html",
         items=res,
         enumerate=enumerate,
-        user_id=int(user_id) if user_id != "all" else current_user.id,
+        user_id=user_id if user_id != "all" else current_user.id,
         str=str,
         bool=bool,
         len=len,
@@ -1682,7 +1776,7 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
             additional = None
 
     elif user_id != "all":
-        user = User_mgmt.query.filter_by(id=int(user_id)).first()
+        user = User_mgmt.query.filter_by(id=user_id).first()
         if feed_type == "top":
             posts_query = (
                 Post.query.filter(Post.user_id != user_id, Post.comment_to == -1)
@@ -1733,7 +1827,7 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
         "reddit/components/posts.html",
         items=res,
         enumerate=enumerate,
-        user_id=int(user_id) if user_id != "all" else current_user.id,
+        user_id=user_id if user_id != "all" else current_user.id,
         str=str,
         bool=bool,
         len=len,
@@ -1741,10 +1835,16 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/hashtag_posts/<int:hashtag_id>/<int:page>")
+@main.get("/<int:exp_id>/api/hashtag_posts/<hashtag_id>/<int:page>")
 @login_required
 def api_hashtag_posts(exp_id, hashtag_id, page=1):
     """
+    # Handle both int and UUID hashtag_id formats (Standard vs HPC experiments)
+    try:
+        hashtag_id = int(hashtag_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     API endpoint for infinite scrolling in hashtag posts.
 
     Returns rendered HTML for posts.
@@ -1764,10 +1864,16 @@ def api_hashtag_posts(exp_id, hashtag_id, page=1):
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/interest/<int:interest_id>/<int:page>")
+@main.get("/<int:exp_id>/api/interest/<interest_id>/<int:page>")
 @login_required
 def api_interest_posts(exp_id, interest_id, page=1):
     """
+    # Handle both int and UUID interest_id formats (Standard vs HPC experiments)
+    try:
+        interest_id = int(interest_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     API endpoint for infinite scrolling in interest posts.
 
     Returns rendered HTML for posts.
@@ -1787,10 +1893,16 @@ def api_interest_posts(exp_id, interest_id, page=1):
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/emotion/<int:emotion_id>/<int:page>")
+@main.get("/<int:exp_id>/api/emotion/<emotion_id>/<int:page>")
 @login_required
 def api_emotion_posts(exp_id, emotion_id, page=1):
     """
+    # Handle both int and UUID emotion_id formats (Standard vs HPC experiments)
+    try:
+        emotion_id = int(emotion_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
     API endpoint for infinite scrolling in emotion posts.
 
     Returns rendered HTML for posts.
@@ -1814,7 +1926,7 @@ def api_emotion_posts(exp_id, emotion_id, page=1):
     return jsonify({"html": html, "has_more": len(res) > 0})
 
 
-@main.get("/<int:exp_id>/api/profile/<int:user_id>/<string:mode>/<int:page>")
+@main.get("/<int:exp_id>/api/profile/<user_id>/<string:mode>/<int:page>")
 @login_required
 def api_profile_posts(exp_id, user_id, page=1, mode="recent"):
     """
@@ -1822,6 +1934,13 @@ def api_profile_posts(exp_id, user_id, page=1, mode="recent"):
 
     Returns rendered HTML for posts.
     """
+    # Handle both int and UUID user_id formats (Standard vs HPC experiments)
+    try:
+        user_id = int(user_id)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
+
     rp = get_user_recent_posts(user_id, page, 10, mode, current_user.id, exp_id)
     html = render_template(
         "components/posts.html",

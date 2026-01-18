@@ -12,6 +12,7 @@ import pathlib
 import re
 import shutil
 import socket
+import time
 import uuid
 from collections import defaultdict
 
@@ -69,8 +70,11 @@ from y_web.models import (
 )
 from y_web.utils import (
     start_client,
+    start_hpc_client,
     start_hpc_server,
     start_server,
+    stop_hpc_client,
+    stop_hpc_server,
     terminate_client,
     terminate_process_on_port,
     terminate_server_process,
@@ -396,6 +400,7 @@ def change_active_experiment(exp_id):
 
                 if user is None:
                     new_user = User_mgmt(
+                        id=current_user.id,
                         email=current_user.email,
                         username=current_user.username,
                         password=current_user.password,
@@ -1368,13 +1373,14 @@ def create_experiment():
     # copy the clean database to the experiments folder
     if platform_type == "microblogging" or platform_type == "forum":
         if db_type == "sqlite":
-            clean_db_source = get_resource_path(
-                os.path.join("data_schema", "database_clean_server.db")
-            )
-            shutil.copyfile(
-                clean_db_source,
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
-            )
+            if simulator_type == "Standard":
+                clean_db_source = get_resource_path(
+                    os.path.join("data_schema", "database_clean_server.db")
+                )
+                shutil.copyfile(
+                    clean_db_source,
+                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
+                )
         elif db_type == "postgresql":
             from urllib.parse import urlparse
 
@@ -1925,6 +1931,32 @@ def experiment_details(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+
+    # For HPC experiments, ensure the owner exists in user_mgmt table
+    # This is needed because HPC experiments use non-autoincrement IDs
+    if experiment and experiment.simulator_type == "HPC":
+        # Get the admin user who owns this experiment
+        owner_admin = Admin_users.query.filter_by(username=experiment.owner).first()
+        if owner_admin:
+            # Check if owner already exists in user_mgmt with their admin ID
+            existing_user = User_mgmt.query.filter_by(
+                username=owner_admin.username
+            ).first()
+            if not existing_user:
+                # Create user_mgmt entry with admin user's ID
+                owner_user = User_mgmt(
+                    id=owner_admin.id,  # Use admin user's ID (non-autoincrement for HPC)
+                    username=owner_admin.username,
+                    email=owner_admin.email or "",
+                    password="",  # Password not needed for HPC owner entry
+                    user_type="owner",
+                    joined_on=int(time.time()),
+                )
+                db.session.add(owner_user)
+                db.session.commit()
+                current_app.logger.info(
+                    f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}"
+                )
 
     # get experiment populations along with population names and ids
     experiment_populations = (
@@ -2515,7 +2547,10 @@ def stop_experiment(uid):
                 print(
                     f"Stopping client {client.name} (ID: {client.id}, PID: {client.pid}) for experiment {uid}"
                 )
-                terminate_client(client, pause=False)
+                if exp.simulator_type == "HPC":
+                    stop_hpc_client(client)
+                else:
+                    terminate_client(client, pause=False)
 
             # Update client status in database
             client.status = 0
@@ -2524,7 +2559,10 @@ def stop_experiment(uid):
     # Step 3: Now stop the yserver after all clients are terminated
     # Try the new subprocess-based termination first
     # If that fails or no process is tracked, fall back to port-based termination
-    terminated = terminate_server_process(uid)
+    if exp.simulator_type == "HPC":
+        terminated = stop_hpc_server(uid)
+    else:
+        terminated = terminate_server_process(uid)
     if not terminated:
         # Fallback to port-based termination for backward compatibility
         terminate_process_on_port(exp.port)
@@ -5023,7 +5061,10 @@ def start_schedule():
                         id=client.population_id
                     ).first()
                     if population:
-                        start_client(exp, client, population, resume=True)
+                        if exp.simulator_type == "HPC":
+                            start_hpc_client(exp, client, population)
+                        else:
+                            start_client(exp, client, population, resume=True)
                         # Mark client as running
                         client.status = 1
                         db.session.commit()
@@ -5087,12 +5128,18 @@ def stop_schedule():
                 for client in clients:
                     if client.status == 1:
                         if client.pid:
-                            terminate_client(client, pause=False)
+                            if exp.simulator_type == "HPC":
+                                stop_hpc_client(client)
+                            else:
+                                terminate_client(client, pause=False)
                         client.status = 0
                         db.session.commit()
 
                 # Stop server
-                terminated = terminate_server_process(exp.idexp)
+                if exp.simulator_type == "HPC":
+                    terminated = stop_hpc_server(exp.idexp)
+                else:
+                    terminated = terminate_server_process(exp.idexp)
                 if not terminated:
                     terminate_process_on_port(exp.port)
 
@@ -5178,12 +5225,18 @@ def check_schedule_progress():
             for client in clients:
                 if client.status == 1:
                     if client.pid:
-                        terminate_client(client, pause=False)
+                        if exp.simulator_type == "HPC":
+                            stop_hpc_client(client)
+                        else:
+                            terminate_client(client, pause=False)
                     client.status = 0
                     db.session.commit()
 
             # Stop server
-            terminated = terminate_server_process(exp.idexp)
+            if exp.simulator_type == "HPC":
+                terminated = stop_hpc_server(exp.idexp)
+            else:
+                terminated = terminate_server_process(exp.idexp)
             if not terminated:
                 terminate_process_on_port(exp.port)
 
@@ -5291,7 +5344,10 @@ def check_schedule_progress():
                         id=client.population_id
                     ).first()
                     if population:
-                        start_client(exp, client, population, resume=True)
+                        if exp.simulator_type == "HPC":
+                            start_hpc_client(exp, client, population)
+                        else:
+                            start_client(exp, client, population, resume=True)
                         client.status = 1
                         db.session.commit()
 

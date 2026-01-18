@@ -58,9 +58,15 @@ def follow(exp_id, user_id, follower_id):
     # get the last round id from Rounds
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
+    # Handle both int and UUID follower_id (Standard vs HPC experiments)
+    try:
+        follower_id_converted = int(follower_id)
+    except (ValueError, TypeError):
+        follower_id_converted = follower_id
+
     # check
     followed = (
-        Follow.query.filter_by(user_id=user_id, follower_id=int(follower_id))
+        Follow.query.filter_by(user_id=user_id, follower_id=follower_id_converted)
         .order_by(Follow.id.desc())
         .first()
     )
@@ -650,7 +656,13 @@ def delete_post(exp_id):
     """Delete post."""
     post_id = request.args.get("post_id")
 
-    post = Post.query.get(int(post_id))
+    # Handle both int and UUID post_id (Standard vs HPC experiments)
+    try:
+        post_id_converted = int(post_id)
+    except (ValueError, TypeError):
+        post_id_converted = post_id
+
+    post = Post.query.get(post_id_converted)
     db.session.delete(post)
     db.session.commit()
 
