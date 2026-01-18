@@ -31,6 +31,10 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 RETRY_DELAY = 0.5  # seconds
 
+# Base time for HPC simulation time calculations
+# Used to create synthetic timestamps where (max_time - min_time) = simulation_time_seconds
+HPC_BASE_TIME = datetime(2000, 1, 1, 0, 0, 0)
+
 
 def _ensure_session_clean(session):
     """
@@ -329,9 +333,8 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
             # so that (max_time - min_time) = simulation_time
             if is_hpc and data["simulation_time"] > 0:
                 # Use a base time and add simulation_time to create the span
-                base_time = datetime(2000, 1, 1, 0, 0, 0)
-                min_time = base_time
-                max_time = base_time + timedelta(seconds=data["simulation_time"])
+                min_time = HPC_BASE_TIME
+                max_time = HPC_BASE_TIME + timedelta(seconds=data["simulation_time"])
             else:
                 # For standard experiments, use actual timestamps
                 min_time = min(data["times"]) if data["times"] else None
@@ -373,9 +376,8 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
         for path, data in paths.items():
             # For HPC with simulation_time, create synthetic timestamps
             if is_hpc and data["simulation_time"] > 0:
-                base_time = datetime(2000, 1, 1, 0, 0, 0)
-                min_time = base_time
-                max_time = base_time + timedelta(seconds=data["simulation_time"])
+                min_time = HPC_BASE_TIME
+                max_time = HPC_BASE_TIME + timedelta(seconds=data["simulation_time"])
             else:
                 # For standard experiments, use actual timestamps
                 min_time = min(data["times"]) if data["times"] else None
