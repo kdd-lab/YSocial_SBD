@@ -301,8 +301,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         if summary_type == "daily":
                             daily_data[day][path]["count"] += 1
                             daily_data[day][path]["duration"] += total_duration
-                            # For simulation_time, use max (not sum) since it represents the span, not a cumulative value
-                            daily_data[day][path]["simulation_time"] = max(daily_data[day][path]["simulation_time"], simulation_time)
+                            daily_data[day][path]["simulation_time"] += simulation_time
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
                         
@@ -313,8 +312,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                                 key = f"{day}-{hour}"
                                 hourly_data[key][path]["count"] += 1
                                 hourly_data[key][path]["duration"] += total_duration
-                                # For simulation_time, use max (not sum) since it represents the span, not a cumulative value
-                                hourly_data[key][path]["simulation_time"] = max(hourly_data[key][path]["simulation_time"], simulation_time)
+                                hourly_data[key][path]["simulation_time"] += simulation_time
                                 if time_obj:
                                     hourly_data[key][path]["times"].append(time_obj)
                     else:
