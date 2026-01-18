@@ -185,12 +185,13 @@ def reset_hpc_client_metrics(exp_id, client_id):
             client_id=client_id
         ).delete()
         
-        _commit_with_retry(db.session)
-        logger.info(f"Reset client metrics and offsets for exp_id={exp_id}, client_id={client_id}")
-        return True
+        success = _commit_with_retry(db.session)
+        if success:
+            logger.info(f"Reset client metrics and offsets for exp_id={exp_id}, client_id={client_id}")
+        return success
     except Exception as e:
         logger.error(f"Error resetting client metrics: {e}", exc_info=True)
-        db.session.rollback()
+        # Don't call rollback here - _commit_with_retry already handles it
         return False
 
 
