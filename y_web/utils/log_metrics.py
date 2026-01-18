@@ -363,9 +363,11 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
             # For HPC with simulation_time, create synthetic timestamps
             # so that (max_time - min_time) = simulation_time
             if is_hpc and data["simulation_time"] > 0:
-                # Use a base time and add simulation_time to create the span
-                min_time = HPC_BASE_TIME
-                max_time = HPC_BASE_TIME + timedelta(seconds=data["simulation_time"])
+                # Create cumulative timeline: each day starts where previous day ended
+                # Day 0 starts at base time, day 1 starts at base + 1 day of sim time, etc.
+                day_start = HPC_BASE_TIME + timedelta(days=day)
+                min_time = day_start
+                max_time = day_start + timedelta(seconds=data["simulation_time"])
             else:
                 # For standard experiments, use actual timestamps
                 min_time = min(data["times"]) if data["times"] else None
@@ -407,8 +409,12 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
         for path, data in paths.items():
             # For HPC with simulation_time, create synthetic timestamps
             if is_hpc and data["simulation_time"] > 0:
-                min_time = HPC_BASE_TIME
-                max_time = HPC_BASE_TIME + timedelta(seconds=data["simulation_time"])
+                # Create cumulative timeline: each hour starts where previous hour ended
+                # Hour offset within the simulation
+                hour_offset = day * 24 + hour
+                hour_start = HPC_BASE_TIME + timedelta(hours=hour_offset)
+                min_time = hour_start
+                max_time = hour_start + timedelta(seconds=data["simulation_time"])
             else:
                 # For standard experiments, use actual timestamps
                 min_time = min(data["times"]) if data["times"] else None
@@ -642,10 +648,12 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                 client_exec.last_active_day = max_day
                 client_exec.last_active_hour = max_hour
                 
+                # Update elapsed_time (current round, 1-indexed)
+                # day 0, hour 0 = round 1
+                client_exec.elapsed_time = max_day * 24 + max_hour + 1
+                
                 # Check if simulation is complete
-                # Current round is 1-indexed: day 0, hour 0 = round 1
-                # So we add 1 to the calculated position
-                current_round = max_day * 24 + max_hour + 1
+                current_round = client_exec.elapsed_time
                 if current_round >= client_exec.expected_duration_rounds:
                     # Get the client and mark as stopped
                     client = Client.query.filter_by(id=client_id).first()
