@@ -372,6 +372,9 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                         total_actions = sum(actions_by_method.values()) if actions_by_method else 0
                         time_per_action = (total_execution_time / total_actions) if total_actions > 0 else 0
                         
+                        # For hourly summaries, get slot (hour) once before loop
+                        hour = log_entry.get("slot") if summary_type == "hourly" else None
+                        
                         # Process each action method
                         for method_name, count in actions_by_method.items():
                             # Calculate proportional execution time for this method
@@ -383,12 +386,10 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                                 daily_data[day][method_name]["execution_time"] += method_time
 
                             # For hourly summaries, aggregate by day-hour
-                            if summary_type == "hourly" and day is not None:
-                                hour = log_entry.get("slot")  # HPC uses "slot" for hour
-                                if hour is not None:
-                                    key = f"{day}-{hour}"
-                                    hourly_data[key][method_name]["count"] += count
-                                    hourly_data[key][method_name]["execution_time"] += method_time
+                            if summary_type == "hourly" and day is not None and hour is not None:
+                                key = f"{day}-{hour}"
+                                hourly_data[key][method_name]["count"] += count
+                                hourly_data[key][method_name]["execution_time"] += method_time
                     else:
                         # Standard format: individual log entries per method call
                         method_name = log_entry.get("method_name", "unknown")
