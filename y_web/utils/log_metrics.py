@@ -643,14 +643,15 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                 client_exec.last_active_hour = max_hour
                 
                 # Check if simulation is complete
-                # If current_round >= expected_duration_rounds, mark client as stopped
-                current_round = max_day * 24 + max_hour
+                # Current round is 1-indexed: day 0, hour 0 = round 1
+                # So we add 1 to the calculated position
+                current_round = max_day * 24 + max_hour + 1
                 if current_round >= client_exec.expected_duration_rounds:
                     # Get the client and mark as stopped
                     client = Client.query.filter_by(id=client_id).first()
                     if client and client.is_running == 1:
                         client.is_running = 0
-                        logger.info(f"HPC client {client_id} simulation complete, marking as stopped")
+                        logger.info(f"HPC client {client_id} simulation complete at round {current_round}, marking as stopped")
                 
                 _commit_with_retry(db.session)
         except Exception as e:
