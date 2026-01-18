@@ -195,7 +195,7 @@ def reset_hpc_client_metrics(exp_id, client_id):
         return False
 
 
-def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
+def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=False):
     """
     Parse server log file incrementally from a given offset.
 
@@ -203,6 +203,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
         log_file_path: Full path to the server log file
         exp_id: Experiment ID
         start_offset: Byte offset to start reading from
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         tuple: (new_offset, metrics_dict)
@@ -234,34 +235,77 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
                     # Parse JSON - log entries should already be properly formatted
                     log_entry = json.loads(line)
 
-                    path = log_entry.get("path", "unknown")
-                    duration = float(log_entry.get("duration", 0))
-                    day = log_entry.get("day")
-                    hour = log_entry.get("hour")
-                    time_str = log_entry.get("time", "")
+                    if is_hpc:
+                        # HPC format: use summary entries (hourly and daily)
+                        # Similar format to client logs but for server metrics
+                        summary_type = log_entry.get("summary_type")
+                        if summary_type not in ("hourly", "daily"):
+                            continue
+                        
+                        day = log_entry.get("day")
+                        if day is None:
+                            continue  # Skip entries without a valid day
+                        
+                        # Parse timestamp if available for simulation time calculation
+                        time_str = log_entry.get("time", "")
+                        time_obj = None
+                        if time_str:
+                            try:
+                                time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
+                        
+                        # For HPC, we aggregate all paths together
+                        # The duration is the total time for all operations in this period
+                        total_duration = float(log_entry.get("total_duration_seconds", 0))
+                        path = "all"  # Aggregate all paths for HPC
+                        
+                        # For daily summaries
+                        if summary_type == "daily":
+                            daily_data[day][path]["count"] += 1
+                            daily_data[day][path]["duration"] += total_duration
+                            if time_obj:
+                                daily_data[day][path]["times"].append(time_obj)
+                        
+                        # For hourly summaries
+                        elif summary_type == "hourly":
+                            hour = log_entry.get("slot")  # HPC uses "slot" for hour
+                            if hour is not None:
+                                key = f"{day}-{hour}"
+                                hourly_data[key][path]["count"] += 1
+                                hourly_data[key][path]["duration"] += total_duration
+                                if time_obj:
+                                    hourly_data[key][path]["times"].append(time_obj)
+                    else:
+                        # Standard format: individual log entries per request
+                        path = log_entry.get("path", "unknown")
+                        duration = float(log_entry.get("duration", 0))
+                        day = log_entry.get("day")
+                        hour = log_entry.get("hour")
+                        time_str = log_entry.get("time", "")
 
-                    # Parse timestamp if available
-                    time_obj = None
-                    if time_str:
-                        try:
-                            time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
-                        except ValueError:
-                            pass
+                        # Parse timestamp if available
+                        time_obj = None
+                        if time_str:
+                            try:
+                                time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
 
-                    # Aggregate by day
-                    if day is not None:
-                        daily_data[day][path]["count"] += 1
-                        daily_data[day][path]["duration"] += duration
-                        if time_obj:
-                            daily_data[day][path]["times"].append(time_obj)
+                        # Aggregate by day
+                        if day is not None:
+                            daily_data[day][path]["count"] += 1
+                            daily_data[day][path]["duration"] += duration
+                            if time_obj:
+                                daily_data[day][path]["times"].append(time_obj)
 
-                    # Aggregate by day-hour
-                    if day is not None and hour is not None:
-                        key = f"{day}-{hour}"
-                        hourly_data[key][path]["count"] += 1
-                        hourly_data[key][path]["duration"] += duration
-                        if time_obj:
-                            hourly_data[key][path]["times"].append(time_obj)
+                        # Aggregate by day-hour
+                        if day is not None and hour is not None:
+                            key = f"{day}-{hour}"
+                            hourly_data[key][path]["count"] += 1
+                            hourly_data[key][path]["duration"] += duration
+                            if time_obj:
+                                hourly_data[key][path]["times"].append(time_obj)
 
                 except json.JSONDecodeError:
                     # Skip invalid JSON lines
@@ -584,7 +628,7 @@ def has_server_log_files(base_log_path):
     return len(get_rotating_log_files(base_log_path)) > 0
 
 
-def update_server_log_metrics(exp_id, log_file_path):
+def update_server_log_metrics(exp_id, log_file_path, is_hpc=False):
     """
     Update server log metrics by reading new log entries.
 
@@ -595,6 +639,7 @@ def update_server_log_metrics(exp_id, log_file_path):
     Args:
         exp_id: Experiment ID
         log_file_path: Full path to the main server log file
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         bool: True if successful, False otherwise
@@ -626,7 +671,7 @@ def update_server_log_metrics(exp_id, log_file_path):
 
         # Parse log file incrementally
         new_offset, metrics = parse_server_log_incremental(
-            log_file_path, exp_id, last_offset
+            log_file_path, exp_id, last_offset, is_hpc=is_hpc
         )
 
         # Update offset

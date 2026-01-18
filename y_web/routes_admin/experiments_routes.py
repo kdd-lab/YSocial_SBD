@@ -2106,7 +2106,9 @@ def experiment_logs(exp_id):
 
         # Update metrics incrementally from log file
         try:
-            update_server_log_metrics(exp_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_server_log_metrics(exp_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             # Log the error but continue with existing data
             current_app.logger.error(
@@ -2217,7 +2219,9 @@ def experiment_trends(exp_id):
 
         # Update server metrics incrementally
         try:
-            update_server_log_metrics(exp_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_server_log_metrics(exp_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             current_app.logger.error(
                 f"Error updating server log metrics: {e}", exc_info=True
