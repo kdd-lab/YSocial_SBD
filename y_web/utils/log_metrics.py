@@ -12,7 +12,7 @@ import logging
 import os
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_
 from sqlalchemy.exc import OperationalError, PendingRollbackError
@@ -215,10 +215,10 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
 
     # Data structures for aggregation
     daily_data = defaultdict(
-        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": []})
+        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": [], "simulation_time": 0.0})
     )
     hourly_data = defaultdict(
-        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": []})
+        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": [], "simulation_time": 0.0})
     )
 
     try:
@@ -258,12 +258,15 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         # For HPC, we aggregate all paths together
                         # The duration is the total time for all operations in this period
                         total_duration = float(log_entry.get("total_duration_seconds", 0))
+                        # For HPC, simulation time is provided directly in the summary
+                        simulation_time = float(log_entry.get("simulation_time_seconds", 0))
                         path = "all"  # Aggregate all paths for HPC
                         
                         # For daily summaries
                         if summary_type == "daily":
                             daily_data[day][path]["count"] += 1
                             daily_data[day][path]["duration"] += total_duration
+                            daily_data[day][path]["simulation_time"] += simulation_time
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
                         
@@ -274,6 +277,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                                 key = f"{day}-{hour}"
                                 hourly_data[key][path]["count"] += 1
                                 hourly_data[key][path]["duration"] += total_duration
+                                hourly_data[key][path]["simulation_time"] += simulation_time
                                 if time_obj:
                                     hourly_data[key][path]["times"].append(time_obj)
                     else:
@@ -321,8 +325,17 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
     # Update database with new metrics
     for day, paths in daily_data.items():
         for path, data in paths.items():
-            min_time = min(data["times"]) if data["times"] else None
-            max_time = max(data["times"]) if data["times"] else None
+            # For HPC with simulation_time, create synthetic timestamps
+            # so that (max_time - min_time) = simulation_time
+            if is_hpc and data["simulation_time"] > 0:
+                # Use a base time and add simulation_time to create the span
+                base_time = datetime(2000, 1, 1, 0, 0, 0)
+                min_time = base_time
+                max_time = base_time + timedelta(seconds=data["simulation_time"])
+            else:
+                # For standard experiments, use actual timestamps
+                min_time = min(data["times"]) if data["times"] else None
+                max_time = max(data["times"]) if data["times"] else None
 
             # Check if record exists
             metric = ServerLogMetrics.query.filter_by(
@@ -358,8 +371,15 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
         hour = int(hour)
 
         for path, data in paths.items():
-            min_time = min(data["times"]) if data["times"] else None
-            max_time = max(data["times"]) if data["times"] else None
+            # For HPC with simulation_time, create synthetic timestamps
+            if is_hpc and data["simulation_time"] > 0:
+                base_time = datetime(2000, 1, 1, 0, 0, 0)
+                min_time = base_time
+                max_time = base_time + timedelta(seconds=data["simulation_time"])
+            else:
+                # For standard experiments, use actual timestamps
+                min_time = min(data["times"]) if data["times"] else None
+                max_time = max(data["times"]) if data["times"] else None
 
             # Check if record exists
             metric = ServerLogMetrics.query.filter_by(
