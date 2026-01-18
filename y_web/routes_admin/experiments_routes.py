@@ -2093,9 +2093,9 @@ def experiment_logs(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
-        # For HPC experiments, logs are stored in /log subfolder
+        # For HPC experiments, logs are stored in /logs subfolder
         if experiment.simulator_type == "HPC":
-            exp_folder = os.path.join(exp_folder, "log")
+            exp_folder = os.path.join(exp_folder, "logs")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2198,9 +2198,9 @@ def experiment_trends(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
-        # For HPC experiments, logs are stored in /log subfolder
+        # For HPC experiments, logs are stored in /logs subfolder
         if experiment.simulator_type == "HPC":
-            exp_folder = os.path.join(exp_folder, "log")
+            exp_folder = os.path.join(exp_folder, "logs")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2409,9 +2409,9 @@ def client_logs(client_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
-        # For HPC experiments, logs are stored in /log subfolder
+        # For HPC experiments, logs are stored in /logs subfolder
         if experiment.simulator_type == "HPC":
-            exp_folder = os.path.join(exp_folder, "log")
+            exp_folder = os.path.join(exp_folder, "logs")
 
         # Client log file name format: {client_name}_client.log
         log_file = os.path.join(exp_folder, f"{client.name}_client.log")
