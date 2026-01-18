@@ -2061,23 +2061,6 @@ def start_hpc_client(exp, cli, population):
     Returns:
         subprocess.Popen: The started process object
     """
-    # Ensure Client_Execution entry exists for this client
-    client_exec = Client_Execution.query.filter_by(client_id=cli.id).first()
-    if not client_exec:
-        # Create Client_Execution entry for HPC client
-        # Expected rounds = days * slots_per_day (default 24)
-        # For infinite clients (days = -1), set to -1
-        expected_rounds = -1 if cli.days == -1 else cli.days * 24
-        client_exec = Client_Execution(
-            client_id=cli.id,
-            last_active_hour=-1,
-            last_active_day=-1,
-            expected_duration_rounds=expected_rounds,
-        )
-        db.session.add(client_exec)
-        db.session.commit()
-        print(f"Created Client_Execution entry for HPC client {cli.name} (ID: {cli.id})")
-    
     # Get base path - this will be bundle location when frozen, repo root otherwise
     base_path = get_base_path()
 

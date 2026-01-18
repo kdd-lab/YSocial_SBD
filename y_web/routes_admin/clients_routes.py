@@ -918,6 +918,19 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     db.session.add(client)
     db.session.commit()
 
+    # Create Client_Execution entry for progress tracking
+    # For infinite clients (days = -1), set expected_duration_rounds to -1
+    # HPC uses 24 slots per day
+    expected_rounds = -1 if days == -1 else days * 24
+    client_exec = Client_Execution(
+        client_id=client.id,
+        last_active_hour=-1,
+        last_active_day=-1,
+        expected_duration_rounds=expected_rounds,
+    )
+    db.session.add(client_exec)
+    db.session.commit()
+
     flash(f"HPC client '{name}' created successfully")
 
     # Check if opinions annotation is present and redirect to opinion configuration
