@@ -356,15 +356,15 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                     log_entry = json.loads(line)
 
                     if is_hpc:
-                        # HPC format: use only "hourly" summary entries
+                        # HPC format: use summary entries (hourly and daily)
                         # Format: {"time": "...", "summary_type": "hourly", "day": 1, "slot": 8,
                         #          "total_execution_time_seconds": 0.0246, 
                         #          "actions_by_method": {"follow": 1, "post": 2}}
-                        if log_entry.get("summary_type") != "hourly":
+                        summary_type = log_entry.get("summary_type")
+                        if summary_type not in ("hourly", "daily"):
                             continue
                         
                         day = log_entry.get("day")
-                        hour = log_entry.get("slot")  # HPC uses "slot" for hour
                         total_execution_time = float(log_entry.get("total_execution_time_seconds", 0))
                         actions_by_method = log_entry.get("actions_by_method", {})
                         
@@ -377,16 +377,18 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                             # Calculate proportional execution time for this method
                             method_time = time_per_action * count
                             
-                            # Aggregate by day
-                            if day is not None:
+                            # For daily summaries, aggregate by day
+                            if summary_type == "daily" and day is not None:
                                 daily_data[day][method_name]["count"] += count
                                 daily_data[day][method_name]["execution_time"] += method_time
 
-                            # Aggregate by day-hour
-                            if day is not None and hour is not None:
-                                key = f"{day}-{hour}"
-                                hourly_data[key][method_name]["count"] += count
-                                hourly_data[key][method_name]["execution_time"] += method_time
+                            # For hourly summaries, aggregate by day-hour
+                            if summary_type == "hourly" and day is not None:
+                                hour = log_entry.get("slot")  # HPC uses "slot" for hour
+                                if hour is not None:
+                                    key = f"{day}-{hour}"
+                                    hourly_data[key][method_name]["count"] += count
+                                    hourly_data[key][method_name]["execution_time"] += method_time
                     else:
                         # Standard format: individual log entries per method call
                         method_name = log_entry.get("method_name", "unknown")
