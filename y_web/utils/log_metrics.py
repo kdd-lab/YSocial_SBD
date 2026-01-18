@@ -298,10 +298,11 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         path = "all"  # Aggregate all paths for HPC
                         
                         # For daily summaries
+                        # HPC summaries contain absolute values, not deltas
                         if summary_type == "daily":
-                            daily_data[day][path]["count"] += 1
-                            daily_data[day][path]["duration"] += total_duration
-                            daily_data[day][path]["simulation_time"] += simulation_time
+                            daily_data[day][path]["count"] = 1
+                            daily_data[day][path]["duration"] = total_duration
+                            daily_data[day][path]["simulation_time"] = simulation_time
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
                         
@@ -310,9 +311,9 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             hour = log_entry.get("slot")  # HPC uses "slot" for hour
                             if hour is not None:
                                 key = f"{day}-{hour}"
-                                hourly_data[key][path]["count"] += 1
-                                hourly_data[key][path]["duration"] += total_duration
-                                hourly_data[key][path]["simulation_time"] += simulation_time
+                                hourly_data[key][path]["count"] = 1
+                                hourly_data[key][path]["duration"] = total_duration
+                                hourly_data[key][path]["simulation_time"] = simulation_time
                                 if time_obj:
                                     hourly_data[key][path]["times"].append(time_obj)
                     else:
@@ -380,8 +381,13 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_duration += data["duration"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_duration = data["duration"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_duration += data["duration"]
                 if min_time and (not metric.min_time or min_time < metric.min_time):
                     metric.min_time = min_time
                 if max_time and (not metric.max_time or max_time > metric.max_time):
@@ -427,8 +433,13 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_duration += data["duration"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_duration = data["duration"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_duration += data["duration"]
                 if min_time and (not metric.min_time or min_time < metric.min_time):
                     metric.min_time = min_time
                 if max_time and (not metric.max_time or max_time > metric.max_time):
@@ -532,15 +543,16 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                             method_time = time_per_action * count
                             
                             # For daily summaries, aggregate by day
+                            # HPC summaries contain absolute values, not deltas
                             if summary_type == "daily":
-                                daily_data[day][method_name]["count"] += count
-                                daily_data[day][method_name]["execution_time"] += method_time
+                                daily_data[day][method_name]["count"] = count
+                                daily_data[day][method_name]["execution_time"] = method_time
 
                             # For hourly summaries, aggregate by day-hour
                             elif summary_type == "hourly" and hour is not None:
                                 key = f"{day}-{hour}"
-                                hourly_data[key][method_name]["count"] += count
-                                hourly_data[key][method_name]["execution_time"] += method_time
+                                hourly_data[key][method_name]["count"] = count
+                                hourly_data[key][method_name]["execution_time"] = method_time
                     else:
                         # Standard format: individual log entries per method call
                         method_name = log_entry.get("method_name", "unknown")
@@ -587,8 +599,13 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_execution_time += data["execution_time"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_execution_time = data["execution_time"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_execution_time += data["execution_time"]
             else:
                 # Create new record
                 metric = ClientLogMetrics(
@@ -621,8 +638,13 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_execution_time += data["execution_time"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_execution_time = data["execution_time"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_execution_time += data["execution_time"]
             else:
                 # Create new record
                 metric = ClientLogMetrics(
