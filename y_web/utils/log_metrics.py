@@ -160,6 +160,40 @@ def update_log_file_offset(
     _commit_with_retry(db.session)
 
 
+def reset_hpc_client_metrics(exp_id, client_id):
+    """
+    Reset client metrics and file offsets for an HPC experiment.
+    
+    This is needed when switching to a new log format or to force re-parsing.
+    Only affects the specific client, not the entire experiment.
+    
+    Args:
+        exp_id: Experiment ID
+        client_id: Client ID to reset
+    """
+    try:
+        # Delete existing client metrics
+        ClientLogMetrics.query.filter_by(
+            exp_id=exp_id,
+            client_id=client_id
+        ).delete()
+        
+        # Delete file offsets for this client
+        LogFileOffset.query.filter_by(
+            exp_id=exp_id,
+            log_file_type="client",
+            client_id=client_id
+        ).delete()
+        
+        _commit_with_retry(db.session)
+        logger.info(f"Reset client metrics and offsets for exp_id={exp_id}, client_id={client_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error resetting client metrics: {e}", exc_info=True)
+        db.session.rollback()
+        return False
+
+
 def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
     """
     Parse server log file incrementally from a given offset.
@@ -631,6 +665,19 @@ def update_client_log_metrics(exp_id, client_id, log_file_path, is_hpc=False):
         if not os.path.exists(log_file_path):
             logger.warning(f"Client log file not found: {log_file_path}")
             return True
+
+        # For HPC experiments, check if we have old incorrectly parsed data
+        # If we find "unknown" method name, reset and re-parse from beginning
+        if is_hpc:
+            has_unknown = ClientLogMetrics.query.filter_by(
+                exp_id=exp_id,
+                client_id=client_id,
+                method_name="unknown"
+            ).first()
+            
+            if has_unknown:
+                logger.info(f"Found 'unknown' method in HPC client metrics, resetting for exp_id={exp_id}, client_id={client_id}")
+                reset_hpc_client_metrics(exp_id, client_id)
 
         # Get relative file path (for storage in database)
         file_name = os.path.basename(log_file_path)
