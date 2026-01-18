@@ -19,6 +19,8 @@ from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from y_web import db
 from y_web.models import (
+    Client,
+    Client_Execution,
     ClientLogMetrics,
     LogFileOffset,
     ServerLogMetrics,
@@ -195,6 +197,35 @@ def reset_hpc_client_metrics(exp_id, client_id):
         return success
     except Exception as e:
         logger.error(f"Error resetting client metrics: {e}", exc_info=True)
+        # Don't call rollback here - _commit_with_retry already handles it
+        return False
+
+
+def reset_hpc_server_metrics(exp_id):
+    """
+    Reset server metrics and file offsets for an HPC experiment.
+    
+    This is needed when switching to a new log format or to force re-parsing.
+    
+    Args:
+        exp_id: Experiment ID
+    """
+    try:
+        # Delete existing server metrics
+        ServerLogMetrics.query.filter_by(exp_id=exp_id).delete()
+        
+        # Delete file offsets for server logs
+        LogFileOffset.query.filter_by(
+            exp_id=exp_id,
+            log_file_type="server"
+        ).delete()
+        
+        success = _commit_with_retry(db.session)
+        if success:
+            logger.info(f"Reset server metrics and offsets for exp_id={exp_id}")
+        return success
+    except Exception as e:
+        logger.error(f"Error resetting server metrics: {e}", exc_info=True)
         # Don't call rollback here - _commit_with_retry already handles it
         return False
 
@@ -442,6 +473,10 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
     hourly_data = defaultdict(
         lambda: defaultdict(lambda: {"count": 0, "execution_time": 0.0})
     )
+    
+    # Track max day/hour for HPC client_execution updates
+    max_day = -1
+    max_hour = -1
 
     try:
         with open(log_file_path, "r") as f:
@@ -478,6 +513,12 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                         
                         # For hourly summaries, get slot (hour) once before loop
                         hour = log_entry.get("slot") if summary_type == "hourly" else None
+                        
+                        # Track max day/hour for client_execution updates
+                        if summary_type == "hourly" and hour is not None:
+                            if day > max_day or (day == max_day and hour > max_hour):
+                                max_day = day
+                                max_hour = hour
                         
                         # Process each action method
                         for method_name, count in actions_by_method.items():
@@ -591,8 +632,31 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                 db.session.add(metric)
 
     _commit_with_retry(db.session)
+    
+    # For HPC, update Client_Execution with progress information
+    if is_hpc and max_day >= 0 and max_hour >= 0:
+        try:
+            client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
+            if client_exec:
+                # Update last active day and hour
+                client_exec.last_active_day = max_day
+                client_exec.last_active_hour = max_hour
+                
+                # Check if simulation is complete
+                # If current_round >= expected_duration_rounds, mark client as stopped
+                current_round = max_day * 24 + max_hour
+                if current_round >= client_exec.expected_duration_rounds:
+                    # Get the client and mark as stopped
+                    client = Client.query.filter_by(id=client_id).first()
+                    if client and client.is_running == 1:
+                        client.is_running = 0
+                        logger.info(f"HPC client {client_id} simulation complete, marking as stopped")
+                
+                _commit_with_retry(db.session)
+        except Exception as e:
+            logger.error(f"Error updating client_execution for HPC client {client_id}: {e}", exc_info=True)
 
-    return new_offset, {"daily": daily_data, "hourly": hourly_data}
+    return new_offset, {"daily": daily_data, "hourly": hourly_data, "max_day": max_day, "max_hour": max_hour}
 
 
 def get_rotating_log_files(base_log_path):
@@ -675,6 +739,21 @@ def update_server_log_metrics(exp_id, log_file_path, is_hpc=False):
         if not os.path.exists(log_file_path):
             logger.warning(f"Log file not found: {log_file_path}")
             return True
+
+        # For HPC experiments, check if we have old incorrectly parsed data
+        # If simulation time is missing/zero, reset and re-parse from beginning
+        if is_hpc:
+            existing_metric = ServerLogMetrics.query.filter_by(
+                exp_id=exp_id,
+                aggregation_level="daily"
+            ).first()
+            
+            if existing_metric and existing_metric.min_time and existing_metric.max_time:
+                # Check if this looks like old data (simulation time near zero)
+                sim_time = (existing_metric.max_time - existing_metric.min_time).total_seconds()
+                if sim_time < 1.0:  # Less than 1 second suggests old incorrect data
+                    logger.info(f"Found old server metrics with near-zero simulation time for exp_id={exp_id}, resetting")
+                    reset_hpc_server_metrics(exp_id)
 
         # Get relative file name (for storage in database)
         file_name = os.path.basename(log_file_path)
