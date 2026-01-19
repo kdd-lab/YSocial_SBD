@@ -130,6 +130,8 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
         pass
 
     user = User_mgmt.query.get(user_id)
+    if not user:
+        user = User_mgmt.query.filter_by(username=user_id).first()
 
     is_following = (
         Follow.query.filter_by(follower_id=current_user.id, user_id=user_id).count() > 0
@@ -421,7 +423,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if user_id != "all":
         user = User_mgmt.query.filter_by(id=user_id).first()
     else:
-        user = User_mgmt.query.filter_by(id=current_user.id).first()
+        user = User_mgmt.query.filter_by(username=current_user.username).first()
 
     try:
         ag = Agent.query.filter_by(name=current_user.username).first()
@@ -509,7 +511,7 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
     trending_ht = get_trending_hashtags()
 
     # get user profile pic
-    user = User_mgmt.query.filter_by(id=current_user.id).first()
+    user = User_mgmt.query.filter_by(username=current_user.username).first()
     profile_pic = ""
     if user.is_page == 1:
         pg = Page.query.filter_by(name=user.username).first()
@@ -580,7 +582,7 @@ def get_post_interest(exp_id, interest_id, page=1):
     trending_tp = get_trending_topics()
 
     # get user profile pic
-    user = User_mgmt.query.filter_by(id=current_user.id).first()
+    user = User_mgmt.query.filter_by(username=current_user.username).first()
     profile_pic = ""
     if user.is_page == 1:
         pg = Page.query.filter_by(name=user.username).first()
@@ -652,7 +654,7 @@ def get_post_emotion(exp_id, emotion_id, page=1):
     trending_tp = get_trending_emotions()
 
     # get user profile pic
-    user = User_mgmt.query.filter_by(id=current_user.id).first()
+    user = User_mgmt.query.filter_by(username=current_user.username).first()
     profile_pic = ""
     if user.is_page == 1:
         pg = Page.query.filter_by(name=user.username).first()
@@ -715,7 +717,7 @@ def get_friends(exp_id, user_id, page=1):
     )
     mentions = get_unanswered_mentions(current_user.id)
 
-    cu = User_mgmt.query.filter_by(id=current_user.id).first()
+    cu = User_mgmt.query.filter_by(username=current_user.username).first()
 
     profile_pic_follower = {}
 
@@ -1437,7 +1439,7 @@ def get_thread_reddit(exp_id, post_id):
     mentions = get_unanswered_mentions(current_user.id)
 
     # get user profile pic
-    user = User_mgmt.query.filter_by(id=current_user.id).first()
+    user = User_mgmt.query.filter_by(username=current_user.username).first()
     profile_pic = ""
     if user.is_page == 1:
         pg = Page.query.filter_by(name=user.username).first()
@@ -1613,7 +1615,7 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if user_id != "all":
         user = User_mgmt.query.filter_by(id=user_id).first()
     else:
-        user = User_mgmt.query.filter_by(id=current_user.id).first()
+        user = User_mgmt.query.filter_by(username=current_user.username).first()
 
     try:
         ag = Agent.query.filter_by(name=current_user.username).first()
