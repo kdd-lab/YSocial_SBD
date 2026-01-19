@@ -93,10 +93,38 @@ def index():
                 return redirect("/admin/join_simulation")
             # If single experiment, redirect directly to feed
             exp = exps[0]
+            
+            # Get experiment user ID (not admin user ID)
+            # Temporarily bind to experiment database to query user
+            from y_web.experiment_context import get_db_bind_key_for_exp
+            bind_key = get_db_bind_key_for_exp(exp.idexp)
+            
+            # Query User_mgmt from experiment database
+            exp_user_id = current_user.id  # fallback to admin ID
+            try:
+                # Use the experiment's database bind
+                from y_web import db
+                from y_web.models import User_mgmt
+                
+                # Temporarily override db_exp bind to query correct database
+                original_bind = db.get_app().config["SQLALCHEMY_BINDS"].get("db_exp")
+                if bind_key in db.get_app().config["SQLALCHEMY_BINDS"]:
+                    db.get_app().config["SQLALCHEMY_BINDS"]["db_exp"] = db.get_app().config["SQLALCHEMY_BINDS"][bind_key]
+                    
+                    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+                    if exp_user:
+                        exp_user_id = exp_user.id
+                    
+                    # Restore original bind
+                    if original_bind:
+                        db.get_app().config["SQLALCHEMY_BINDS"]["db_exp"] = original_bind
+            except Exception:
+                pass  # Use fallback admin ID if query fails
+            
             if exp.platform_type == "microblogging":
-                return redirect(f"/{exp.idexp}/feed/{current_user.id}/feed/rf/1")
+                return redirect(f"/{exp.idexp}/feed/{exp_user_id}/feed/rf/1")
             elif exp.platform_type == "forum":
-                return redirect(f"/{exp.idexp}/rfeed/{current_user.id}/rfeed/rf/1")
+                return redirect(f"/{exp.idexp}/rfeed/{exp_user_id}/rfeed/rf/1")
     return render_template("login.html")
 
 
@@ -388,7 +416,34 @@ def feeed_logged():
         return redirect("/admin/join_simulation")
 
     exp = exps[0]
-    user_id = current_user.id
+    
+    # Get experiment user ID (not admin user ID)
+    # Temporarily bind to experiment database to query user
+    from y_web.experiment_context import get_db_bind_key_for_exp
+    bind_key = get_db_bind_key_for_exp(exp.idexp)
+    
+    # Query User_mgmt from experiment database
+    user_id = current_user.id  # fallback to admin ID
+    try:
+        # Use the experiment's database bind
+        from y_web import db
+        from y_web.models import User_mgmt
+        
+        # Temporarily override db_exp bind to query correct database
+        original_bind = db.get_app().config["SQLALCHEMY_BINDS"].get("db_exp")
+        if bind_key in db.get_app().config["SQLALCHEMY_BINDS"]:
+            db.get_app().config["SQLALCHEMY_BINDS"]["db_exp"] = db.get_app().config["SQLALCHEMY_BINDS"][bind_key]
+            
+            exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+            if exp_user:
+                user_id = exp_user.id
+            
+            # Restore original bind
+            if original_bind:
+                db.get_app().config["SQLALCHEMY_BINDS"]["db_exp"] = original_bind
+    except Exception:
+        pass  # Use fallback admin ID if query fails
+    
     return redirect(f"/{exp.idexp}/feed/{user_id}/feed/rf/1")
 
 
