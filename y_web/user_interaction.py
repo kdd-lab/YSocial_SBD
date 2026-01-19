@@ -878,14 +878,17 @@ def publish_comment(exp_id):
     # get sentiment of the post is responding to
     sentiment_root = Post_Sentiment.query.filter_by(post_id=pid).first()
 
-    if sentiment_root is None:
+    if sentiment_root is not None:
         values = {
             "pos": sentiment_root.pos,
             "neg": sentiment_root.neg,
             "neu": sentiment_root.neu,
         }
         # get the key with the max value
-        sentiment_parent = max(values, key=values.get)
+    else:
+        values = {"neu": 1}
+
+    sentiment_parent = max(values, key=values.get)
     sentiment = vader_sentiment(text)
 
     toxicity(text, current_user.username, post.id, db)
