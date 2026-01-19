@@ -383,7 +383,7 @@ def change_active_experiment(exp_id):
         # We skip user registration if database doesn't exist yet
         # We need to switch to the correct bind temporarily
         bind_key = f"db_exp_{exp_id}"
-        
+
         # For HPC experiments with SQLite, check if database exists
         skip_user_registration = False
         if exp.simulator_type == "HPC":
@@ -391,6 +391,7 @@ def change_active_experiment(exp_id):
             if current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
                 # Check if the SQLite database file exists
                 from y_web.utils.path_utils import get_writable_path
+
                 db_path = get_writable_path(os.path.join("y_web", exp.db_name))
                 if not os.path.exists(db_path):
                     skip_user_registration = True
@@ -2406,18 +2407,20 @@ def experiment_trends(exp_id):
             "client_hourly_compute": client_hourly_compute,
             "client_progress": client_progress,
         }
-        
+
         # Log data for debugging HPC plots
         if experiment.simulator_type == "HPC":
             result_data["debug_info"] = {
-                "daily_compute_count": len(result_data['daily_compute']),
-                "daily_compute_keys": list(result_data['daily_compute'].keys()),
-                "daily_compute_sample": {k: result_data['daily_compute'][k] for k in
-                                         list(result_data['daily_compute'].keys())[:3]},
-                "hourly_compute_count": len(result_data['hourly_compute']),
-                "hourly_compute_keys": list(result_data['hourly_compute'].keys())[:5],
-                "daily_simulation_count": len(result_data['daily_simulation']),
-                "hourly_simulation_count": len(result_data['hourly_simulation']),
+                "daily_compute_count": len(result_data["daily_compute"]),
+                "daily_compute_keys": list(result_data["daily_compute"].keys()),
+                "daily_compute_sample": {
+                    k: result_data["daily_compute"][k]
+                    for k in list(result_data["daily_compute"].keys())[:3]
+                },
+                "hourly_compute_count": len(result_data["hourly_compute"]),
+                "hourly_compute_keys": list(result_data["hourly_compute"].keys())[:5],
+                "daily_simulation_count": len(result_data["daily_simulation"]),
+                "hourly_simulation_count": len(result_data["hourly_simulation"]),
                 "log_file_path": log_file,
                 "log_file_exists": os.path.exists(log_file),
             }
@@ -2425,11 +2428,13 @@ def experiment_trends(exp_id):
             print(f"\n=== HPC Experiment {exp_id} Trends Debug ===")
             print(f"Daily compute entries: {len(result_data['daily_compute'])}")
             print(f"Daily compute keys: {list(result_data['daily_compute'].keys())}")
-            print(f"Daily compute sample: {result_data['debug_info']['daily_compute_sample']}")
+            print(
+                f"Daily compute sample: {result_data['debug_info']['daily_compute_sample']}"
+            )
             print(f"Hourly compute entries: {len(result_data['hourly_compute'])}")
             print(f"Log file: {log_file} (exists: {os.path.exists(log_file)})")
             print("==========================================\n")
-        
+
         return jsonify(result_data)
 
     except Exception as e:

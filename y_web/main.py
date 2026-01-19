@@ -797,7 +797,7 @@ def get_thread(exp_id, post_id):
         # Keep as string if it's a UUID
         pass
 
-    #thread_id = Post.query.filter_by(id=post_id).first().thread_id
+    # thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
     posts = Post.query.filter_by(thread_id=post_id).order_by(Post.id.asc()).all()

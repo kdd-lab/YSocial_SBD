@@ -280,15 +280,17 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                     if is_hpc:
                         # HPC format: use summary entries (hourly and daily)
                         # Format: {"time": "2026-01-19 10:02:22", "summary_type": "hourly", "day": 1, "slot": 15,
-                        #          "total_actions": 4, "successful_actions": 4, 
+                        #          "total_actions": 4, "successful_actions": 4,
                         #          "total_execution_time_seconds": 1.0336, "average_execution_time_seconds": 0.2584,
                         #          "actions_by_method": {"like": 2, "laugh": 1, "follow": 1}}
                         summary_type = log_entry.get("summary_type")
                         if summary_type not in ("hourly", "daily"):
                             if line_count <= 5:  # Log first few skipped entries
-                                errors.append(f"Line {line_count}: No summary_type or wrong type: {summary_type}")
+                                errors.append(
+                                    f"Line {line_count}: No summary_type or wrong type: {summary_type}"
+                                )
                             continue
-                        
+
                         hpc_summary_count += 1
 
                         day = log_entry.get("day")
@@ -320,7 +322,9 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             hpc_daily_count += 1
                             daily_data[day][path]["count"] = 1
                             daily_data[day][path]["duration"] = total_execution_time
-                            daily_data[day][path]["simulation_time"] = total_execution_time
+                            daily_data[day][path][
+                                "simulation_time"
+                            ] = total_execution_time
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
 
@@ -331,14 +335,18 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                                 hpc_hourly_count += 1
                                 key = f"{day}-{hour}"
                                 hourly_data[key][path]["count"] = 1
-                                hourly_data[key][path]["duration"] = total_execution_time
+                                hourly_data[key][path][
+                                    "duration"
+                                ] = total_execution_time
                                 hourly_data[key][path][
                                     "simulation_time"
                                 ] = total_execution_time
                                 if time_obj:
                                     hourly_data[key][path]["times"].append(time_obj)
                             else:
-                                errors.append(f"Line {line_count}: Hourly entry missing slot field")
+                                errors.append(
+                                    f"Line {line_count}: Hourly entry missing slot field"
+                                )
                     else:
                         # Standard format: individual log entries per request
                         path = log_entry.get("path", "unknown")
@@ -375,12 +383,14 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                 except json.JSONDecodeError as e:
                     # Skip invalid JSON lines
                     if line_count <= 5:
-                        errors.append(f"Line {line_count}: JSON decode error: {str(e)[:100]}")
+                        errors.append(
+                            f"Line {line_count}: JSON decode error: {str(e)[:100]}"
+                        )
                     continue
 
             # Get the new offset
             new_offset = f.tell()
-            
+
             # Print debug info for HPC experiments
             if is_hpc:
                 print(f"\n=== HPC Log Parsing Debug ({log_file_path}) ===")
@@ -502,7 +512,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                 db.session.add(metric)
 
     _commit_with_retry(db.session)
-    
+
     # Verify database writes for HPC experiments
     if is_hpc:
         daily_count = ServerLogMetrics.query.filter_by(
