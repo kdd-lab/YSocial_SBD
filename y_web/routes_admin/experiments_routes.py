@@ -399,23 +399,13 @@ def change_active_experiment(exp_id):
                 )
 
                 if user is None:
-                    # For HPC experiments, we need to use a manual ID assignment strategy
-                    # because HPC experiments use non-autoincrement IDs
+                    # For HPC experiments, we need to use UUID strings as IDs
+                    # Standard experiments use integer IDs with auto-increment
                     if exp.simulator_type == "HPC":
-                        # Query for the maximum existing ID in User_mgmt
-                        # Note: There is a potential race condition here if two users
-                        # activate the experiment simultaneously. In practice, this is
-                        # unlikely because activation is typically done by one admin.
-                        # If it occurs, the IntegrityError will be caught and the user
-                        # will be prompted to try again.
-                        max_id_result = db.session.query(
-                            db.func.max(User_mgmt.id)
-                        ).first()
-                        max_id = max_id_result[0] if max_id_result[0] is not None else 0
-                        # Assign the next available ID
-                        user_id = max_id + 1
+                        # Generate a UUID string for HPC user ID
+                        user_id = str(uuid.uuid4())
                         current_app.logger.info(
-                            f"Assigning HPC user ID {user_id} to {current_user.username} for experiment {exp_id}"
+                            f"Assigning HPC user UUID {user_id} to {current_user.username} for experiment {exp_id}"
                         )
                     else:
                         # For Standard experiments, use the admin user's ID (auto-increment behavior)
@@ -1405,14 +1395,14 @@ def create_experiment():
     # copy the clean database to the experiments folder
     if platform_type == "microblogging" or platform_type == "forum":
         if db_type == "sqlite":
-            if simulator_type == "Standard":
-                clean_db_source = get_resource_path(
-                    os.path.join("data_schema", "database_clean_server.db")
-                )
-                shutil.copyfile(
-                    clean_db_source,
-                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
-                )
+            # For both Standard and HPC simulators, create the SQLite database
+            clean_db_source = get_resource_path(
+                os.path.join("data_schema", "database_clean_server.db")
+            )
+            shutil.copyfile(
+                clean_db_source,
+                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
+            )
         elif db_type == "postgresql":
             from urllib.parse import urlparse
 
@@ -2023,12 +2013,8 @@ def experiment_details(uid):
                         username=current_user.username
                     ).first()
                     if not existing_current_user:
-                        # Query for the maximum existing ID in User_mgmt
-                        # Note: Same race condition caveat as in change_active_experiment
-                        max_id_result = db.session.query(db.func.max(User_mgmt.id)).first()
-                        max_id = max_id_result[0] if max_id_result[0] is not None else 0
-                        # Assign the next available ID
-                        user_id = max_id + 1
+                        # Generate a UUID string for HPC user ID
+                        user_id = str(uuid.uuid4())
 
                         try:
                             current_user_entry = User_mgmt(
@@ -2042,7 +2028,7 @@ def experiment_details(uid):
                             db.session.add(current_user_entry)
                             db.session.commit()
                             current_app.logger.info(
-                                f"Added current user {current_user.username} (ID: {user_id}) to user_mgmt for HPC experiment {uid}"
+                                f"Added current user {current_user.username} (UUID: {user_id}) to user_mgmt for HPC experiment {uid}"
                             )
                         except Exception as e:
                             db.session.rollback()
