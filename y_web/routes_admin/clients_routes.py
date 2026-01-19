@@ -430,7 +430,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     trans_expl_expl = float(form_data.get("trans_expl_expl", "0.85"))
 
     # Extract LLM backend
-    llm_backend = form_data.get("llm_backend", "vllm")
+    llm_backend = form_data.get("llm_backend", "ollama")  # Changed default from vllm to ollama for HPC
 
     # Check if LLM agents are enabled
     llm_agents_enabled = (
@@ -930,6 +930,93 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     )
     db.session.add(client_exec)
     db.session.commit()
+
+    # Handle optional network configuration (same logic as Standard clients)
+    network_model = form_data.get("network_model")
+    network_p = form_data.get("network_p")
+    network_m = form_data.get("network_m")
+    network_file = request.files.get("network_file")  # Get from request.files, not form_data
+    
+    if network_model or (network_file and network_file.filename):
+        # Get agents for the population
+        agent_pops = Agent_Population.query.filter_by(population_id=population_id).all()
+        agents = [Agent.query.filter_by(id=ap.agent_id).first() for ap in agent_pops]
+        agent_ids = [a.name for a in agents if a]
+        
+        # Get pages for the population
+        page_pops = Page_Population.query.filter_by(population_id=population_id).all()
+        pages_list = [Page.query.filter_by(id=pp.page_id).first() for pp in page_pops]
+        page_ids = [p.name for p in pages_list if p]
+        
+        # Combine agent and page IDs
+        all_node_ids = agent_ids + page_ids
+        
+        network_path = f"{exp_dir}{os.sep}{client.name}_network.csv"
+        
+        if network_file and network_file.filename:
+            # Handle uploaded network file
+            temp_path = network_path.replace("_network.csv", "_network_temp.csv")
+            network_file.save(temp_path)
+            
+            try:
+                with open(network_path, "w") as o:
+                    with open(temp_path, "r") as f:
+                        for line in f:
+                            line = line.rstrip().split(",")
+                            if len(line) < 2:
+                                continue
+                            
+                            # Verify both nodes exist in population
+                            node1_valid = line[0] in all_node_ids
+                            node2_valid = line[1] in all_node_ids
+                            
+                            if node1_valid and node2_valid:
+                                o.write(f"{line[0]},{line[1]}\n")
+                            else:
+                                if not node1_valid:
+                                    flash(f"Agent/Page {line[0]} not found in population.", "warning")
+                                if not node2_valid:
+                                    flash(f"Agent/Page {line[1]} not found in population.", "warning")
+                
+                os.remove(temp_path)
+                client.network_type = "Custom Network"
+                db.session.commit()
+            except Exception as e:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                if os.path.exists(network_path):
+                    os.remove(network_path)
+                flash("Network file format error: provide a csv file containing two columns with agent names. No header required.", "error")
+        
+        elif network_model:
+            # Handle synthetic network generation
+            try:
+                G = None
+                if network_model == "erdos_renyi":
+                    p = float(network_p) if network_p else 0.1
+                    G = nx.erdos_renyi_graph(len(all_node_ids), p)
+                elif network_model == "barabasi_albert":
+                    m = int(network_m) if network_m else 2
+                    G = nx.barabasi_albert_graph(len(all_node_ids), m)
+                elif network_model == "watts_strogatz":
+                    k = int(network_m) if network_m else 4
+                    p = float(network_p) if network_p else 0.1
+                    G = nx.watts_strogatz_graph(len(all_node_ids), k, p)
+                
+                if G:
+                    # Map node indices to agent/page names
+                    node_mapping = {i: all_node_ids[i] for i in range(len(all_node_ids))}
+                    G = nx.relabel_nodes(G, node_mapping)
+                    
+                    # Save network to CSV
+                    with open(network_path, "w") as f:
+                        for edge in G.edges():
+                            f.write(f"{edge[0]},{edge[1]}\n")
+                    
+                    client.network_type = f"{network_model.replace('_', ' ').title()}"
+                    db.session.commit()
+            except Exception as e:
+                flash(f"Error generating network: {str(e)}", "error")
 
     flash(f"HPC client '{name}' created successfully")
 
