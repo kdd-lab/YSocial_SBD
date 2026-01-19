@@ -388,7 +388,14 @@ def feeed_logged():
         return redirect("/admin/join_simulation")
 
     exp = exps[0]
-    user_id = current_user.id
+    
+    # Get experiment user (not admin user)
+    logged_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not logged_user:
+        flash("User not found in experiment", "error")
+        return redirect(url_for("main.index"))
+    user_id = logged_user.id
+    
     return redirect(f"/{exp.idexp}/feed/{user_id}/feed/rf/1")
 
 
