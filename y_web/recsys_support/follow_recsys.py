@@ -37,6 +37,10 @@ def get_suggested_users(user_id, pages=False):
         return []
 
     user = User_mgmt.query.filter_by(id=user_id).first()
+    
+    # Handle case where user is not found
+    if not user:
+        return []
 
     users = __follow_suggestions(user.frecsys_type, user.id, 5, 1.5)
     if len(users) == 0:
