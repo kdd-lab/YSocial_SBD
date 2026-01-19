@@ -259,7 +259,15 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
             # Seek to the start offset
             f.seek(start_offset)
 
+            line_count = 0
+            parsed_count = 0
+            hpc_summary_count = 0
+            hpc_daily_count = 0
+            hpc_hourly_count = 0
+            errors = []
+
             for line in f:
+                line_count += 1
                 line = line.strip()
                 if not line:
                     continue
@@ -267,6 +275,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                 try:
                     # Parse JSON - log entries should already be properly formatted
                     log_entry = json.loads(line)
+                    parsed_count += 1
 
                     if is_hpc:
                         # HPC format: use summary entries (hourly and daily)
@@ -276,10 +285,15 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         #          "actions_by_method": {"like": 2, "laugh": 1, "follow": 1}}
                         summary_type = log_entry.get("summary_type")
                         if summary_type not in ("hourly", "daily"):
+                            if line_count <= 5:  # Log first few skipped entries
+                                errors.append(f"Line {line_count}: No summary_type or wrong type: {summary_type}")
                             continue
+                        
+                        hpc_summary_count += 1
 
                         day = log_entry.get("day")
                         if day is None:
+                            errors.append(f"Line {line_count}: Missing day field")
                             continue  # Skip entries without a valid day
 
                         # Parse timestamp if available for time tracking
@@ -303,6 +317,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         # For daily summaries
                         # HPC summaries contain absolute values, not deltas
                         if summary_type == "daily":
+                            hpc_daily_count += 1
                             daily_data[day][path]["count"] = 1
                             daily_data[day][path]["duration"] = total_execution_time
                             daily_data[day][path]["simulation_time"] = total_execution_time
@@ -313,6 +328,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         elif summary_type == "hourly":
                             hour = log_entry.get("slot")  # HPC uses "slot" for hour
                             if hour is not None:
+                                hpc_hourly_count += 1
                                 key = f"{day}-{hour}"
                                 hourly_data[key][path]["count"] = 1
                                 hourly_data[key][path]["duration"] = total_execution_time
@@ -321,6 +337,8 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                                 ] = total_execution_time
                                 if time_obj:
                                     hourly_data[key][path]["times"].append(time_obj)
+                            else:
+                                errors.append(f"Line {line_count}: Hourly entry missing slot field")
                     else:
                         # Standard format: individual log entries per request
                         path = log_entry.get("path", "unknown")
@@ -354,15 +372,32 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             if time_obj:
                                 hourly_data[key][path]["times"].append(time_obj)
 
-                except json.JSONDecodeError:
+                except json.JSONDecodeError as e:
                     # Skip invalid JSON lines
+                    if line_count <= 5:
+                        errors.append(f"Line {line_count}: JSON decode error: {str(e)[:100]}")
                     continue
 
             # Get the new offset
             new_offset = f.tell()
+            
+            # Print debug info for HPC experiments
+            if is_hpc:
+                print(f"\n=== HPC Log Parsing Debug ({log_file_path}) ===")
+                print(f"Total lines read: {line_count}")
+                print(f"Successfully parsed JSON: {parsed_count}")
+                print(f"HPC summary entries found: {hpc_summary_count}")
+                print(f"Daily entries processed: {hpc_daily_count}")
+                print(f"Hourly entries processed: {hpc_hourly_count}")
+                print(f"Daily data keys: {list(daily_data.keys())}")
+                print(f"Hourly data keys: {list(hourly_data.keys())[:10]}")
+                if errors:
+                    print(f"Errors (first 10): {errors[:10]}")
+                print("==========================================\n")
 
     except Exception as e:
         logger.error(f"Error reading server log file: {e}", exc_info=True)
+        print(f"CRITICAL ERROR reading log file: {e}")
         return start_offset, {}
 
     # Update database with new metrics
