@@ -1946,55 +1946,76 @@ def experiment_details(uid):
     # For HPC experiments, ensure the owner and current user exist in user_mgmt table
     # This is needed because HPC experiments use non-autoincrement IDs
     if experiment and experiment.simulator_type == "HPC":
-        # Get the admin user who owns this experiment
+        # Get the admin user who owns this experiment (from main database)
         owner_admin = Admin_users.query.filter_by(username=experiment.owner).first()
-        if owner_admin:
-            # Check if owner already exists in user_mgmt with their admin ID
-            existing_user = User_mgmt.query.filter_by(
-                username=owner_admin.username
-            ).first()
-            if not existing_user:
-                # Create user_mgmt entry with admin user's ID
-                owner_user = User_mgmt(
-                    id=owner_admin.id,  # Use admin user's ID (non-autoincrement for HPC)
-                    username=owner_admin.username,
-                    email=owner_admin.email or "",
-                    password="",  # Password not needed for HPC owner entry
-                    user_type="owner",
-                    joined_on=int(time.time()),
-                )
-                db.session.add(owner_user)
-                db.session.commit()
-                current_app.logger.info(
-                    f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}"
-                )
+        
+        # Register and switch to experiment database context
+        from y_web.experiment_context import register_experiment_database
 
-        # Also ensure the current user exists in the HPC experiment database
-        # This is needed for plots and visualizations to work correctly
-        if current_user.username != experiment.owner:
-            existing_current_user = User_mgmt.query.filter_by(
-                username=current_user.username
-            ).first()
-            if not existing_current_user:
-                # Query for the maximum existing ID in User_mgmt
-                max_id_result = db.session.query(db.func.max(User_mgmt.id)).first()
-                max_id = max_id_result[0] if max_id_result[0] is not None else 0
-                # Assign the next available ID
-                user_id = max_id + 1
+        bind_key = f"db_exp_{uid}"
+        
+        # Ensure the experiment database is registered
+        if bind_key not in current_app.config["SQLALCHEMY_BINDS"]:
+            register_experiment_database(current_app, uid, experiment.db_name)
+        
+        # Temporarily switch to experiment database
+        old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
+        current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+            "SQLALCHEMY_BINDS"
+        ][bind_key]
+        
+        try:
+            if owner_admin:
+                # Check if owner already exists in user_mgmt with their admin ID
+                existing_user = User_mgmt.query.filter_by(
+                    username=owner_admin.username
+                ).first()
+                if not existing_user:
+                    # Create user_mgmt entry with admin user's ID
+                    owner_user = User_mgmt(
+                        id=owner_admin.id,  # Use admin user's ID (non-autoincrement for HPC)
+                        username=owner_admin.username,
+                        email=owner_admin.email or "",
+                        password="",  # Password not needed for HPC owner entry
+                        user_type="owner",
+                        joined_on=int(time.time()),
+                    )
+                    db.session.add(owner_user)
+                    db.session.commit()
+                    current_app.logger.info(
+                        f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}"
+                    )
 
-                current_user_entry = User_mgmt(
-                    id=user_id,
-                    username=current_user.username,
-                    email=current_user.email or "",
-                    password="",  # Password not needed for HPC user entry
-                    user_type="user",
-                    joined_on=int(time.time()),
-                )
-                db.session.add(current_user_entry)
-                db.session.commit()
-                current_app.logger.info(
-                    f"Added current user {current_user.username} (ID: {user_id}) to user_mgmt for HPC experiment {uid}"
-                )
+            # Also ensure the current user exists in the HPC experiment database
+            # This is needed for plots and visualizations to work correctly
+            if current_user.username != experiment.owner:
+                existing_current_user = User_mgmt.query.filter_by(
+                    username=current_user.username
+                ).first()
+                if not existing_current_user:
+                    # Query for the maximum existing ID in User_mgmt
+                    max_id_result = db.session.query(db.func.max(User_mgmt.id)).first()
+                    max_id = max_id_result[0] if max_id_result[0] is not None else 0
+                    # Assign the next available ID
+                    user_id = max_id + 1
+
+                    current_user_entry = User_mgmt(
+                        id=user_id,
+                        username=current_user.username,
+                        email=current_user.email or "",
+                        password="",  # Password not needed for HPC user entry
+                        user_type="user",
+                        joined_on=int(time.time()),
+                    )
+                    db.session.add(current_user_entry)
+                    db.session.commit()
+                    current_app.logger.info(
+                        f"Added current user {current_user.username} (ID: {user_id}) to user_mgmt for HPC experiment {uid}"
+                    )
+        finally:
+            # Restore original bind
+            if old_bind:
+                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
 
     # get experiment populations along with population names and ids
     experiment_populations = (
