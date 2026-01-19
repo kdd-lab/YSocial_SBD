@@ -315,7 +315,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             hpc_daily_count += 1
                             daily_data[day][path]["count"] += 1
                             daily_data[day][path]["duration"] += duration
-                            daily_data[day][path]["simulation_time"] += duration
+                            # For simulation_time, we'll calculate from timestamp differences later
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
                         
@@ -325,7 +325,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             key = f"{day}-{hour}"
                             hourly_data[key][path]["count"] += 1
                             hourly_data[key][path]["duration"] += duration
-                            hourly_data[key][path]["simulation_time"] += duration
+                            # For simulation_time, we'll calculate from timestamp differences later
                             if time_obj:
                                 hourly_data[key][path]["times"].append(time_obj)
                     else:
@@ -394,18 +394,25 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
     # Update database with new metrics
     for day, paths in daily_data.items():
         for path, data in paths.items():
-            # For HPC with simulation_time, create synthetic timestamps
-            # so that (max_time - min_time) = simulation_time
-            if is_hpc and data["simulation_time"] > 0:
-                # Create cumulative timeline: each day starts where previous day ended
-                # Day 0 starts at base time, day 1 starts at base + 1 day of sim time, etc.
-                day_start = HPC_BASE_TIME + timedelta(days=day)
-                min_time = day_start
-                max_time = day_start + timedelta(seconds=data["simulation_time"])
+            # Calculate simulation time from timestamp differences
+            if data["times"]:
+                min_time = min(data["times"])
+                max_time = max(data["times"])
+                # Simulation time is the time span covered by this aggregation period
+                simulation_time = (max_time - min_time).total_seconds()
             else:
-                # For standard experiments, use actual timestamps
-                min_time = min(data["times"]) if data["times"] else None
-                max_time = max(data["times"]) if data["times"] else None
+                min_time = None
+                max_time = None
+                simulation_time = 0
+            
+            # For HPC, store actual simulation time; for synthetic timestamps, use it
+            if is_hpc:
+                # For HPC: min_time and max_time are from actual timestamps
+                # simulation_time is the difference (real elapsed time in simulation)
+                pass
+            else:
+                # For standard experiments: simulation_time not used, keep existing logic
+                simulation_time = 0
 
             # Check if record exists
             metric = ServerLogMetrics.query.filter_by(
@@ -446,18 +453,16 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
         hour = int(hour)
 
         for path, data in paths.items():
-            # For HPC with simulation_time, create synthetic timestamps
-            if is_hpc and data["simulation_time"] > 0:
-                # Create cumulative timeline: each hour starts where previous hour ended
-                # Hour offset within the simulation
-                hour_offset = day * 24 + hour
-                hour_start = HPC_BASE_TIME + timedelta(hours=hour_offset)
-                min_time = hour_start
-                max_time = hour_start + timedelta(seconds=data["simulation_time"])
+            # Calculate simulation time from timestamp differences
+            if data["times"]:
+                min_time = min(data["times"])
+                max_time = max(data["times"])
+                # Simulation time is the time span covered by this aggregation period
+                simulation_time = (max_time - min_time).total_seconds()
             else:
-                # For standard experiments, use actual timestamps
-                min_time = min(data["times"]) if data["times"] else None
-                max_time = max(data["times"]) if data["times"] else None
+                min_time = None
+                max_time = None
+                simulation_time = 0
 
             # Check if record exists
             metric = ServerLogMetrics.query.filter_by(
