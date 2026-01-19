@@ -158,10 +158,10 @@
                         <div class="img-container">
                             <img
                                     id="user-avatar"
-                                    {% if profile_pic_followee[followee['id']] =="" %}
-                                        data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(followee['id']) +'.png') }}"
-                                    {% else %}
+                                    {% if profile_pic_followee[followee['id']] %}
                                         data-demo-src="{{ profile_pic_followee[followee['id']] }}"
+                                    {% else %}
+                                        data-demo-src="{{ url_for('static', filename='assets/img/users/'+ (followee['id']|user_image_id) +'.png') }}"
                                     {% endif %}
                                     alt=""
 
