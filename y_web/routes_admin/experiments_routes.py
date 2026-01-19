@@ -26,7 +26,7 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import current_user, login_required
+from flask_login import current_user, login_required, login_user
 
 from y_web import db  # , app
 from y_web.models import (
@@ -474,7 +474,11 @@ def change_active_experiment(exp_id):
 
         flash(f"Experiment '{exp.exp_name}' activated.")
 
-    reload_current_user(uname)
+    # Reload user session from admin database (not experiment database)
+    # Use Admin_users which is in the main database
+    admin_user = Admin_users.query.filter_by(username=uname).first()
+    if admin_user:
+        login_user(admin_user, remember=True, force=True)
 
     return redirect("/admin/dashboard")
 
