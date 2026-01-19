@@ -9,7 +9,7 @@ content annotation.
 
 import uuid
 
-from flask import Blueprint, redirect, request
+from flask import Blueprint, flash, redirect, request, url_for
 from flask_login import current_user, login_required
 
 from . import db
