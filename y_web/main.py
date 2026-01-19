@@ -440,9 +440,9 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         return redirect(f"/feed/{user_id}/{timeline}/{mode}/{page - 1}")
 
     trending_ht = get_trending_hashtags()
-    mentions = get_unanswered_mentions(current_user.id)
-    sfollow = get_suggested_users(user_id, pages=False)
-    spages = get_suggested_users(user_id, pages=True)
+    mentions = get_unanswered_mentions(current_user.username)
+    sfollow = get_suggested_users(current_user.username, pages=False)
+    spages = get_suggested_users(current_user.username, pages=True)
 
     # get user profile pic
     if user_id != "all":
@@ -462,6 +462,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     except:
         profile_pic = ""
 
+    user = User_mgmt.query.filter_by(username=current_user.username).first()
     profile_pic_feed = ""
     if user.is_page == 1:
         pg = Page.query.filter_by(name=user.username).first()

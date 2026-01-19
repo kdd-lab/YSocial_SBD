@@ -1460,13 +1460,18 @@ def get_topics(post_id, user_id):
     return list(cleaned.values())
 
 
-def get_unanswered_mentions(user_id):
+def get_unanswered_mentions(username):
     """
     Args:
         user_id:
 
     Returns:
     """
+
+    user = User_mgmt.query.filter_by(username=username).first()
+    if user is None:
+        return []
+    user_id = user.id
 
     res = (
         Mentions.query.filter_by(user_id=user_id, answered=0)
