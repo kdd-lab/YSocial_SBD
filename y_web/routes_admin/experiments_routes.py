@@ -2291,9 +2291,13 @@ def experiment_trends(exp_id):
                 # Calculate remaining rounds for each client
                 for ce in client_executions:
                     # Handle None values for last_active_day and last_active_hour
-                    last_day = ce.last_active_day if ce.last_active_day is not None else -1
-                    last_hour = ce.last_active_hour if ce.last_active_hour is not None else -1
-                    
+                    last_day = (
+                        ce.last_active_day if ce.last_active_day is not None else -1
+                    )
+                    last_hour = (
+                        ce.last_active_hour if ce.last_active_hour is not None else -1
+                    )
+
                     # Calculate current round
                     # Note: days and hours are 0-indexed, but rounds are 1-indexed
                     # (day 0, hour 0 = round 1), so we add 1
@@ -2301,13 +2305,13 @@ def experiment_trends(exp_id):
                         current_round = last_day * 24 + last_hour + 1
                     else:
                         current_round = 0
-                    
+
                     # Calculate remaining rounds (handle infinite clients)
                     if ce.expected_duration_rounds > 0:
                         remaining = ce.expected_duration_rounds - current_round
                     else:
                         remaining = -1  # Infinite client
-                    
+
                     client_progress[ce.client_id] = {
                         "expected_rounds": ce.expected_duration_rounds,
                         "current_round": current_round,
@@ -2334,7 +2338,9 @@ def experiment_trends(exp_id):
                 try:
                     # Pass is_hpc flag for HPC experiments to use correct log format
                     is_hpc = experiment.simulator_type == "HPC"
-                    update_client_log_metrics(exp_id, client.id, client_log_file, is_hpc=is_hpc)
+                    update_client_log_metrics(
+                        exp_id, client.id, client_log_file, is_hpc=is_hpc
+                    )
                 except Exception as e:
                     current_app.logger.error(
                         f"Error updating client {client.id} log metrics: {e}",
@@ -2457,7 +2463,9 @@ def client_logs(client_id):
         try:
             # Pass is_hpc flag for HPC experiments to use correct log format
             is_hpc = experiment.simulator_type == "HPC"
-            update_client_log_metrics(experiment.idexp, client_id, log_file, is_hpc=is_hpc)
+            update_client_log_metrics(
+                experiment.idexp, client_id, log_file, is_hpc=is_hpc
+            )
         except Exception as e:
             current_app.logger.error(
                 f"Error updating client log metrics: {e}", exc_info=True
