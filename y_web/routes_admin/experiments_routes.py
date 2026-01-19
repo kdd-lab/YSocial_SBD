@@ -2409,11 +2409,26 @@ def experiment_trends(exp_id):
         
         # Log data for debugging HPC plots
         if experiment.simulator_type == "HPC":
-            current_app.logger.info(
-                f"HPC experiment {exp_id} trends data - "
-                f"daily_compute keys: {list(result_data['daily_compute'].keys())}, "
-                f"hourly_compute keys: {list(result_data['hourly_compute'].keys())[:5]}"
-            )
+            result_data["debug_info"] = {
+                "daily_compute_count": len(result_data['daily_compute']),
+                "daily_compute_keys": list(result_data['daily_compute'].keys()),
+                "daily_compute_sample": {k: result_data['daily_compute'][k] for k in
+                                         list(result_data['daily_compute'].keys())[:3]},
+                "hourly_compute_count": len(result_data['hourly_compute']),
+                "hourly_compute_keys": list(result_data['hourly_compute'].keys())[:5],
+                "daily_simulation_count": len(result_data['daily_simulation']),
+                "hourly_simulation_count": len(result_data['hourly_simulation']),
+                "log_file_path": log_file,
+                "log_file_exists": os.path.exists(log_file),
+            }
+            # Also log to console for server-side visibility
+            print(f"\n=== HPC Experiment {exp_id} Trends Debug ===")
+            print(f"Daily compute entries: {len(result_data['daily_compute'])}")
+            print(f"Daily compute keys: {list(result_data['daily_compute'].keys())}")
+            print(f"Daily compute sample: {result_data['debug_info']['daily_compute_sample']}")
+            print(f"Hourly compute entries: {len(result_data['hourly_compute'])}")
+            print(f"Log file: {log_file} (exists: {os.path.exists(log_file)})")
+            print("==========================================\n")
         
         return jsonify(result_data)
 
