@@ -5,7 +5,7 @@ Handles the primary user-facing routes including the home feed, user profiles,
 hashtag pages, post details, and search functionality for the social media platform.
 """
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash
 
