@@ -126,14 +126,6 @@ def follow(exp_id, user_id, follower_id):
 @login_required
 def share_content(exp_id):
     """
-
-    # Get experiment user (not admin user)
-    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
-    if not exp_user:
-        flash("User not found in experiment", "error")
-        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
-    exp_user_id = exp_user.id
-
     Share/retweet an existing post.
 
     Creates a new post that references the original as a shared post.
@@ -144,6 +136,13 @@ def share_content(exp_id):
     Returns:
         Redirect to referrer page
     """
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+    exp_user_id = exp_user.id
+    
     post_id = request.args.get("post_id")
 
     # get the post
@@ -821,6 +820,13 @@ def publish_comment(exp_id):
     Returns:
         Redirect to thread page after commenting
     """
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+    exp_user_id = exp_user.id
+    
     text = request.args.get("post")
     pid = request.args.get("parent")
 
@@ -882,13 +888,6 @@ def publish_comment(exp_id):
     user = Admin_users.query.filter_by(username=current_user.username).first()
     llm = user.llm if user.llm != "" else "llama3.1"
     llm_url = user.llm_url if user.llm_url != "" else None
-
-    # Get experiment user (not admin user)
-    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
-    if not exp_user:
-        flash("User not found in experiment", "error")
-        return redirect(request.referrer)
-    exp_user_id = exp_user.id
 
     annotator = ContentAnnotator(llm=llm, llm_url=llm_url)
     emotions = annotator.annotate_emotions(text)
@@ -1053,6 +1052,12 @@ def delete_post(exp_id):
 @login_required
 def cancel_notification(exp_id):
     """Handle cancel notification operation."""
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        return {"message": "User not found in experiment", "status": 404}
+    exp_user_id = exp_user.id
+    
     pid = request.args.get("post_id")
 
     # check if the comment is to answer a mention
