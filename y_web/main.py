@@ -128,7 +128,7 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
         flash("User not found in experiment", "error")
         return redirect(url_for("main.index"))
     logged_id = logged_user.id
-    
+
     # Handle both int and UUID user_id formats (Standard vs HPC experiments)
     try:
         user_id = int(user_id)
@@ -139,7 +139,7 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
     user = User_mgmt.query.get(user_id)
     if not user:
         user = User_mgmt.query.filter_by(username=user_id).first()
-    
+
     # If user still not found, redirect with error message
     if not user:
         flash("User not found in experiment", "error")

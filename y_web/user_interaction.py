@@ -140,9 +140,13 @@ def share_content(exp_id):
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     if not exp_user:
         flash("User not found in experiment", "error")
-        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
     exp_user_id = exp_user.id
-    
+
     post_id = request.args.get("post_id")
 
     # get the post
@@ -197,12 +201,15 @@ def react(exp_id):
     post_id = request.args.get("post_id")
     action = request.args.get("action")
 
-
     # Get experiment user (not admin user)
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     if not exp_user:
         flash("User not found in experiment", "error")
-        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
     exp_user_id = exp_user.id
 
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
@@ -824,9 +831,13 @@ def publish_comment(exp_id):
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     if not exp_user:
         flash("User not found in experiment", "error")
-        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
     exp_user_id = exp_user.id
-    
+
     text = request.args.get("post")
     pid = request.args.get("parent")
 
@@ -1057,7 +1068,7 @@ def cancel_notification(exp_id):
     if not exp_user:
         return {"message": "User not found in experiment", "status": 404}
     exp_user_id = exp_user.id
-    
+
     pid = request.args.get("post_id")
 
     # check if the comment is to answer a mention
