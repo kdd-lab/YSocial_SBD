@@ -410,6 +410,9 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
 
     elif user_id != "all":
         user = User_mgmt.query.filter_by(id=user_id).first()
+        if not user:
+            flash("User not found in experiment", "error")
+            return redirect(url_for("main.index"))
         recsys = user.recsys_type
 
         posts, additional = get_suggested_posts(
