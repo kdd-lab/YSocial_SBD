@@ -132,6 +132,11 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
     user = User_mgmt.query.get(user_id)
     if not user:
         user = User_mgmt.query.filter_by(username=user_id).first()
+    
+    # If user still not found, redirect with error message
+    if not user:
+        flash("User not found in experiment", "error")
+        return redirect(url_for("main.index"))
 
     is_following = (
         Follow.query.filter_by(follower_id=current_user.id, user_id=user_id).count() > 0
