@@ -379,69 +379,87 @@ def change_active_experiment(exp_id):
         register_experiment_database(current_app, exp_id, exp.db_name)
 
         # Ensure user exists in the experiment database
+        # For HPC experiments with SQLite: database is created by server on first startup
+        # We skip user registration if database doesn't exist yet
         # We need to switch to the correct bind temporarily
         bind_key = f"db_exp_{exp_id}"
+        
+        # For HPC experiments with SQLite, check if database exists
+        skip_user_registration = False
+        if exp.simulator_type == "HPC":
+            # Check database type
+            if current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                # Check if the SQLite database file exists
+                from y_web.utils.path_utils import get_writable_path
+                db_path = get_writable_path(os.path.join("y_web", exp.db_name))
+                if not os.path.exists(db_path):
+                    skip_user_registration = True
+                    current_app.logger.info(
+                        f"HPC experiment database doesn't exist yet for experiment {exp_id}. "
+                        f"User will be added when server creates database on first startup."
+                    )
 
-        # Check if user exists in this experiment's database
-        # Note: User_mgmt uses db_exp bind, so we need to query with bind
-        with db.session.no_autoflush:
-            # Temporarily set db_exp to this experiment
-            old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
-            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
-                "SQLALCHEMY_BINDS"
-            ][bind_key]
+        if not skip_user_registration:
+            # Check if user exists in this experiment's database
+            # Note: User_mgmt uses db_exp bind, so we need to query with bind
+            with db.session.no_autoflush:
+                # Temporarily set db_exp to this experiment
+                old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
+                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+                    "SQLALCHEMY_BINDS"
+                ][bind_key]
 
-            try:
-                user = (
-                    db.session.query(User_mgmt)
-                    .filter_by(username=current_user.username)
-                    .first()
-                )
+                try:
+                    user = (
+                        db.session.query(User_mgmt)
+                        .filter_by(username=current_user.username)
+                        .first()
+                    )
 
-                if user is None:
-                    # For HPC experiments, we need to use UUID strings as IDs
-                    # Standard experiments use integer IDs with auto-increment
-                    if exp.simulator_type == "HPC":
-                        # Generate a UUID string for HPC user ID
-                        user_id = str(uuid.uuid4())
-                        current_app.logger.info(
-                            f"Assigning HPC user UUID {user_id} to {current_user.username} for experiment {exp_id}"
-                        )
-                    else:
-                        # For Standard experiments, use the admin user's ID (auto-increment behavior)
-                        user_id = current_user.id
+                    if user is None:
+                        # For HPC experiments, we need to use UUID strings as IDs
+                        # Standard experiments use integer IDs with auto-increment
+                        if exp.simulator_type == "HPC":
+                            # Generate a UUID string for HPC user ID
+                            user_id = str(uuid.uuid4())
+                            current_app.logger.info(
+                                f"Assigning HPC user UUID {user_id} to {current_user.username} for experiment {exp_id}"
+                            )
+                        else:
+                            # For Standard experiments, use the admin user's ID (auto-increment behavior)
+                            user_id = current_user.id
 
-                    try:
-                        new_user = User_mgmt(
-                            id=user_id,
-                            email=current_user.email,
-                            username=current_user.username,
-                            password=current_user.password,
-                            user_type="user",
-                            leaning="neutral",
-                            age=0,
-                            recsys_type="default",
-                            language="en",
-                            frecsys_type="default",
-                            round_actions=1,
-                            toxicity="no",
-                            joined_on=int(time.time()),
-                        )
-                        db.session.add(new_user)
-                        db.session.commit()
-                    except Exception as e:
-                        db.session.rollback()
-                        # If IntegrityError due to duplicate ID, log and re-raise
-                        current_app.logger.error(
-                            f"Error adding user {current_user.username} to experiment {exp_id}: {e}"
-                        )
-                        flash(
-                            f"Error activating experiment: {str(e)}. Please try again."
-                        )
-                        raise
-            finally:
-                # Restore old bind
-                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+                        try:
+                            new_user = User_mgmt(
+                                id=user_id,
+                                email=current_user.email,
+                                username=current_user.username,
+                                password=current_user.password,
+                                user_type="user",
+                                leaning="neutral",
+                                age=0,
+                                recsys_type="default",
+                                language="en",
+                                frecsys_type="default",
+                                round_actions=1,
+                                toxicity="no",
+                                joined_on=int(time.time()),
+                            )
+                            db.session.add(new_user)
+                            db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            # If IntegrityError due to duplicate ID, log and re-raise
+                            current_app.logger.error(
+                                f"Error adding user {current_user.username} to experiment {exp_id}: {e}"
+                            )
+                            flash(
+                                f"Error activating experiment: {str(e)}. Please try again."
+                            )
+                            raise
+                finally:
+                    # Restore old bind
+                    current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
 
         # Add user to experiment if not present
         user_exp = (
@@ -1395,14 +1413,16 @@ def create_experiment():
     # copy the clean database to the experiments folder
     if platform_type == "microblogging" or platform_type == "forum":
         if db_type == "sqlite":
-            # For both Standard and HPC simulators, create the SQLite database
-            clean_db_source = get_resource_path(
-                os.path.join("data_schema", "database_clean_server.db")
-            )
-            shutil.copyfile(
-                clean_db_source,
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
-            )
+            # Only Standard experiments get a pre-created database
+            # HPC experiments: database is created automatically by the server on first startup
+            if simulator_type == "Standard":
+                clean_db_source = get_resource_path(
+                    os.path.join("data_schema", "database_clean_server.db")
+                )
+                shutil.copyfile(
+                    clean_db_source,
+                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
+                )
         elif db_type == "postgresql":
             from urllib.parse import urlparse
 
