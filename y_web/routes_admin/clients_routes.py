@@ -937,6 +937,10 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     network_m = form_data.get("network_m")
     network_file = request.files.get("network_file")  # Get from request.files, not form_data
     
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"HPC client network config - model: {network_model}, file: {network_file.filename if network_file else None}")
+    
     if network_model or (network_file and network_file.filename):
         # Get agents for the population
         agent_pops = Agent_Population.query.filter_by(population_id=population_id).all()
@@ -981,6 +985,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 os.remove(temp_path)
                 client.network_type = "Custom Network"
                 db.session.commit()
+                logger.info(f"HPC client network file created: {network_path}")
             except Exception as e:
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
@@ -1015,6 +1020,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                     
                     client.network_type = f"{network_model.replace('_', ' ').title()}"
                     db.session.commit()
+                    logger.info(f"HPC client synthetic network created: {network_path}, type: {client.network_type}")
             except Exception as e:
                 flash(f"Error generating network: {str(e)}", "error")
 
