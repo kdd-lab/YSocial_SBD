@@ -444,12 +444,6 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     sfollow = get_suggested_users(current_user.username, pages=False)
     spages = get_suggested_users(current_user.username, pages=True)
 
-    # get user profile pic
-    if user_id != "all":
-        user = User_mgmt.query.filter_by(id=user_id).first()
-    else:
-        user = User_mgmt.query.filter_by(username=current_user.username).first()
-
     try:
         ag = Agent.query.filter_by(name=current_user.username).first()
         profile_pic = (
