@@ -279,37 +279,41 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
 
                     if is_hpc:
                         # HPC server log format: individual request entries
-                        # Format: {"request_id": "...", "client_name": "dsf", "path": "get_unreplied_mentions", 
-                        #          "status_code": 200, "duration": 0.0008, "time": "2026-01-19T12:54:00.784189+00:00", 
+                        # Format: {"request_id": "...", "client_name": "dsf", "path": "get_unreplied_mentions",
+                        #          "status_code": 200, "duration": 0.0008, "time": "2026-01-19T12:54:00.784189+00:00",
                         #          "tid": "...", "day": 1, "hour": 3}
-                        
+
                         # Extract required fields
                         day = log_entry.get("day")
                         hour = log_entry.get("hour")
                         duration = float(log_entry.get("duration", 0))
                         path = log_entry.get("path", "unknown")
-                        
+
                         # Skip entries without day field
                         if day is None:
                             if line_count <= 5:
                                 errors.append(f"Line {line_count}: Missing day field")
                             continue
-                        
+
                         # Parse timestamp if available for time tracking
                         time_str = log_entry.get("time", "")
                         time_obj = None
                         if time_str:
                             try:
                                 # Handle ISO format with timezone
-                                if 'T' in time_str:
+                                if "T" in time_str:
                                     # Remove timezone info for parsing
-                                    time_str_clean = time_str.split('+')[0].split('Z')[0]
+                                    time_str_clean = time_str.split("+")[0].split("Z")[
+                                        0
+                                    ]
                                     time_obj = datetime.fromisoformat(time_str_clean)
                                 else:
-                                    time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                                    time_obj = datetime.strptime(
+                                        time_str, "%Y-%m-%d %H:%M:%S"
+                                    )
                             except (ValueError, AttributeError):
                                 pass
-                        
+
                         # Aggregate by day
                         if day is not None:
                             hpc_daily_count += 1
@@ -318,7 +322,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             # For simulation_time, we'll calculate from timestamp differences later
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
-                        
+
                         # Aggregate by day-hour
                         if day is not None and hour is not None:
                             hpc_hourly_count += 1
@@ -404,7 +408,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                 min_time = None
                 max_time = None
                 simulation_time = 0
-            
+
             # For HPC, store actual simulation time; for synthetic timestamps, use it
             if is_hpc:
                 # For HPC: min_time and max_time are from actual timestamps
