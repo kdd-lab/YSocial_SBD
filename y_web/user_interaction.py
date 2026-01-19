@@ -886,7 +886,7 @@ def publish_comment(exp_id):
         }
         # get the key with the max value
         sentiment_parent = max(values, key=values.get)
-        sentiment = vader_sentiment(text)
+    sentiment = vader_sentiment(text)
 
     toxicity(text, current_user.username, post.id, db)
 
