@@ -54,7 +54,7 @@
                     {% if page['profile_pic'] %}
                         data-demo-src="{{ page['profile_pic'] }}"
                     {% else %}
-                         data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(page['id']) +'.png') }}"
+                         data-demo-src="{{ url_for('static', filename='assets/img/users/'+ page['id']|user_image_id +'.png') }}"
                     {% endif %}
                     data-user-popover="9"
                     alt=""

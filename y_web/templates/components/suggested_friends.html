@@ -55,7 +55,7 @@
                     {% if friend['profile_pic'] %}
                         data-demo-src="{{ friend['profile_pic'] }}"
                     {% else %}
-                         data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(friend['id']) +'.png') }}"
+                         data-demo-src="{{ url_for('static', filename='assets/img/users/'+ friend['id']|user_image_id +'.png') }}"
                     {% endif %}
                     data-user-popover="9"
                     alt=""
