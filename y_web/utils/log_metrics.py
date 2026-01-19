@@ -502,6 +502,19 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                 db.session.add(metric)
 
     _commit_with_retry(db.session)
+    
+    # Verify database writes for HPC experiments
+    if is_hpc:
+        daily_count = ServerLogMetrics.query.filter_by(
+            exp_id=exp_id, aggregation_level="daily"
+        ).count()
+        hourly_count = ServerLogMetrics.query.filter_by(
+            exp_id=exp_id, aggregation_level="hourly"
+        ).count()
+        print(f"\n=== HPC Database Write Verification (exp_id={exp_id}) ===")
+        print(f"Daily records in database: {daily_count}")
+        print(f"Hourly records in database: {hourly_count}")
+        print("======================================================\n")
 
     return new_offset, {"daily": daily_data, "hourly": hourly_data}
 
