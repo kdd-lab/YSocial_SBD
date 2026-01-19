@@ -797,10 +797,12 @@ def get_thread(exp_id, post_id):
         # Keep as string if it's a UUID
         pass
 
-    thread_id = Post.query.filter_by(id=post_id).first().thread_id
+    #thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
-    posts = Post.query.filter_by(thread_id=thread_id).order_by(Post.id.asc()).all()
+    posts = Post.query.filter_by(thread_id=post_id).order_by(Post.id.asc()).all()
+
+    print(posts)
 
     root = posts[0].id
 
@@ -956,7 +958,7 @@ def get_thread(exp_id, post_id):
     mentions = get_unanswered_mentions(current_user.id)
 
     # get user profile pic
-    user = User_mgmt.query.filter_by(id=current_user.id).first()
+    user = User_mgmt.query.filter_by(username=current_user.username).first()
     profile_pic = ""
     if user.is_page == 1:
         pg = Page.query.filter_by(name=user.username).first()
