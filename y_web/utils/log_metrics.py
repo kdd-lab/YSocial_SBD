@@ -270,7 +270,10 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
 
                     if is_hpc:
                         # HPC format: use summary entries (hourly and daily)
-                        # Similar format to client logs but for server metrics
+                        # Format: {"time": "2026-01-19 10:02:22", "summary_type": "hourly", "day": 1, "slot": 15,
+                        #          "total_actions": 4, "successful_actions": 4, 
+                        #          "total_execution_time_seconds": 1.0336, "average_execution_time_seconds": 0.2584,
+                        #          "actions_by_method": {"like": 2, "laugh": 1, "follow": 1}}
                         summary_type = log_entry.get("summary_type")
                         if summary_type not in ("hourly", "daily"):
                             continue
@@ -279,7 +282,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         if day is None:
                             continue  # Skip entries without a valid day
 
-                        # Parse timestamp if available for simulation time calculation
+                        # Parse timestamp if available for time tracking
                         time_str = log_entry.get("time", "")
                         time_obj = None
                         if time_str:
@@ -290,14 +293,10 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             except ValueError:
                                 pass
 
-                        # For HPC, we aggregate all paths together
-                        # The duration is the total time for all operations in this period
-                        total_duration = float(
-                            log_entry.get("total_duration_seconds", 0)
-                        )
-                        # For HPC, simulation time is provided directly in the summary
-                        simulation_time = float(
-                            log_entry.get("simulation_time_seconds", 0)
+                        # For HPC, we use total_execution_time_seconds for both compute and simulation time
+                        # as per the actual log format
+                        total_execution_time = float(
+                            log_entry.get("total_execution_time_seconds", 0)
                         )
                         path = "all"  # Aggregate all paths for HPC
 
@@ -305,8 +304,8 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                         # HPC summaries contain absolute values, not deltas
                         if summary_type == "daily":
                             daily_data[day][path]["count"] = 1
-                            daily_data[day][path]["duration"] = total_duration
-                            daily_data[day][path]["simulation_time"] = simulation_time
+                            daily_data[day][path]["duration"] = total_execution_time
+                            daily_data[day][path]["simulation_time"] = total_execution_time
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
 
@@ -316,10 +315,10 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                             if hour is not None:
                                 key = f"{day}-{hour}"
                                 hourly_data[key][path]["count"] = 1
-                                hourly_data[key][path]["duration"] = total_duration
+                                hourly_data[key][path]["duration"] = total_execution_time
                                 hourly_data[key][path][
                                     "simulation_time"
-                                ] = simulation_time
+                                ] = total_execution_time
                                 if time_obj:
                                     hourly_data[key][path]["times"].append(time_obj)
                     else:
