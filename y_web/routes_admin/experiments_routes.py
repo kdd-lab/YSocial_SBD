@@ -2393,21 +2393,29 @@ def experiment_trends(exp_id):
                     client_hourly[key] += metric.total_execution_time
                 client_hourly_compute[client.name] = dict(client_hourly)
 
-        return jsonify(
-            {
-                "daily_compute": dict(daily_durations),
-                "daily_simulation": daily_simulation,
-                "hourly_compute": dict(hourly_durations),
-                "hourly_simulation": hourly_simulation,
-                "total_expected_days": total_days,
-                "total_expected_rounds": max_expected_rounds,
-                "max_remaining_rounds": max(0, max_remaining_rounds),
-                "max_remaining_days": max_remaining_days,
-                "client_daily_compute": client_daily_compute,
-                "client_hourly_compute": client_hourly_compute,
-                "client_progress": client_progress,
-            }
-        )
+        result_data = {
+            "daily_compute": dict(daily_durations),
+            "daily_simulation": daily_simulation,
+            "hourly_compute": dict(hourly_durations),
+            "hourly_simulation": hourly_simulation,
+            "total_expected_days": total_days,
+            "total_expected_rounds": max_expected_rounds,
+            "max_remaining_rounds": max(0, max_remaining_rounds),
+            "max_remaining_days": max_remaining_days,
+            "client_daily_compute": client_daily_compute,
+            "client_hourly_compute": client_hourly_compute,
+            "client_progress": client_progress,
+        }
+        
+        # Log data for debugging HPC plots
+        if experiment.simulator_type == "HPC":
+            current_app.logger.info(
+                f"HPC experiment {exp_id} trends data - "
+                f"daily_compute keys: {list(result_data['daily_compute'].keys())}, "
+                f"hourly_compute keys: {list(result_data['hourly_compute'].keys())[:5]}"
+            )
+        
+        return jsonify(result_data)
 
     except Exception as e:
         # Catch any unhandled exceptions and return JSON error
