@@ -122,6 +122,13 @@ def profile():
 @login_required
 def profile_logged(exp_id, user_id, page=1, mode="recent"):
     """Handle profile logged operation."""
+    # Get experiment user (not admin user) for logged_id
+    logged_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not logged_user:
+        flash("User not found in experiment", "error")
+        return redirect(url_for("main.index"))
+    logged_id = logged_user.id
+    
     # Handle both int and UUID user_id formats (Standard vs HPC experiments)
     try:
         user_id = int(user_id)
