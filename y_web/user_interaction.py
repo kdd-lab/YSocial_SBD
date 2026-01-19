@@ -7,6 +7,8 @@ commenting. Integrates sentiment analysis, toxicity detection, and LLM-based
 content annotation.
 """
 
+import uuid
+
 from flask import Blueprint, redirect, request
 from flask_login import current_user, login_required
 
@@ -34,7 +36,6 @@ from .models import (
 )
 from .utils.article_extractor import extract_article_info
 from .utils.text_utils import toxicity, vader_sentiment
-import uuid
 
 user = Blueprint("user_actions", __name__)
 
@@ -263,8 +264,9 @@ def publish_post(exp_id):
                 db.session.commit()
                 img_id = img.id
             except Exception as e:
-                img = Images(id=str(uuid.uuid4()),
-                             url=url, description=annotation, article_id=-1)
+                img = Images(
+                    id=str(uuid.uuid4()), url=url, description=annotation, article_id=-1
+                )
                 db.session.add(img)
                 db.session.commit()
                 img_id = img.id
@@ -350,11 +352,12 @@ def publish_post(exp_id):
         except Exception as e:
             ui = User_interest(
                 id=str(uuid.uuid4()),
-                user_id=current_user.id, interest_id=topic_id, round_id=current_round.id
+                user_id=current_user.id,
+                interest_id=topic_id,
+                round_id=current_round.id,
             )
             db.session.add(ui)
-            ti = Post_topics(id=str(uuid.uuid4()),
-                             post_id=post.id, topic_id=topic_id)
+            ti = Post_topics(id=str(uuid.uuid4()), post_id=post.id, topic_id=topic_id)
             db.session.add(ti)
             db.session.commit()
 
@@ -384,8 +387,9 @@ def publish_post(exp_id):
                 db.session.commit()
             except Exception as e:
 
-                post_emotion = Post_emotions(id=str(uuid.uuid4()),
-                                             post_id=post.id, emotion_id=em.id)
+                post_emotion = Post_emotions(
+                    id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
+                )
                 db.session.add(post_emotion)
                 db.session.commit()
 
@@ -410,8 +414,9 @@ def publish_post(exp_id):
             db.session.add(post_tag)
             db.session.commit()
         except Exception as e:
-            post_tag = Post_hashtags(id=str(uuid.uuid4()),
-                                     post_id=post.id, hashtag_id=ht.id)
+            post_tag = Post_hashtags(
+                id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
+            )
             db.session.add(post_tag)
             db.session.commit()
 
@@ -428,8 +433,12 @@ def publish_post(exp_id):
                 db.session.add(mn)
                 db.session.commit()
             except Exception as e:
-                mn = Mentions(id=str(uuid.uuid4()),
-                              user_id=us.id, post_id=post.id, round=current_round.id)
+                mn = Mentions(
+                    id=str(uuid.uuid4()),
+                    user_id=us.id,
+                    post_id=post.id,
+                    round=current_round.id,
+                )
                 db.session.add(mn)
                 db.session.commit()
         else:
@@ -482,8 +491,12 @@ def publish_post_reddit(exp_id):
                         db.session.commit()
                         img_id = img.id
                     except Exception as e:
-                        img = Images(id=str(uuid.uuid4()),
-                            url=url, description=annotation, article_id=-1)
+                        img = Images(
+                            id=str(uuid.uuid4()),
+                            url=url,
+                            description=annotation,
+                            article_id=-1,
+                        )
                         db.session.add(img)
                         db.session.commit()
                         img_id = img.id
@@ -620,8 +633,7 @@ def publish_post_reddit(exp_id):
                 db.session.add(interest)
                 db.session.commit()
             except Exception as e:
-                interest = Interests(iid=str(uuid.uuid4()),
-                                     interest=topic)
+                interest = Interests(iid=str(uuid.uuid4()), interest=topic)
                 db.session.add(interest)
                 db.session.commit()
             res = Interests.query.filter_by(interest=topic).first()
@@ -650,8 +662,11 @@ def publish_post_reddit(exp_id):
             db.session.add(post_sentiment)
             db.session.commit()
         except Exception as e:
-            ui = User_interest(id=str(uuid.uuid4()),
-                user_id=current_user.id, interest_id=topic_id, round_id=current_round.id
+            ui = User_interest(
+                id=str(uuid.uuid4()),
+                user_id=current_user.id,
+                interest_id=topic_id,
+                round_id=current_round.id,
             )
             db.session.add(ui)
             ti = Post_topics(post_id=post.id, topic_id=topic_id)
@@ -683,8 +698,9 @@ def publish_post_reddit(exp_id):
                 db.session.add(post_emotion)
                 db.session.commit()
             except Exception as e:
-                post_emotion = Post_emotions(id=str(uuid.uuid4()),
-                                             post_id=post.id, emotion_id=em.id)
+                post_emotion = Post_emotions(
+                    id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
+                )
                 db.session.add(post_emotion)
                 db.session.commit()
 
@@ -699,8 +715,7 @@ def publish_post_reddit(exp_id):
                 db.session.add(ht)
                 db.session.commit()
             except Exception as e:
-                ht = Hashtags(id=str(uuid.uuid4()),
-                              hashtag=tag)
+                ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
                 db.session.add(ht)
                 db.session.commit()
             ht = Hashtags.query.filter_by(hashtag=tag).first()
@@ -710,8 +725,9 @@ def publish_post_reddit(exp_id):
             db.session.add(post_tag)
             db.session.commit()
         except Exception as e:
-            post_tag = Post_hashtags(id=str(uuid.uuid4()),
-                post_id=post.id, hashtag_id=ht.id)
+            post_tag = Post_hashtags(
+                id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
+            )
             db.session.add(post_tag)
             db.session.commit()
 
@@ -728,8 +744,12 @@ def publish_post_reddit(exp_id):
                 db.session.add(mn)
                 db.session.commit()
             except Exception as e:
-                mn = Mentions(id=str(uuid.uuid4()),
-                    user_id=us.id, post_id=post.id, round=current_round.id)
+                mn = Mentions(
+                    id=str(uuid.uuid4()),
+                    user_id=us.id,
+                    post_id=post.id,
+                    round=current_round.id,
+                )
                 db.session.add(mn)
                 db.session.commit()
         else:
@@ -776,7 +796,7 @@ def publish_comment(exp_id):
         uid = str(uuid.uuid4())
         # add post to the db
         post = Post(
-            id = uid,
+            id=uid,
             tweet=text,
             round=current_round.id,
             user_id=current_user.id,
@@ -845,8 +865,11 @@ def publish_comment(exp_id):
                 db.session.add(post_sentiment)
                 db.session.commit()
             except Exception as e:
-                ui = User_interest(id=str(uuid.uuid4()),
-                    user_id=current_user.id, interest_id=t, round_id=current_round.id
+                ui = User_interest(
+                    id=str(uuid.uuid4()),
+                    user_id=current_user.id,
+                    interest_id=t,
+                    round_id=current_round.id,
                 )
                 db.session.add(ui)
                 ti = Post_topics(post_id=post.id, topic_id=t)
@@ -879,8 +902,9 @@ def publish_comment(exp_id):
                 db.session.add(post_emotion)
                 db.session.commit()
             except Exception as e:
-                post_emotion = Post_emotions(id=str(uuid.uuid4()),
-                                             post_id=post.id, emotion_id=em.id)
+                post_emotion = Post_emotions(
+                    id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
+                )
                 db.session.add(post_emotion)
                 db.session.commit()
 
@@ -895,8 +919,7 @@ def publish_comment(exp_id):
                 db.session.add(ht)
                 db.session.commit()
             except Exception as e:
-                ht = Hashtags(id=str(uuid.uuid4()),
-                              hashtag=tag)
+                ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
                 db.session.add(ht)
                 db.session.commit()
             ht = Hashtags.query.filter_by(hashtag=tag).first()
@@ -906,8 +929,9 @@ def publish_comment(exp_id):
             db.session.add(post_tag)
             db.session.commit()
         except Exception as e:
-            post_tag = Post_hashtags(id=str(uuid.uuid4()),
-                post_id=post.id, hashtag_id=ht.id)
+            post_tag = Post_hashtags(
+                id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
+            )
             db.session.add(post_tag)
             db.session.commit()
 
@@ -925,8 +949,12 @@ def publish_comment(exp_id):
                 db.session.add(mn)
                 db.session.commit()
             except Exception as e:
-                mn = Mentions(id=str(uuid.uuid4()),
-                    user_id=us.id, post_id=post.id, round=current_round.id)
+                mn = Mentions(
+                    id=str(uuid.uuid4()),
+                    user_id=us.id,
+                    post_id=post.id,
+                    round=current_round.id,
+                )
                 db.session.add(mn)
                 db.session.commit()
         else:
