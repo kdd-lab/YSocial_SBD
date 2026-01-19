@@ -2280,20 +2280,39 @@ def experiment_trends(exp_id):
                 Client_Execution.client_id.in_(client_ids)
             ).all()
             if client_executions:
-                max_expected_rounds = max(
-                    ce.expected_duration_rounds for ce in client_executions
-                )
+                # Filter out infinite clients (-1) and get max from finite ones
+                finite_expected = [
+                    ce.expected_duration_rounds
+                    for ce in client_executions
+                    if ce.expected_duration_rounds > 0
+                ]
+                max_expected_rounds = max(finite_expected) if finite_expected else 0
 
                 # Calculate remaining rounds for each client
                 for ce in client_executions:
-                    current_round = ce.last_active_day * 24 + ce.last_active_hour
-                    remaining = ce.expected_duration_rounds - current_round
+                    # Handle None values for last_active_day and last_active_hour
+                    last_day = ce.last_active_day if ce.last_active_day is not None else -1
+                    last_hour = ce.last_active_hour if ce.last_active_hour is not None else -1
+                    
+                    # Calculate current round (add 1 since rounds are 1-indexed)
+                    if last_day >= 0 and last_hour >= 0:
+                        current_round = last_day * 24 + last_hour + 1
+                    else:
+                        current_round = 0
+                    
+                    # Calculate remaining rounds (handle infinite clients)
+                    if ce.expected_duration_rounds > 0:
+                        remaining = ce.expected_duration_rounds - current_round
+                    else:
+                        remaining = -1  # Infinite client
+                    
                     client_progress[ce.client_id] = {
                         "expected_rounds": ce.expected_duration_rounds,
                         "current_round": current_round,
-                        "remaining_rounds": max(0, remaining),
+                        "remaining_rounds": max(0, remaining) if remaining >= 0 else -1,
                     }
-                    max_remaining_rounds = max(max_remaining_rounds, remaining)
+                    if remaining > 0:  # Only consider finite positive remaining
+                        max_remaining_rounds = max(max_remaining_rounds, remaining)
 
         # Convert rounds to days
         total_days = max_expected_rounds / 24 if max_expected_rounds > 0 else 0
