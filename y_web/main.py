@@ -414,7 +414,10 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
             # Try to find user by username instead of ID
             user = User_mgmt.query.filter_by(username=current_user.username).first()
             if not user:
-                flash("User not found in experiment. Please contact administrator.", "error")
+                flash(
+                    "User not found in experiment. Please contact administrator.",
+                    "error",
+                )
                 return redirect(f"/admin/experiments")
         recsys = user.recsys_type
 

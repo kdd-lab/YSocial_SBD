@@ -433,8 +433,10 @@ def change_active_experiment(exp_id):
                         try:
                             # Set recsys_type based on experiment type
                             # HPC experiments use rchrono, Standard use default
-                            content_recsys = "rchrono" if exp.simulator_type == "HPC" else "default"
-                            
+                            content_recsys = (
+                                "rchrono" if exp.simulator_type == "HPC" else "default"
+                            )
+
                             new_user = User_mgmt(
                                 id=user_id,
                                 email=current_user.email,
