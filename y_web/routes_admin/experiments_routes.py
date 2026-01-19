@@ -2093,9 +2093,9 @@ def experiment_logs(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
-        # For HPC experiments, logs are stored in /log subfolder
+        # For HPC experiments, logs are stored in /logs subfolder
         if experiment.simulator_type == "HPC":
-            exp_folder = os.path.join(exp_folder, "log")
+            exp_folder = os.path.join(exp_folder, "logs")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2106,7 +2106,9 @@ def experiment_logs(exp_id):
 
         # Update metrics incrementally from log file
         try:
-            update_server_log_metrics(exp_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_server_log_metrics(exp_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             # Log the error but continue with existing data
             current_app.logger.error(
@@ -2198,9 +2200,9 @@ def experiment_trends(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
-        # For HPC experiments, logs are stored in /log subfolder
+        # For HPC experiments, logs are stored in /logs subfolder
         if experiment.simulator_type == "HPC":
-            exp_folder = os.path.join(exp_folder, "log")
+            exp_folder = os.path.join(exp_folder, "logs")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -2217,7 +2219,9 @@ def experiment_trends(exp_id):
 
         # Update server metrics incrementally
         try:
-            update_server_log_metrics(exp_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_server_log_metrics(exp_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             current_app.logger.error(
                 f"Error updating server log metrics: {e}", exc_info=True
@@ -2276,20 +2280,41 @@ def experiment_trends(exp_id):
                 Client_Execution.client_id.in_(client_ids)
             ).all()
             if client_executions:
-                max_expected_rounds = max(
-                    ce.expected_duration_rounds for ce in client_executions
-                )
+                # Filter out infinite clients (-1) and get max from finite ones
+                finite_expected = [
+                    ce.expected_duration_rounds
+                    for ce in client_executions
+                    if ce.expected_duration_rounds > 0
+                ]
+                max_expected_rounds = max(finite_expected) if finite_expected else 0
 
                 # Calculate remaining rounds for each client
                 for ce in client_executions:
-                    current_round = ce.last_active_day * 24 + ce.last_active_hour
-                    remaining = ce.expected_duration_rounds - current_round
+                    # Handle None values for last_active_day and last_active_hour
+                    last_day = ce.last_active_day if ce.last_active_day is not None else -1
+                    last_hour = ce.last_active_hour if ce.last_active_hour is not None else -1
+                    
+                    # Calculate current round
+                    # Note: days and hours are 0-indexed, but rounds are 1-indexed
+                    # (day 0, hour 0 = round 1), so we add 1
+                    if last_day >= 0 and last_hour >= 0:
+                        current_round = last_day * 24 + last_hour + 1
+                    else:
+                        current_round = 0
+                    
+                    # Calculate remaining rounds (handle infinite clients)
+                    if ce.expected_duration_rounds > 0:
+                        remaining = ce.expected_duration_rounds - current_round
+                    else:
+                        remaining = -1  # Infinite client
+                    
                     client_progress[ce.client_id] = {
                         "expected_rounds": ce.expected_duration_rounds,
                         "current_round": current_round,
-                        "remaining_rounds": max(0, remaining),
+                        "remaining_rounds": remaining if remaining >= 0 else -1,
                     }
-                    max_remaining_rounds = max(max_remaining_rounds, remaining)
+                    if remaining > 0:  # Only consider finite positive remaining
+                        max_remaining_rounds = max(max_remaining_rounds, remaining)
 
         # Convert rounds to days
         total_days = max_expected_rounds / 24 if max_expected_rounds > 0 else 0
@@ -2307,7 +2332,9 @@ def experiment_trends(exp_id):
             # Update client metrics if log file exists
             if os.path.exists(client_log_file):
                 try:
-                    update_client_log_metrics(exp_id, client.id, client_log_file)
+                    # Pass is_hpc flag for HPC experiments to use correct log format
+                    is_hpc = experiment.simulator_type == "HPC"
+                    update_client_log_metrics(exp_id, client.id, client_log_file, is_hpc=is_hpc)
                 except Exception as e:
                     current_app.logger.error(
                         f"Error updating client {client.id} log metrics: {e}",
@@ -2409,9 +2436,9 @@ def client_logs(client_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
-        # For HPC experiments, logs are stored in /log subfolder
+        # For HPC experiments, logs are stored in /logs subfolder
         if experiment.simulator_type == "HPC":
-            exp_folder = os.path.join(exp_folder, "log")
+            exp_folder = os.path.join(exp_folder, "logs")
 
         # Client log file name format: {client_name}_client.log
         log_file = os.path.join(exp_folder, f"{client.name}_client.log")
@@ -2428,7 +2455,9 @@ def client_logs(client_id):
 
         # Update client metrics incrementally
         try:
-            update_client_log_metrics(experiment.idexp, client_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_client_log_metrics(experiment.idexp, client_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             current_app.logger.error(
                 f"Error updating client log metrics: {e}", exc_info=True

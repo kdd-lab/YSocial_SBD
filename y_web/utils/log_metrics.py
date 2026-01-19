@@ -12,13 +12,15 @@ import logging
 import os
 import time
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 
 from y_web import db
 from y_web.models import (
+    Client,
+    Client_Execution,
     ClientLogMetrics,
     LogFileOffset,
     ServerLogMetrics,
@@ -30,6 +32,10 @@ logger = logging.getLogger(__name__)
 # Retry configuration for database deadlocks
 MAX_RETRIES = 3
 RETRY_DELAY = 0.5  # seconds
+
+# Base time for HPC simulation time calculations
+# Used to create synthetic timestamps where (max_time - min_time) = simulation_time_seconds
+HPC_BASE_TIME = datetime(2000, 1, 1, 0, 0, 0)
 
 
 def _ensure_session_clean(session):
@@ -160,7 +166,71 @@ def update_log_file_offset(
     _commit_with_retry(db.session)
 
 
-def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
+def reset_hpc_client_metrics(exp_id, client_id):
+    """
+    Reset client metrics and file offsets for an HPC experiment.
+    
+    This is needed when switching to a new log format or to force re-parsing.
+    Only affects the specific client, not the entire experiment.
+    
+    Args:
+        exp_id: Experiment ID
+        client_id: Client ID to reset
+    """
+    try:
+        # Delete existing client metrics
+        ClientLogMetrics.query.filter_by(
+            exp_id=exp_id,
+            client_id=client_id
+        ).delete()
+        
+        # Delete file offsets for this client
+        LogFileOffset.query.filter_by(
+            exp_id=exp_id,
+            log_file_type="client",
+            client_id=client_id
+        ).delete()
+        
+        success = _commit_with_retry(db.session)
+        if success:
+            logger.info(f"Reset client metrics and offsets for exp_id={exp_id}, client_id={client_id}")
+        return success
+    except Exception as e:
+        logger.error(f"Error resetting client metrics: {e}", exc_info=True)
+        # Don't call rollback here - _commit_with_retry already handles it
+        return False
+
+
+def reset_hpc_server_metrics(exp_id):
+    """
+    Reset server metrics and file offsets for an HPC experiment.
+    
+    This is needed when switching to a new log format or to force re-parsing.
+    
+    Args:
+        exp_id: Experiment ID
+    """
+    try:
+        # Delete existing server metrics
+        ServerLogMetrics.query.filter_by(exp_id=exp_id).delete()
+        
+        # Delete file offsets for server logs
+        LogFileOffset.query.filter_by(
+            exp_id=exp_id,
+            log_file_type="server"
+        ).delete()
+        
+        success = _commit_with_retry(db.session)
+        if success:
+            logger.info(f"Reset server metrics and offsets for exp_id={exp_id}")
+        return success
+    except Exception as e:
+        logger.error(f"Error resetting server metrics: {e}", exc_info=True)
+        # Don't call rollback here - _commit_with_retry already handles it
+        return False
+
+
+def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=False):
     """
     Parse server log file incrementally from a given offset.
 
@@ -168,6 +238,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
         log_file_path: Full path to the server log file
         exp_id: Experiment ID
         start_offset: Byte offset to start reading from
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         tuple: (new_offset, metrics_dict)
@@ -179,10 +250,10 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
 
     # Data structures for aggregation
     daily_data = defaultdict(
-        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": []})
+        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": [], "simulation_time": 0.0})
     )
     hourly_data = defaultdict(
-        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": []})
+        lambda: defaultdict(lambda: {"count": 0, "duration": 0.0, "times": [], "simulation_time": 0.0})
     )
 
     try:
@@ -199,34 +270,82 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
                     # Parse JSON - log entries should already be properly formatted
                     log_entry = json.loads(line)
 
-                    path = log_entry.get("path", "unknown")
-                    duration = float(log_entry.get("duration", 0))
-                    day = log_entry.get("day")
-                    hour = log_entry.get("hour")
-                    time_str = log_entry.get("time", "")
+                    if is_hpc:
+                        # HPC format: use summary entries (hourly and daily)
+                        # Similar format to client logs but for server metrics
+                        summary_type = log_entry.get("summary_type")
+                        if summary_type not in ("hourly", "daily"):
+                            continue
+                        
+                        day = log_entry.get("day")
+                        if day is None:
+                            continue  # Skip entries without a valid day
+                        
+                        # Parse timestamp if available for simulation time calculation
+                        time_str = log_entry.get("time", "")
+                        time_obj = None
+                        if time_str:
+                            try:
+                                time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
+                        
+                        # For HPC, we aggregate all paths together
+                        # The duration is the total time for all operations in this period
+                        total_duration = float(log_entry.get("total_duration_seconds", 0))
+                        # For HPC, simulation time is provided directly in the summary
+                        simulation_time = float(log_entry.get("simulation_time_seconds", 0))
+                        path = "all"  # Aggregate all paths for HPC
+                        
+                        # For daily summaries
+                        # HPC summaries contain absolute values, not deltas
+                        if summary_type == "daily":
+                            daily_data[day][path]["count"] = 1
+                            daily_data[day][path]["duration"] = total_duration
+                            daily_data[day][path]["simulation_time"] = simulation_time
+                            if time_obj:
+                                daily_data[day][path]["times"].append(time_obj)
+                        
+                        # For hourly summaries
+                        elif summary_type == "hourly":
+                            hour = log_entry.get("slot")  # HPC uses "slot" for hour
+                            if hour is not None:
+                                key = f"{day}-{hour}"
+                                hourly_data[key][path]["count"] = 1
+                                hourly_data[key][path]["duration"] = total_duration
+                                hourly_data[key][path]["simulation_time"] = simulation_time
+                                if time_obj:
+                                    hourly_data[key][path]["times"].append(time_obj)
+                    else:
+                        # Standard format: individual log entries per request
+                        path = log_entry.get("path", "unknown")
+                        duration = float(log_entry.get("duration", 0))
+                        day = log_entry.get("day")
+                        hour = log_entry.get("hour")
+                        time_str = log_entry.get("time", "")
 
-                    # Parse timestamp if available
-                    time_obj = None
-                    if time_str:
-                        try:
-                            time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
-                        except ValueError:
-                            pass
+                        # Parse timestamp if available
+                        time_obj = None
+                        if time_str:
+                            try:
+                                time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                            except ValueError:
+                                pass
 
-                    # Aggregate by day
-                    if day is not None:
-                        daily_data[day][path]["count"] += 1
-                        daily_data[day][path]["duration"] += duration
-                        if time_obj:
-                            daily_data[day][path]["times"].append(time_obj)
+                        # Aggregate by day
+                        if day is not None:
+                            daily_data[day][path]["count"] += 1
+                            daily_data[day][path]["duration"] += duration
+                            if time_obj:
+                                daily_data[day][path]["times"].append(time_obj)
 
-                    # Aggregate by day-hour
-                    if day is not None and hour is not None:
-                        key = f"{day}-{hour}"
-                        hourly_data[key][path]["count"] += 1
-                        hourly_data[key][path]["duration"] += duration
-                        if time_obj:
-                            hourly_data[key][path]["times"].append(time_obj)
+                        # Aggregate by day-hour
+                        if day is not None and hour is not None:
+                            key = f"{day}-{hour}"
+                            hourly_data[key][path]["count"] += 1
+                            hourly_data[key][path]["duration"] += duration
+                            if time_obj:
+                                hourly_data[key][path]["times"].append(time_obj)
 
                 except json.JSONDecodeError:
                     # Skip invalid JSON lines
@@ -242,8 +361,18 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
     # Update database with new metrics
     for day, paths in daily_data.items():
         for path, data in paths.items():
-            min_time = min(data["times"]) if data["times"] else None
-            max_time = max(data["times"]) if data["times"] else None
+            # For HPC with simulation_time, create synthetic timestamps
+            # so that (max_time - min_time) = simulation_time
+            if is_hpc and data["simulation_time"] > 0:
+                # Create cumulative timeline: each day starts where previous day ended
+                # Day 0 starts at base time, day 1 starts at base + 1 day of sim time, etc.
+                day_start = HPC_BASE_TIME + timedelta(days=day)
+                min_time = day_start
+                max_time = day_start + timedelta(seconds=data["simulation_time"])
+            else:
+                # For standard experiments, use actual timestamps
+                min_time = min(data["times"]) if data["times"] else None
+                max_time = max(data["times"]) if data["times"] else None
 
             # Check if record exists
             metric = ServerLogMetrics.query.filter_by(
@@ -252,8 +381,13 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_duration += data["duration"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_duration = data["duration"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_duration += data["duration"]
                 if min_time and (not metric.min_time or min_time < metric.min_time):
                     metric.min_time = min_time
                 if max_time and (not metric.max_time or max_time > metric.max_time):
@@ -279,8 +413,18 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
         hour = int(hour)
 
         for path, data in paths.items():
-            min_time = min(data["times"]) if data["times"] else None
-            max_time = max(data["times"]) if data["times"] else None
+            # For HPC with simulation_time, create synthetic timestamps
+            if is_hpc and data["simulation_time"] > 0:
+                # Create cumulative timeline: each hour starts where previous hour ended
+                # Hour offset within the simulation
+                hour_offset = day * 24 + hour
+                hour_start = HPC_BASE_TIME + timedelta(hours=hour_offset)
+                min_time = hour_start
+                max_time = hour_start + timedelta(seconds=data["simulation_time"])
+            else:
+                # For standard experiments, use actual timestamps
+                min_time = min(data["times"]) if data["times"] else None
+                max_time = max(data["times"]) if data["times"] else None
 
             # Check if record exists
             metric = ServerLogMetrics.query.filter_by(
@@ -289,8 +433,13 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_duration += data["duration"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_duration = data["duration"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_duration += data["duration"]
                 if min_time and (not metric.min_time or min_time < metric.min_time):
                     metric.min_time = min_time
                 if max_time and (not metric.max_time or max_time > metric.max_time):
@@ -315,7 +464,7 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0):
     return new_offset, {"daily": daily_data, "hourly": hourly_data}
 
 
-def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=0):
+def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=0, is_hpc=False):
     """
     Parse client log file incrementally from a given offset.
 
@@ -324,6 +473,7 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
         exp_id: Experiment ID
         client_id: Client ID
         start_offset: Byte offset to start reading from
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         tuple: (new_offset, metrics_dict)
@@ -340,6 +490,10 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
     hourly_data = defaultdict(
         lambda: defaultdict(lambda: {"count": 0, "execution_time": 0.0})
     )
+    
+    # Track max day/hour for HPC client_execution updates
+    max_day = -1
+    max_hour = -1
 
     try:
         with open(log_file_path, "r") as f:
@@ -354,23 +508,70 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                 try:
                     log_entry = json.loads(line)
 
-                    method_name = log_entry.get("method_name", "unknown")
-                    execution_time = float(log_entry.get("execution_time_seconds", 0))
-                    day = log_entry.get("day")
-                    hour = log_entry.get("hour")
+                    if is_hpc:
+                        # HPC format: use summary entries (hourly and daily)
+                        # Format: {"time": "...", "summary_type": "hourly", "day": 1, "slot": 8,
+                        #          "total_execution_time_seconds": 0.0246, 
+                        #          "actions_by_method": {"follow": 1, "post": 2}}
+                        summary_type = log_entry.get("summary_type")
+                        if summary_type not in ("hourly", "daily"):
+                            continue
+                        
+                        day = log_entry.get("day")
+                        if day is None:
+                            continue  # Skip entries without a valid day
+                        
+                        total_execution_time = float(log_entry.get("total_execution_time_seconds", 0))
+                        actions_by_method = log_entry.get("actions_by_method", {})
+                        
+                        # Calculate time per action once for proportional distribution
+                        total_actions = sum(actions_by_method.values()) if actions_by_method else 0
+                        time_per_action = (total_execution_time / total_actions) if total_actions > 0 else 0
+                        
+                        # For hourly summaries, get slot (hour) once before loop
+                        hour = log_entry.get("slot") if summary_type == "hourly" else None
+                        
+                        # Track max day/hour for client_execution updates
+                        if summary_type == "hourly" and hour is not None:
+                            if day > max_day or (day == max_day and hour > max_hour):
+                                max_day = day
+                                max_hour = hour
+                        
+                        # Process each action method
+                        for method_name, count in actions_by_method.items():
+                            # Calculate proportional execution time for this method
+                            method_time = time_per_action * count
+                            
+                            # For daily summaries, aggregate by day
+                            # HPC summaries contain absolute values, not deltas
+                            if summary_type == "daily":
+                                daily_data[day][method_name]["count"] = count
+                                daily_data[day][method_name]["execution_time"] = method_time
 
-                    # Aggregate by day
-                    if day is not None:
-                        daily_data[day][method_name]["count"] += 1
-                        daily_data[day][method_name]["execution_time"] += execution_time
+                            # For hourly summaries, aggregate by day-hour
+                            elif summary_type == "hourly" and hour is not None:
+                                key = f"{day}-{hour}"
+                                hourly_data[key][method_name]["count"] = count
+                                hourly_data[key][method_name]["execution_time"] = method_time
+                    else:
+                        # Standard format: individual log entries per method call
+                        method_name = log_entry.get("method_name", "unknown")
+                        execution_time = float(log_entry.get("execution_time_seconds", 0))
+                        day = log_entry.get("day")
+                        hour = log_entry.get("hour")
 
-                    # Aggregate by day-hour
-                    if day is not None and hour is not None:
-                        key = f"{day}-{hour}"
-                        hourly_data[key][method_name]["count"] += 1
-                        hourly_data[key][method_name][
-                            "execution_time"
-                        ] += execution_time
+                        # Aggregate by day
+                        if day is not None:
+                            daily_data[day][method_name]["count"] += 1
+                            daily_data[day][method_name]["execution_time"] += execution_time
+
+                        # Aggregate by day-hour
+                        if day is not None and hour is not None:
+                            key = f"{day}-{hour}"
+                            hourly_data[key][method_name]["count"] += 1
+                            hourly_data[key][method_name][
+                                "execution_time"
+                            ] += execution_time
 
                 except json.JSONDecodeError:
                     # Skip invalid JSON lines
@@ -398,8 +599,13 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_execution_time += data["execution_time"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_execution_time = data["execution_time"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_execution_time += data["execution_time"]
             else:
                 # Create new record
                 metric = ClientLogMetrics(
@@ -432,8 +638,13 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
 
             if metric:
                 # Update existing record
-                metric.call_count += data["count"]
-                metric.total_execution_time += data["execution_time"]
+                # For HPC, values are absolute (replace); for standard, they're deltas (accumulate)
+                if is_hpc:
+                    metric.call_count = data["count"]
+                    metric.total_execution_time = data["execution_time"]
+                else:
+                    metric.call_count += data["count"]
+                    metric.total_execution_time += data["execution_time"]
             else:
                 # Create new record
                 metric = ClientLogMetrics(
@@ -449,8 +660,34 @@ def parse_client_log_incremental(log_file_path, exp_id, client_id, start_offset=
                 db.session.add(metric)
 
     _commit_with_retry(db.session)
+    
+    # For HPC, update Client_Execution with progress information
+    if is_hpc and max_day >= 0 and max_hour >= 0:
+        try:
+            client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
+            if client_exec:
+                # Update last active day and hour
+                client_exec.last_active_day = max_day
+                client_exec.last_active_hour = max_hour
+                
+                # Update elapsed_time (current round, 1-indexed)
+                # day 0, hour 0 = round 1
+                client_exec.elapsed_time = max_day * 24 + max_hour + 1
+                
+                # Check if simulation is complete
+                current_round = client_exec.elapsed_time
+                if current_round >= client_exec.expected_duration_rounds:
+                    # Get the client and mark as stopped
+                    client = Client.query.filter_by(id=client_id).first()
+                    if client and client.status == 1:
+                        client.status = 0
+                        logger.info(f"HPC client {client_id} simulation complete at round {current_round}, marking as stopped")
+                
+                _commit_with_retry(db.session)
+        except Exception as e:
+            logger.error(f"Error updating client_execution for HPC client {client_id}: {e}", exc_info=True)
 
-    return new_offset, {"daily": daily_data, "hourly": hourly_data}
+    return new_offset, {"daily": daily_data, "hourly": hourly_data, "max_day": max_day, "max_hour": max_hour}
 
 
 def get_rotating_log_files(base_log_path):
@@ -508,7 +745,7 @@ def has_server_log_files(base_log_path):
     return len(get_rotating_log_files(base_log_path)) > 0
 
 
-def update_server_log_metrics(exp_id, log_file_path):
+def update_server_log_metrics(exp_id, log_file_path, is_hpc=False):
     """
     Update server log metrics by reading new log entries.
 
@@ -519,6 +756,7 @@ def update_server_log_metrics(exp_id, log_file_path):
     Args:
         exp_id: Experiment ID
         log_file_path: Full path to the main server log file
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         bool: True if successful, False otherwise
@@ -532,6 +770,21 @@ def update_server_log_metrics(exp_id, log_file_path):
         if not os.path.exists(log_file_path):
             logger.warning(f"Log file not found: {log_file_path}")
             return True
+
+        # For HPC experiments, check if we have old incorrectly parsed data
+        # If simulation time is missing/zero, reset and re-parse from beginning
+        if is_hpc:
+            existing_metric = ServerLogMetrics.query.filter_by(
+                exp_id=exp_id,
+                aggregation_level="daily"
+            ).first()
+            
+            if existing_metric and existing_metric.min_time and existing_metric.max_time:
+                # Check if this looks like old data (simulation time near zero)
+                sim_time = (existing_metric.max_time - existing_metric.min_time).total_seconds()
+                if sim_time < 1.0:  # Less than 1 second suggests old incorrect data
+                    logger.info(f"Found old server metrics with near-zero simulation time for exp_id={exp_id}, resetting")
+                    reset_hpc_server_metrics(exp_id)
 
         # Get relative file name (for storage in database)
         file_name = os.path.basename(log_file_path)
@@ -550,7 +803,7 @@ def update_server_log_metrics(exp_id, log_file_path):
 
         # Parse log file incrementally
         new_offset, metrics = parse_server_log_incremental(
-            log_file_path, exp_id, last_offset
+            log_file_path, exp_id, last_offset, is_hpc=is_hpc
         )
 
         # Update offset
@@ -564,7 +817,7 @@ def update_server_log_metrics(exp_id, log_file_path):
         return False
 
 
-def update_client_log_metrics(exp_id, client_id, log_file_path):
+def update_client_log_metrics(exp_id, client_id, log_file_path, is_hpc=False):
     """
     Update client log metrics by reading new log entries.
 
@@ -576,6 +829,7 @@ def update_client_log_metrics(exp_id, client_id, log_file_path):
         exp_id: Experiment ID
         client_id: Client ID
         log_file_path: Full path to the client log file
+        is_hpc: Boolean flag indicating if this is an HPC experiment (uses different log format)
 
     Returns:
         bool: True if successful, False otherwise
@@ -589,6 +843,19 @@ def update_client_log_metrics(exp_id, client_id, log_file_path):
         if not os.path.exists(log_file_path):
             logger.warning(f"Client log file not found: {log_file_path}")
             return True
+
+        # For HPC experiments, check if we have old incorrectly parsed data
+        # If we find "unknown" method name, reset and re-parse from beginning
+        if is_hpc:
+            has_unknown = ClientLogMetrics.query.filter_by(
+                exp_id=exp_id,
+                client_id=client_id,
+                method_name="unknown"
+            ).first()
+            
+            if has_unknown:
+                logger.info(f"Found 'unknown' method in HPC client metrics, resetting for exp_id={exp_id}, client_id={client_id}")
+                reset_hpc_client_metrics(exp_id, client_id)
 
         # Get relative file path (for storage in database)
         file_name = os.path.basename(log_file_path)
@@ -607,7 +874,7 @@ def update_client_log_metrics(exp_id, client_id, log_file_path):
 
         # Parse log file incrementally
         new_offset, metrics = parse_client_log_incremental(
-            log_file_path, exp_id, client_id, last_offset
+            log_file_path, exp_id, client_id, last_offset, is_hpc=is_hpc
         )
 
         # Update offset
