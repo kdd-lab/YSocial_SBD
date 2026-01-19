@@ -2294,7 +2294,9 @@ def experiment_trends(exp_id):
                     last_day = ce.last_active_day if ce.last_active_day is not None else -1
                     last_hour = ce.last_active_hour if ce.last_active_hour is not None else -1
                     
-                    # Calculate current round (add 1 since rounds are 1-indexed)
+                    # Calculate current round
+                    # Note: days and hours are 0-indexed, but rounds are 1-indexed
+                    # (day 0, hour 0 = round 1), so we add 1
                     if last_day >= 0 and last_hour >= 0:
                         current_round = last_day * 24 + last_hour + 1
                     else:
@@ -2309,7 +2311,7 @@ def experiment_trends(exp_id):
                     client_progress[ce.client_id] = {
                         "expected_rounds": ce.expected_duration_rounds,
                         "current_round": current_round,
-                        "remaining_rounds": max(0, remaining) if remaining >= 0 else -1,
+                        "remaining_rounds": remaining if remaining >= 0 else -1,
                     }
                     if remaining > 0:  # Only consider finite positive remaining
                         max_remaining_rounds = max(max_remaining_rounds, remaining)
