@@ -388,14 +388,7 @@ def feeed_logged():
         return redirect("/admin/join_simulation")
 
     exp = exps[0]
-    
-    # Get experiment user (not admin user)
-    logged_user = User_mgmt.query.filter_by(username=current_user.username).first()
-    if not logged_user:
-        flash("User not found in experiment", "error")
-        return redirect(url_for("main.index"))
-    user_id = logged_user.id
-    
+    user_id = current_user.id
     return redirect(f"/{exp.idexp}/feed/{user_id}/feed/rf/1")
 
 
@@ -418,8 +411,11 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     elif user_id != "all":
         user = User_mgmt.query.filter_by(id=user_id).first()
         if not user:
-            flash("User not found in experiment", "error")
-            return redirect(url_for("main.index"))
+            # Try to find user by username instead of ID
+            user = User_mgmt.query.filter_by(username=current_user.username).first()
+            if not user:
+                flash("User not found in experiment. Please contact administrator.", "error")
+                return redirect(f"/admin/experiments")
         recsys = user.recsys_type
 
         posts, additional = get_suggested_posts(
