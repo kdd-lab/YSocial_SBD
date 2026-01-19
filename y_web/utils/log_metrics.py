@@ -278,75 +278,56 @@ def parse_server_log_incremental(log_file_path, exp_id, start_offset=0, is_hpc=F
                     parsed_count += 1
 
                     if is_hpc:
-                        # HPC format: use summary entries (hourly and daily)
-                        # Format: {"time": "2026-01-19 10:02:22", "summary_type": "hourly", "day": 1, "slot": 15,
-                        #          "total_actions": 4, "successful_actions": 4,
-                        #          "total_execution_time_seconds": 1.0336, "average_execution_time_seconds": 0.2584,
-                        #          "actions_by_method": {"like": 2, "laugh": 1, "follow": 1}}
-                        summary_type = log_entry.get("summary_type")
-                        if summary_type not in ("hourly", "daily"):
-                            if line_count <= 5:  # Log first few skipped entries
-                                errors.append(
-                                    f"Line {line_count}: No summary_type or wrong type: {summary_type}"
-                                )
-                            continue
-
-                        hpc_summary_count += 1
-
+                        # HPC server log format: individual request entries
+                        # Format: {"request_id": "...", "client_name": "dsf", "path": "get_unreplied_mentions", 
+                        #          "status_code": 200, "duration": 0.0008, "time": "2026-01-19T12:54:00.784189+00:00", 
+                        #          "tid": "...", "day": 1, "hour": 3}
+                        
+                        # Extract required fields
                         day = log_entry.get("day")
+                        hour = log_entry.get("hour")
+                        duration = float(log_entry.get("duration", 0))
+                        path = log_entry.get("path", "unknown")
+                        
+                        # Skip entries without day field
                         if day is None:
-                            errors.append(f"Line {line_count}: Missing day field")
-                            continue  # Skip entries without a valid day
-
+                            if line_count <= 5:
+                                errors.append(f"Line {line_count}: Missing day field")
+                            continue
+                        
                         # Parse timestamp if available for time tracking
                         time_str = log_entry.get("time", "")
                         time_obj = None
                         if time_str:
                             try:
-                                time_obj = datetime.strptime(
-                                    time_str, "%Y-%m-%d %H:%M:%S"
-                                )
-                            except ValueError:
+                                # Handle ISO format with timezone
+                                if 'T' in time_str:
+                                    # Remove timezone info for parsing
+                                    time_str_clean = time_str.split('+')[0].split('Z')[0]
+                                    time_obj = datetime.fromisoformat(time_str_clean)
+                                else:
+                                    time_obj = datetime.strptime(time_str, "%Y-%m-%d %H:%M:%S")
+                            except (ValueError, AttributeError):
                                 pass
-
-                        # For HPC, we use total_execution_time_seconds for both compute and simulation time
-                        # as per the actual log format
-                        total_execution_time = float(
-                            log_entry.get("total_execution_time_seconds", 0)
-                        )
-                        path = "all"  # Aggregate all paths for HPC
-
-                        # For daily summaries
-                        # HPC summaries contain absolute values, not deltas
-                        if summary_type == "daily":
+                        
+                        # Aggregate by day
+                        if day is not None:
                             hpc_daily_count += 1
-                            daily_data[day][path]["count"] = 1
-                            daily_data[day][path]["duration"] = total_execution_time
-                            daily_data[day][path][
-                                "simulation_time"
-                            ] = total_execution_time
+                            daily_data[day][path]["count"] += 1
+                            daily_data[day][path]["duration"] += duration
+                            daily_data[day][path]["simulation_time"] += duration
                             if time_obj:
                                 daily_data[day][path]["times"].append(time_obj)
-
-                        # For hourly summaries
-                        elif summary_type == "hourly":
-                            hour = log_entry.get("slot")  # HPC uses "slot" for hour
-                            if hour is not None:
-                                hpc_hourly_count += 1
-                                key = f"{day}-{hour}"
-                                hourly_data[key][path]["count"] = 1
-                                hourly_data[key][path][
-                                    "duration"
-                                ] = total_execution_time
-                                hourly_data[key][path][
-                                    "simulation_time"
-                                ] = total_execution_time
-                                if time_obj:
-                                    hourly_data[key][path]["times"].append(time_obj)
-                            else:
-                                errors.append(
-                                    f"Line {line_count}: Hourly entry missing slot field"
-                                )
+                        
+                        # Aggregate by day-hour
+                        if day is not None and hour is not None:
+                            hpc_hourly_count += 1
+                            key = f"{day}-{hour}"
+                            hourly_data[key][path]["count"] += 1
+                            hourly_data[key][path]["duration"] += duration
+                            hourly_data[key][path]["simulation_time"] += duration
+                            if time_obj:
+                                hourly_data[key][path]["times"].append(time_obj)
                     else:
                         # Standard format: individual log entries per request
                         path = log_entry.get("path", "unknown")
