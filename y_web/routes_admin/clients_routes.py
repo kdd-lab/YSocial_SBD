@@ -942,12 +942,11 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     logger.info(f"HPC client network config - model: {network_model}, file: {network_file.filename if network_file else None}")
     
     if network_model or (network_file and network_file.filename):
-        # Get agents for the population
+        # Get agents and pages for the population (same logic as Standard)
         agent_pops = Agent_Population.query.filter_by(population_id=population_id).all()
         agents = [Agent.query.filter_by(id=ap.agent_id).first() for ap in agent_pops]
         agent_ids = [a.name for a in agents if a]
         
-        # Get pages for the population
         page_pops = Page_Population.query.filter_by(population_id=population_id).all()
         pages_list = [Page.query.filter_by(id=pp.page_id).first() for pp in page_pops]
         page_ids = [p.name for p in pages_list if p]
@@ -958,29 +957,73 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         network_path = f"{exp_dir}{os.sep}{client.name}_network.csv"
         
         if network_file and network_file.filename:
-            # Handle uploaded network file
+            # Handle uploaded network file (replicate Standard logic exactly)
             temp_path = network_path.replace("_network.csv", "_network_temp.csv")
             network_file.save(temp_path)
             
             try:
                 with open(network_path, "w") as o:
+                    error, error2 = False, False
                     with open(temp_path, "r") as f:
-                        for line in f:
-                            line = line.rstrip().split(",")
-                            if len(line) < 2:
+                        for l in f:
+                            l = l.rstrip().split(",")
+                            if len(l) < 2:
                                 continue
                             
-                            # Verify both nodes exist in population
-                            node1_valid = line[0] in all_node_ids
-                            node2_valid = line[1] in all_node_ids
+                            # Validate agent_1 (same logic as Standard)
+                            agent_1 = Agent.query.filter_by(name=l[0]).all()
+                            aids = [a.id for a in agent_1]
                             
-                            if node1_valid and node2_valid:
-                                o.write(f"{line[0]},{line[1]}\n")
+                            if agent_1 is not None:
+                                test = Agent_Population.query.filter(
+                                    Agent_Population.agent_id.in_(aids),
+                                    Agent_Population.population_id == client.population_id,
+                                ).all()
+                                error = len(test) == 0
                             else:
-                                if not node1_valid:
-                                    flash(f"Agent/Page {line[0]} not found in population.", "warning")
-                                if not node2_valid:
-                                    flash(f"Agent/Page {line[1]} not found in population.", "warning")
+                                agent_1 = Page.query.filter_by(name=l[0]).all()
+                                aids = [a.id for a in agent_1]
+                                
+                                if agent_1 is not None:
+                                    test = Page_Population.query.filter(
+                                        Page_Population.page_id.in_(aids),
+                                        Page_Population.population_id == client.population_id,
+                                    ).all()
+                                    error = len(test) == 0
+                                if agent_1 is None:
+                                    error = True
+                            
+                            # Validate agent_2 (same logic as Standard)
+                            agent_2 = Agent.query.filter_by(name=l[1]).all()
+                            aids = [a.id for a in agent_2]
+                            
+                            if agent_2 is not None:
+                                test = Agent_Population.query.filter(
+                                    Agent_Population.agent_id.in_(aids),
+                                    Agent_Population.population_id == client.population_id,
+                                ).all()
+                                error2 = len(test) == 0
+                            else:
+                                agent_2 = Page.query.filter_by(name=l[1]).all()
+                                aids = [a.id for a in agent_2]
+                                
+                                if agent_2 is not None:
+                                    test = Page_Population.query.filter(
+                                        Page_Population.page_id.in_(aids),
+                                        Page_Population.population_id == client.population_id,
+                                    ).all()
+                                    error2 = len(test) == 0
+                                
+                                if agent_2 is None:
+                                    error2 = True
+                            
+                            if not error and not error2:
+                                o.write(f"{l[0]},{l[1]}\n")
+                            else:
+                                flash(
+                                    f"Agent {l[0]} or {l[1]} not found in network file.",
+                                    "warning",
+                                )
                 
                 os.remove(temp_path)
                 client.network_type = "Custom Network"
@@ -991,38 +1034,35 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                     os.remove(temp_path)
                 if os.path.exists(network_path):
                     os.remove(network_path)
-                flash("Network file format error: provide a csv file containing two columns with agent names. No header required.", "error")
+                flash(
+                    "Network file format error: provide a csv file containing two columns with agent names. No header required.",
+                    "error",
+                )
         
         elif network_model:
-            # Handle synthetic network generation
-            try:
-                G = None
-                if network_model == "erdos_renyi":
-                    p = float(network_p) if network_p else 0.1
-                    G = nx.erdos_renyi_graph(len(all_node_ids), p)
-                elif network_model == "barabasi_albert":
-                    m = int(network_m) if network_m else 2
-                    G = nx.barabasi_albert_graph(len(all_node_ids), m)
-                elif network_model == "watts_strogatz":
-                    k = int(network_m) if network_m else 4
-                    p = float(network_p) if network_p else 0.1
-                    G = nx.watts_strogatz_graph(len(all_node_ids), k, p)
+            # Handle synthetic network generation (replicate Standard logic exactly)
+            m = int(network_m) if network_m else 2
+            p = float(network_p) if network_p else 0.1
+            
+            if network_model == "BA":
+                g = nx.barabasi_albert_graph(len(all_node_ids), m=m)
+            elif network_model == "ER":
+                g = nx.erdos_renyi_graph(len(all_node_ids), p=p)
+            else:
+                g = None
+            
+            if g:
+                # Since the network is undirected and Y assumes directed relations,
+                # we need to write the edges in both directions (same as Standard)
+                with open(network_path, "w") as f:
+                    for n in g.edges:
+                        f.write(f"{all_node_ids[n[0]]},{all_node_ids[n[1]]}\n")
+                        f.write(f"{all_node_ids[n[1]]},{all_node_ids[n[0]]}\n")
+                    f.flush()
                 
-                if G:
-                    # Map node indices to agent/page names
-                    node_mapping = {i: all_node_ids[i] for i in range(len(all_node_ids))}
-                    G = nx.relabel_nodes(G, node_mapping)
-                    
-                    # Save network to CSV
-                    with open(network_path, "w") as f:
-                        for edge in G.edges():
-                            f.write(f"{edge[0]},{edge[1]}\n")
-                    
-                    client.network_type = f"{network_model.replace('_', ' ').title()}"
-                    db.session.commit()
-                    logger.info(f"HPC client synthetic network created: {network_path}, type: {client.network_type}")
-            except Exception as e:
-                flash(f"Error generating network: {str(e)}", "error")
+                client.network_type = network_model
+                db.session.commit()
+                logger.info(f"HPC client synthetic network created: {network_path}, type: {network_model}")
 
     flash(f"HPC client '{name}' created successfully")
 
