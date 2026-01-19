@@ -85,6 +85,7 @@ def follow(exp_id, user_id, follower_id):
                 db.session.add(new_follow)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 new_follow = Follow(
                     id=str(uuid.uuid4()),
                     follower_id=follower_id,
@@ -107,6 +108,7 @@ def follow(exp_id, user_id, follower_id):
         db.session.add(new_follow)
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         new_follow = Follow(
             id=str(uuid.uuid4()),
             follower_id=follower_id,
@@ -264,6 +266,7 @@ def publish_post(exp_id):
                 db.session.commit()
                 img_id = img.id
             except Exception as e:
+                db.session.rollback()
                 img = Images(
                     id=str(uuid.uuid4()), url=url, description=annotation, article_id=-1
                 )
@@ -288,6 +291,7 @@ def publish_post(exp_id):
         db.session.add(post)
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         post = Post(
             id=str(uuid.uuid4()),
             tweet=text,
@@ -320,6 +324,7 @@ def publish_post(exp_id):
                 db.session.add(interest)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 interest = Interests(iid=str(uuid.uuid4()), interest=topic)
                 db.session.add(interest)
                 db.session.commit()
@@ -350,6 +355,7 @@ def publish_post(exp_id):
             db.session.add(post_sentiment)
             db.session.commit()
         except Exception as e:
+            db.session.rollback()
             ui = User_interest(
                 id=str(uuid.uuid4()),
                 user_id=current_user.id,
@@ -386,7 +392,7 @@ def publish_post(exp_id):
                 db.session.add(post_emotion)
                 db.session.commit()
             except Exception as e:
-
+                db.session.rollback()
                 post_emotion = Post_emotions(
                     id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
                 )
@@ -404,6 +410,7 @@ def publish_post(exp_id):
                 db.session.add(ht)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
                 db.session.add(ht)
                 db.session.commit()
@@ -414,6 +421,7 @@ def publish_post(exp_id):
             db.session.add(post_tag)
             db.session.commit()
         except Exception as e:
+            db.session.rollback()
             post_tag = Post_hashtags(
                 id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
             )
@@ -433,6 +441,7 @@ def publish_post(exp_id):
                 db.session.add(mn)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 mn = Mentions(
                     id=str(uuid.uuid4()),
                     user_id=us.id,
@@ -491,6 +500,7 @@ def publish_post_reddit(exp_id):
                         db.session.commit()
                         img_id = img.id
                     except Exception as e:
+                        db.session.rollback()
                         img = Images(
                             id=str(uuid.uuid4()),
                             url=url,
@@ -503,6 +513,7 @@ def publish_post_reddit(exp_id):
                 else:
                     img_id = img.id
             except Exception as e:
+                db.session.rollback()
                 print(f"Error processing image URL {url}: {e}")
                 # Continue without image processing
                 pass
@@ -548,6 +559,7 @@ def publish_post_reddit(exp_id):
                     db.session.add(website)
                     db.session.commit()
                 except Exception as e:
+                    db.session.rollback()
                     website = Websites(
                         id=str(uuid.uuid4()),
                         name=article_info["source"],
@@ -574,6 +586,7 @@ def publish_post_reddit(exp_id):
                 db.session.commit()
                 news_id = article.id
             except Exception as e:
+                db.session.rollback()
                 article = Articles(
                     id=str(uuid.uuid4()),
                     title=article_info["title"],
@@ -600,6 +613,7 @@ def publish_post_reddit(exp_id):
         db.session.add(post)
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         post = Post(
             id=str(uuid.uuid4()),
             tweet=text,
@@ -633,6 +647,7 @@ def publish_post_reddit(exp_id):
                 db.session.add(interest)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 interest = Interests(iid=str(uuid.uuid4()), interest=topic)
                 db.session.add(interest)
                 db.session.commit()
@@ -662,6 +677,7 @@ def publish_post_reddit(exp_id):
             db.session.add(post_sentiment)
             db.session.commit()
         except Exception as e:
+            db.session.rollback()
             ui = User_interest(
                 id=str(uuid.uuid4()),
                 user_id=current_user.id,
@@ -698,6 +714,7 @@ def publish_post_reddit(exp_id):
                 db.session.add(post_emotion)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 post_emotion = Post_emotions(
                     id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
                 )
@@ -715,6 +732,7 @@ def publish_post_reddit(exp_id):
                 db.session.add(ht)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
                 db.session.add(ht)
                 db.session.commit()
@@ -725,6 +743,7 @@ def publish_post_reddit(exp_id):
             db.session.add(post_tag)
             db.session.commit()
         except Exception as e:
+            db.session.rollback()
             post_tag = Post_hashtags(
                 id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
             )
@@ -744,6 +763,7 @@ def publish_post_reddit(exp_id):
                 db.session.add(mn)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 mn = Mentions(
                     id=str(uuid.uuid4()),
                     user_id=us.id,
@@ -793,6 +813,7 @@ def publish_comment(exp_id):
         db.session.add(post)
         db.session.commit()
     except Exception as e:
+        db.session.rollback()
         uid = str(uuid.uuid4())
         # add post to the db
         post = Post(
@@ -865,6 +886,7 @@ def publish_comment(exp_id):
                 db.session.add(post_sentiment)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 ui = User_interest(
                     id=str(uuid.uuid4()),
                     user_id=current_user.id,
@@ -902,6 +924,7 @@ def publish_comment(exp_id):
                 db.session.add(post_emotion)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 post_emotion = Post_emotions(
                     id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
                 )
@@ -919,6 +942,7 @@ def publish_comment(exp_id):
                 db.session.add(ht)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
                 db.session.add(ht)
                 db.session.commit()
@@ -929,6 +953,7 @@ def publish_comment(exp_id):
             db.session.add(post_tag)
             db.session.commit()
         except Exception as e:
+            db.session.rollback()
             post_tag = Post_hashtags(
                 id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
             )
@@ -949,6 +974,7 @@ def publish_comment(exp_id):
                 db.session.add(mn)
                 db.session.commit()
             except Exception as e:
+                db.session.rollback()
                 mn = Mentions(
                     id=str(uuid.uuid4()),
                     user_id=us.id,
