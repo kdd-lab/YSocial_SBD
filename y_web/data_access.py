@@ -1131,7 +1131,7 @@ def get_posts_associated_to_interest(
                 "comments": cms,
                 "t_comments": len(cms),
                 "emotions": emotions,
-                "topics": get_topics(post.id, ost.user_id),
+                "topics": get_topics(post.id, post.user_id),
             }
         )
 
