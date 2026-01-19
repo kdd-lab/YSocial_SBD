@@ -399,8 +399,25 @@ def change_active_experiment(exp_id):
                 )
 
                 if user is None:
+                    # For HPC experiments, we need to use a manual ID assignment strategy
+                    # because HPC experiments use non-autoincrement IDs
+                    if exp.simulator_type == "HPC":
+                        # Query for the maximum existing ID in User_mgmt
+                        max_id_result = db.session.query(
+                            db.func.max(User_mgmt.id)
+                        ).first()
+                        max_id = max_id_result[0] if max_id_result[0] is not None else 0
+                        # Assign the next available ID
+                        user_id = max_id + 1
+                        current_app.logger.info(
+                            f"Assigning HPC user ID {user_id} to {current_user.username} for experiment {exp_id}"
+                        )
+                    else:
+                        # For Standard experiments, use the admin user's ID (auto-increment behavior)
+                        user_id = current_user.id
+
                     new_user = User_mgmt(
-                        id=current_user.id,
+                        id=user_id,
                         email=current_user.email,
                         username=current_user.username,
                         password=current_user.password,
@@ -1926,7 +1943,7 @@ def experiment_details(uid):
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
 
-    # For HPC experiments, ensure the owner exists in user_mgmt table
+    # For HPC experiments, ensure the owner and current user exist in user_mgmt table
     # This is needed because HPC experiments use non-autoincrement IDs
     if experiment and experiment.simulator_type == "HPC":
         # Get the admin user who owns this experiment
@@ -1950,6 +1967,33 @@ def experiment_details(uid):
                 db.session.commit()
                 current_app.logger.info(
                     f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}"
+                )
+
+        # Also ensure the current user exists in the HPC experiment database
+        # This is needed for plots and visualizations to work correctly
+        if current_user.username != experiment.owner:
+            existing_current_user = User_mgmt.query.filter_by(
+                username=current_user.username
+            ).first()
+            if not existing_current_user:
+                # Query for the maximum existing ID in User_mgmt
+                max_id_result = db.session.query(db.func.max(User_mgmt.id)).first()
+                max_id = max_id_result[0] if max_id_result[0] is not None else 0
+                # Assign the next available ID
+                user_id = max_id + 1
+
+                current_user_entry = User_mgmt(
+                    id=user_id,
+                    username=current_user.username,
+                    email=current_user.email or "",
+                    password="",  # Password not needed for HPC user entry
+                    user_type="user",
+                    joined_on=int(time.time()),
+                )
+                db.session.add(current_user_entry)
+                db.session.commit()
+                current_app.logger.info(
+                    f"Added current user {current_user.username} (ID: {user_id}) to user_mgmt for HPC experiment {uid}"
                 )
 
     # get experiment populations along with population names and ids
