@@ -44,13 +44,13 @@ def get_suggested_users(user_id, pages=False):
 
     if not pages:
         res = [
-            {"username": user.username, "id": user.id, "profile_pic": ""}
+            {"username": user.username, "id": user.id, "profile_pic": None}
             for user in users
             if user.is_page != 1 and user_id != user.id
         ]
     else:
         res = [
-            {"username": user.username, "id": user.id, "profile_pic": ""}
+            {"username": user.username, "id": user.id, "profile_pic": None}
             for user in users
             if user.is_page == 1 and user_id != user.id
         ]
@@ -67,7 +67,7 @@ def get_suggested_users(user_id, pages=False):
                     is None
                 ):
                     res.append(
-                        {"username": page.username, "id": page.id, "profile_pic": ""}
+                        {"username": page.username, "id": page.id, "profile_pic": None}
                     )
 
     for user in res:
@@ -86,7 +86,7 @@ def get_suggested_users(user_id, pages=False):
                     .profile_pic
                 )
             except:
-                user["profile_pic"] = ""
+                user["profile_pic"] = None
 
     return res
 
