@@ -941,7 +941,9 @@ def publish_comment(exp_id):
                     round_id=current_round.id,
                 )
                 db.session.add(ui)
-                ti = Post_topics(post_id=post.id, topic_id=t)
+                ti = Post_topics(
+                    id=str(uuid.uuid4()),
+                    post_id=post.id, topic_id=t)
                 db.session.add(ti)
                 db.session.commit()
 
