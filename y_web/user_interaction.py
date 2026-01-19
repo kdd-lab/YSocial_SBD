@@ -126,6 +126,14 @@ def follow(exp_id, user_id, follower_id):
 @login_required
 def share_content(exp_id):
     """
+
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+    exp_user_id = exp_user.id
+
     Share/retweet an existing post.
 
     Creates a new post that references the original as a shared post.
@@ -146,7 +154,7 @@ def share_content(exp_id):
         post = Post(
             tweet=original.tweet,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=-1,
             shared_from=post_id,
             image_id=original.image_id,
@@ -161,7 +169,7 @@ def share_content(exp_id):
             id=str(uuid.uuid4()),
             tweet=original.tweet,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=-1,
             shared_from=post_id,
             image_id=original.image_id,
@@ -190,10 +198,18 @@ def react(exp_id):
     post_id = request.args.get("post_id")
     action = request.args.get("action")
 
+
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer) if request.referrer else redirect(url_for("main.index"))
+    exp_user_id = exp_user.id
+
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
     record = Reactions.query.filter_by(
-        post_id=post_id, user_id=current_user.id, round=current_round.id
+        post_id=post_id, user_id=exp_user_id, round=current_round.id
     ).first()
 
     if record:
@@ -208,7 +224,7 @@ def react(exp_id):
         try:
             reaction = Reactions(
                 post_id=post_id,
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 type=action,
                 round=current_round.id,
             )
@@ -219,7 +235,7 @@ def react(exp_id):
             reaction = Reactions(
                 id=str(uuid.uuid4()),
                 post_id=post_id,
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 type=action,
                 round=current_round.id,
             )
@@ -247,6 +263,13 @@ def publish_post(exp_id):
     """
     text = request.args.get("post")
     url = request.args.get("url")
+
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer)
+    exp_user_id = exp_user.id
 
     user = Admin_users.query.filter_by(username=current_user.username).first()
     llm = user.llm if user.llm != "" else "llama3.2:latest"
@@ -284,7 +307,7 @@ def publish_post(exp_id):
         post = Post(
             tweet=text,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=-1,
             image_id=img_id,
         )
@@ -296,7 +319,7 @@ def publish_post(exp_id):
             id=str(uuid.uuid4()),
             tweet=text,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=-1,
             image_id=img_id,
         )
@@ -335,7 +358,7 @@ def publish_post(exp_id):
 
         try:
             ui = User_interest(
-                user_id=current_user.id, interest_id=topic_id, round_id=current_round.id
+                user_id=exp_user_id, interest_id=topic_id, round_id=current_round.id
             )
             db.session.add(ui)
             ti = Post_topics(post_id=post.id, topic_id=topic_id)
@@ -344,7 +367,7 @@ def publish_post(exp_id):
 
             post_sentiment = Post_Sentiment(
                 post_id=post.id,
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 topic_id=topic_id,
                 pos=sentiment["pos"],
                 neg=sentiment["neg"],
@@ -358,7 +381,7 @@ def publish_post(exp_id):
             db.session.rollback()
             ui = User_interest(
                 id=str(uuid.uuid4()),
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 interest_id=topic_id,
                 round_id=current_round.id,
             )
@@ -370,7 +393,7 @@ def publish_post(exp_id):
             post_sentiment = Post_Sentiment(
                 id=str(uuid.uuid4()),
                 post_id=post.id,
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 topic_id=topic_id,
                 pos=sentiment["pos"],
                 neg=sentiment["neg"],
@@ -435,7 +458,7 @@ def publish_post(exp_id):
         us = User_mgmt.query.filter_by(username=mention.strip("@")).first()
 
         # existing user and not self
-        if us is not None and us.id != current_user.id:
+        if us is not None and us.id != exp_user_id:
             try:
                 mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
                 db.session.add(mn)
@@ -475,6 +498,13 @@ def publish_post_reddit(exp_id):
     user = Admin_users.query.filter_by(username=current_user.username).first()
     llm = user.llm if user.llm != "" else "llama3.2:latest"
     llm_url = user.llm_url if user.llm_url != "" else None
+
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer)
+    exp_user_id = exp_user.id
 
     # Normalize URL: prepend http:// if missing
     if url and not url.lower().startswith(("http://", "https://")):
@@ -604,7 +634,7 @@ def publish_post_reddit(exp_id):
         post = Post(
             tweet=text,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=-1,
             image_id=img_id,
             news_id=news_id,
@@ -618,7 +648,7 @@ def publish_post_reddit(exp_id):
             id=str(uuid.uuid4()),
             tweet=text,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=-1,
             image_id=img_id,
             news_id=news_id,
@@ -657,7 +687,7 @@ def publish_post_reddit(exp_id):
 
         try:
             ui = User_interest(
-                user_id=current_user.id, interest_id=topic_id, round_id=current_round.id
+                user_id=exp_user_id, interest_id=topic_id, round_id=current_round.id
             )
             db.session.add(ui)
             ti = Post_topics(post_id=post.id, topic_id=topic_id)
@@ -666,7 +696,7 @@ def publish_post_reddit(exp_id):
 
             post_sentiment = Post_Sentiment(
                 post_id=post.id,
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 topic_id=topic_id,
                 pos=sentiment["pos"],
                 neg=sentiment["neg"],
@@ -680,7 +710,7 @@ def publish_post_reddit(exp_id):
             db.session.rollback()
             ui = User_interest(
                 id=str(uuid.uuid4()),
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 interest_id=topic_id,
                 round_id=current_round.id,
             )
@@ -692,7 +722,7 @@ def publish_post_reddit(exp_id):
             post_sentiment = Post_Sentiment(
                 id=str(uuid.uuid4()),
                 post_id=post.id,
-                user_id=current_user.id,
+                user_id=exp_user_id,
                 topic_id=topic_id,
                 pos=sentiment["pos"],
                 neg=sentiment["neg"],
@@ -757,7 +787,7 @@ def publish_post_reddit(exp_id):
         us = User_mgmt.query.filter_by(username=mention.strip("@")).first()
 
         # existing user and not self
-        if us is not None and us.id != current_user.id:
+        if us is not None and us.id != exp_user_id:
             try:
                 mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
                 db.session.add(mn)
@@ -805,7 +835,7 @@ def publish_comment(exp_id):
         post = Post(
             tweet=text,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=pid,
             thread_id=thread_id,
         )
@@ -820,7 +850,7 @@ def publish_comment(exp_id):
             id=uid,
             tweet=text,
             round=current_round.id,
-            user_id=current_user.id,
+            user_id=exp_user_id,
             comment_to=pid,
             thread_id=thread_id,
         )
@@ -844,7 +874,7 @@ def publish_comment(exp_id):
     toxicity(text, current_user.username, post.id, db)
 
     # check if the comment is to answer a mention
-    mention = Mentions.query.filter_by(post_id=pid, user_id=current_user.id).first()
+    mention = Mentions.query.filter_by(post_id=pid, user_id=exp_user_id).first()
     if mention:
         mention.answered = 1
         db.session.commit()
@@ -852,6 +882,13 @@ def publish_comment(exp_id):
     user = Admin_users.query.filter_by(username=current_user.username).first()
     llm = user.llm if user.llm != "" else "llama3.1"
     llm_url = user.llm_url if user.llm_url != "" else None
+
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer)
+    exp_user_id = exp_user.id
 
     annotator = ContentAnnotator(llm=llm, llm_url=llm_url)
     emotions = annotator.annotate_emotions(text)
@@ -865,7 +902,7 @@ def publish_comment(exp_id):
         for t in topics_id:
             try:
                 ui = User_interest(
-                    user_id=current_user.id, interest_id=t, round_id=current_round.id
+                    user_id=exp_user_id, interest_id=t, round_id=current_round.id
                 )
                 db.session.add(ui)
                 ti = Post_topics(post_id=post.id, topic_id=t)
@@ -874,7 +911,7 @@ def publish_comment(exp_id):
 
                 post_sentiment = Post_Sentiment(
                     post_id=post.id,
-                    user_id=current_user.id,
+                    user_id=exp_user_id,
                     topic_id=t,
                     pos=sentiment["pos"],
                     neg=sentiment["neg"],
@@ -889,7 +926,7 @@ def publish_comment(exp_id):
                 db.session.rollback()
                 ui = User_interest(
                     id=str(uuid.uuid4()),
-                    user_id=current_user.id,
+                    user_id=exp_user_id,
                     interest_id=t,
                     round_id=current_round.id,
                 )
@@ -901,7 +938,7 @@ def publish_comment(exp_id):
                 post_sentiment = Post_Sentiment(
                     id=str(uuid.uuid4()),
                     post_id=post.id,
-                    user_id=current_user.id,
+                    user_id=exp_user_id,
                     topic_id=t,
                     pos=sentiment["pos"],
                     neg=sentiment["neg"],
@@ -968,7 +1005,7 @@ def publish_comment(exp_id):
 
         # existing user and not self
         # @todo: check ghost mentions to the current user...
-        if us is not None and us.id != current_user.id:
+        if us is not None and us.id != exp_user_id:
             try:
                 mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
                 db.session.add(mn)
@@ -1019,7 +1056,7 @@ def cancel_notification(exp_id):
     pid = request.args.get("post_id")
 
     # check if the comment is to answer a mention
-    mention = Mentions.query.filter_by(post_id=pid, user_id=current_user.id).first()
+    mention = Mentions.query.filter_by(post_id=pid, user_id=exp_user_id).first()
     if mention:
         mention.answered = 1
         db.session.commit()
