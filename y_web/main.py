@@ -239,7 +239,7 @@ def profile_logged(exp_id, user_id, page=1, mode="recent"):
         logged_username=current_user.username,
         hashtags=hashtags_top,
         str=str,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         is_following=is_following,
         interests=interests,
         bool=bool,
@@ -276,6 +276,13 @@ def edit_profile(exp_id, user_id):
             else Admin_users.query.filter_by(username=user.username).first().profile_pic
         )
 
+    # Get experiment user (not admin user)
+    logged_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not logged_user:
+        flash("User not found in experiment", "error")
+        return redirect(url_for("main.index"))
+    logged_id = logged_user.id
+
     return render_template(
         "edit_profile.html",
         user=user,
@@ -287,7 +294,7 @@ def edit_profile(exp_id, user_id):
         user_id=user_id,
         logged_username=current_user.username,
         str=str,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         bool=bool,
         is_admin=is_admin(current_user.username),
     )
@@ -460,6 +467,13 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         except:
             profile_pic_feed = ""
 
+    # Get experiment user (not admin user)
+    logged_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not logged_user:
+        flash("User not found in experiment", "error")
+        return redirect(url_for("main.index"))
+    logged_id = logged_user.id
+
     return render_template(
         "feed.html",
         items=res,
@@ -473,7 +487,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         enumerate=enumerate,
         len=len,
         logged_username=current_user.username,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         trending_ht=trending_ht,
         str=str,
         bool=bool,
@@ -535,6 +549,8 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
         except:
             profile_pic = ""
 
+    logged_id = user.id
+
     return render_template(
         "hashtag.html",
         items=res,
@@ -546,7 +562,7 @@ def get_post_hashtags(exp_id, hashtag_id, page=1):
         len=len,
         logged_username=current_user.username,
         trending_ht=trending_ht,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         hashtag_id=hashtag_id,
         current_hashtag=hashtag,
         str=str,
@@ -606,6 +622,8 @@ def get_post_interest(exp_id, interest_id, page=1):
         except:
             profile_pic = ""
 
+    logged_id = user.id
+
     return render_template(
         "interest.html",
         items=res,
@@ -617,7 +635,7 @@ def get_post_interest(exp_id, interest_id, page=1):
         len=len,
         logged_username=current_user.username,
         trending_ht=trending_tp,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         interest_id=interest_id,
         current_interest=interest,
         str=str,
@@ -678,6 +696,8 @@ def get_post_emotion(exp_id, emotion_id, page=1):
         except:
             profile_pic = ""
 
+    logged_id = user.id
+
     return render_template(
         "emotions.html",
         items=res,
@@ -689,7 +709,7 @@ def get_post_emotion(exp_id, emotion_id, page=1):
         len=len,
         logged_username=current_user.username,
         trending_ht=trending_tp,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         emotion_id=emotion_id,
         current_emotion=emotion,
         str=str,
@@ -769,6 +789,8 @@ def get_friends(exp_id, user_id, page=1):
         us.profile_pic if us is not None and us.profile_pic is not None else ""
     )
 
+    logged_id = cu.id
+
     return render_template(
         "friends.html",
         followers=followers,
@@ -781,7 +803,7 @@ def get_friends(exp_id, user_id, page=1):
         enumerate=enumerate,
         len=len,
         logged_username=cu.username,
-        logged_id=cu.id,
+        logged_id=logged_id,
         user_id=user_id,
         number_followers=number_followers,
         number_followees=number_followees,
@@ -984,6 +1006,8 @@ def get_thread(exp_id, post_id):
         except:
             profile_pic = ""
 
+    logged_id = user.id
+
     return render_template(
         "thread.html",
         thread=discussion_tree,
@@ -991,7 +1015,7 @@ def get_thread(exp_id, post_id):
         user_id=current_user.id,
         username=current_user.username,
         logged_username=current_user.username,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         str=str,
         bool=bool,
         enumerate=enumerate,
@@ -1463,6 +1487,8 @@ def get_thread_reddit(exp_id, post_id):
         except:
             profile_pic = ""
 
+    logged_id = user.id
+
     return render_template(
         "reddit/thread.html",
         thread=discussion_tree,
@@ -1470,7 +1496,7 @@ def get_thread_reddit(exp_id, post_id):
         user_id=current_user.id,
         username=current_user.username,
         logged_username=current_user.username,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         str=str,
         bool=bool,
         enumerate=enumerate,
@@ -1652,6 +1678,8 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         except:
             profile_pic_feed = ""
 
+    logged_id = user.id
+
     return render_template(
         "reddit/feed.html",
         items=res,
@@ -1665,7 +1693,7 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         enumerate=enumerate,
         len=len,
         logged_username=current_user.username,
-        logged_id=current_user.id,
+        logged_id=logged_id,
         trending_ht=trending_ht,
         str=str,
         bool=bool,
