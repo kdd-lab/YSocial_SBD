@@ -6333,6 +6333,10 @@ def opinion_evolution_data(expid):
         filter_hour = request.args.get("hour", type=int, default=1)
         filter_topic_id = request.args.get("topic_id", type=int, default=None)
         
+        # Handle empty string as None
+        if filter_topic_id == '' or filter_topic_id == 'null':
+            filter_topic_id = None
+        
         # Find all rounds up to the specified day/hour
         # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
         rounds_up_to_time = db.session.query(Rounds.id).filter(

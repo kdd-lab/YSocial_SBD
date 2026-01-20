@@ -497,11 +497,16 @@
     
     // Function to update chart with new data
     function updateChart(data) {
+        console.log('updateChart called with:', data); // Debug log
+        
         if (chartInstance) {
             // Update both labels and data
             chartInstance.data.labels = data.chart_labels;
             chartInstance.data.datasets[0].data = data.chart_values;
             chartInstance.update();
+            console.log('Chart updated'); // Debug log
+        } else {
+            console.error('chartInstance is null'); // Debug log
         }
         
         // Update statistics
@@ -523,13 +528,17 @@
         }, 200);
         
         let url = `/admin/opinion_evolution_data/${expId}?day=${day}&hour=${hour}`;
-        if (topicId) {
+        // Only append topic_id if it's not empty string and not null/undefined
+        if (topicId && topicId !== '') {
             url += `&topic_id=${topicId}`;
         }
+        
+        console.log('Fetching data:', url); // Debug log
         
         fetch(url)
             .then(response => response.json())
             .then(data => {
+                console.log('Received data:', data); // Debug log
                 // Clear the timeout and hide loading overlay
                 clearTimeout(loadingTimeout);
                 document.getElementById('loading-overlay').classList.remove('active');
@@ -546,7 +555,7 @@
     // Time slider handler
     const timeSlider = document.getElementById('time-slider');
     let sliderTimeout = null;
-    let currentTopicId = {% if filter_topic_id %}{{ filter_topic_id }}{% else %}''{% endif %};
+    let currentTopicId = {% if filter_topic_id %}{{ filter_topic_id }}{% else %}null{% endif %};
     let isPlaying = false;
     let playInterval = null;
     const maxTimeValue = {{ max_day * 24 + max_hour }};
