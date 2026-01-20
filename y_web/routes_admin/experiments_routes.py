@@ -6156,23 +6156,22 @@ def opinion_evolution(expid):
     # Temporarily switch to experiment database
     # Note: This pattern is used throughout the codebase. While not ideal for
     # thread-safety, it matches the existing architecture.
-    old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
+    old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
     current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
         "SQLALCHEMY_BINDS"
     ][bind_key]
     
     try:
-        # Get available topics from experiment database
-        from y_web.models import Interests
+        # Import experiment-specific models
+        from y_web.models import Agent_Opinion, Interests, Post, Rounds
         
+        # Get available topics from experiment database
         topics = db.session.query(Interests).all()
         
         # Get max day and hour from Rounds table
-        from y_web.models import Rounds
-        
         max_round = db.session.query(Rounds).order_by(Rounds.id.desc()).first()
         max_day = max_round.day if max_round else 0
-        max_hour = max_round.hour if max_round else 0
+        max_hour = max_round.hour if max_round else 23
         
         # Get filter parameters from request
         filter_day = request.args.get("day", type=int, default=max_day)
@@ -6182,7 +6181,6 @@ def opinion_evolution(expid):
         # Query agent_opinion table with filters
         # We need to get the most recent opinion for each (agent_id, topic_id) pair
         # up to the specified day/hour
-        from y_web.models import Post
         from sqlalchemy import and_, or_
         
         # First, get the round ID that corresponds to the specified day/hour
@@ -6200,8 +6198,6 @@ def opinion_evolution(expid):
         else:
             # Get all agent opinions up to the target round
             # Join with Post to get the round information
-            from y_web.models import Agent_Opinion
-            
             query = db.session.query(
                 Agent_Opinion.agent_id,
                 Agent_Opinion.topic_id,
@@ -6260,7 +6256,8 @@ def opinion_evolution(expid):
         
     finally:
         # Restore old bind
-        current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+        if old_bind is not None:
+            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
     
     return render_template(
         "admin/opinion_evolution.html",
