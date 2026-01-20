@@ -498,6 +498,8 @@
     // Function to update chart with new data
     function updateChart(data) {
         if (chartInstance) {
+            // Update both labels and data
+            chartInstance.data.labels = data.chart_labels;
             chartInstance.data.datasets[0].data = data.chart_values;
             chartInstance.update();
         }
