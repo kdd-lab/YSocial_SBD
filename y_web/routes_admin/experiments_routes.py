@@ -6211,12 +6211,23 @@ def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_
     num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
     sampled_agent_ids = random.sample(all_agent_ids, min(num_agents_to_sample, len(all_agent_ids)))
     
-    # Generate sorted list of all unique timestamps
-    all_timestamps = sorted(set(
+    # Generate sorted list of all unique timestamps (day*24+hour)
+    all_timestamps_absolute = sorted(set(
         timestamp 
         for agent_opinions in agent_data.values() 
         for timestamp in agent_opinions.keys()
     ))
+    
+    # Create normalized positions: 1, 2, 3, ... for x-axis
+    # Also create mapping for tooltip display
+    normalized_positions = list(range(1, len(all_timestamps_absolute) + 1))
+    timestamp_mapping = {}  # Maps position to (day, hour) for tooltips
+    
+    for idx, abs_ts in enumerate(all_timestamps_absolute):
+        position = idx + 1
+        day = abs_ts // 24
+        hour = abs_ts % 24
+        timestamp_mapping[position] = {'day': day, 'hour': hour, 'absolute': abs_ts}
     
     # Get opinion groups for color coding
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6239,9 +6250,9 @@ def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_
         filled_data = []
         last_opinion = None
         
-        for timestamp in all_timestamps:
-            if timestamp in agent_opinions:
-                last_opinion = agent_opinions[timestamp]
+        for abs_timestamp in all_timestamps_absolute:
+            if abs_timestamp in agent_opinions:
+                last_opinion = agent_opinions[abs_timestamp]
             
             if last_opinion is not None:
                 filled_data.append(last_opinion)
@@ -6274,7 +6285,8 @@ def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_
         })
     
     return {
-        'timestamps': all_timestamps,
+        'timestamps': normalized_positions,  # Normalized positions: 1, 2, 3, ...
+        'timestamp_mapping': timestamp_mapping,  # Maps position to actual day/hour
         'agents': agents_timeseries,
         'sample_percentage': sample_percentage
     }

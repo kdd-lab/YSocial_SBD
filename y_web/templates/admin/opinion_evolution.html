@@ -585,10 +585,13 @@
                 tooltip: {
                     callbacks: {
                         title: function(context) {
-                            const timestamp = context[0].label;
-                            const day = Math.floor(timestamp / 24);
-                            const hour = timestamp % 24;
-                            return `Day ${day}, Hour ${hour}`;
+                            const position = context[0].label;
+                            // Use timestamp_mapping to get actual day/hour
+                            if (initialTimeseriesData.timestamp_mapping && initialTimeseriesData.timestamp_mapping[position]) {
+                                const info = initialTimeseriesData.timestamp_mapping[position];
+                                return `Day ${info.day}, Hour ${info.hour} (Step ${position})`;
+                            }
+                            return `Step ${position}`;
                         },
                         label: function(context) {
                             const agent = initialTimeseriesData.agents[context.datasetIndex];
@@ -613,7 +616,7 @@
                 x: {
                     title: {
                         display: true,
-                        text: 'Time (day*24 + hour)'
+                        text: 'Time Step'
                     },
                     ticks: {
                         maxTicksLimit: 10
@@ -624,6 +627,9 @@
     };
     
     timeseriesChartInstance = new Chart(timeseriesCtx, timeseriesConfig);
+    
+    // Store reference to current timeseries data for tooltip access
+    let currentTimeseriesData = initialTimeseriesData;
     
     // Function to update charts with new data
     function updateChart(data) {
@@ -641,8 +647,26 @@
         
         // Update time series chart
         if (timeseriesChartInstance && data.timeseries_data) {
+            // Store the new timeseries data for tooltip callbacks
+            currentTimeseriesData = data.timeseries_data;
+            
             timeseriesChartInstance.data.labels = data.timeseries_data.timestamps;
             timeseriesChartInstance.data.datasets = createTimeseriesDatasets(data.timeseries_data);
+            
+            // Update tooltip callbacks to use new timestamp_mapping
+            timeseriesChartInstance.options.plugins.tooltip.callbacks.title = function(context) {
+                const position = context[0].label;
+                if (currentTimeseriesData.timestamp_mapping && currentTimeseriesData.timestamp_mapping[position]) {
+                    const info = currentTimeseriesData.timestamp_mapping[position];
+                    return `Day ${info.day}, Hour ${info.hour} (Step ${position})`;
+                }
+                return `Step ${position}`;
+            };
+            timeseriesChartInstance.options.plugins.tooltip.callbacks.label = function(context) {
+                const agent = currentTimeseriesData.agents[context.datasetIndex];
+                return `Agent ${agent.agent_id} (${agent.initial_group}): ${context.parsed.y.toFixed(3)}`;
+            };
+            
             timeseriesChartInstance.update();
             console.log('Timeseries chart updated'); // Debug log
         }
