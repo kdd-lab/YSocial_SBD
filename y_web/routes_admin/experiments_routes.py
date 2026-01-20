@@ -6125,101 +6125,99 @@ def delete_opinion_distribution(dist_id):
 def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     """
     Generate opinion group volume trends over time.
-    
+
     For each timestamp up to (filter_day, filter_hour), calculates the percentage
     of agents in each opinion group.
-    
+
     Args:
         expid: Experiment ID
         filter_day: Current day filter
         filter_hour: Current hour filter
         filter_topic_id: Topic ID filter (None for all topics)
-    
+
     Returns:
         dict: Time series data with timestamps and group percentages
     """
-    from y_web.models import Agent_Opinion, Rounds
     from sqlalchemy import and_, or_
-    
+
+    from y_web.models import Agent_Opinion, Rounds
+
     # Get opinion groups from dashboard database for binning
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-    
+
     # Find all rounds up to the specified day/hour
-    rounds_up_to_time = db.session.query(
-        Rounds.id, Rounds.day, Rounds.hour
-    ).filter(
-        or_(
-            Rounds.day < filter_day,
-            and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+    rounds_up_to_time = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            or_(
+                Rounds.day < filter_day,
+                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+            )
         )
-    ).order_by(Rounds.day, Rounds.hour).all()
-    
+        .order_by(Rounds.day, Rounds.hour)
+        .all()
+    )
+
     if not rounds_up_to_time:
-        return {
-            'timestamps': [],
-            'timestamp_mapping': {},
-            'groups': []
-        }
-    
+        return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
+
     # Create list of all timestamps (normalized positions)
     all_timestamps_absolute = [r.day * 24 + r.hour for r in rounds_up_to_time]
     normalized_positions = list(range(1, len(all_timestamps_absolute) + 1))
-    
+
     # Create timestamp mapping for tooltip context
     timestamp_mapping = {}
     for idx, r in enumerate(rounds_up_to_time):
         position = idx + 1
         timestamp_mapping[position] = {
-            'day': r.day,
-            'hour': r.hour,
-            'absolute': r.day * 24 + r.hour
+            "day": r.day,
+            "hour": r.hour,
+            "absolute": r.day * 24 + r.hour,
         }
-    
+
     # Query all opinions up to this time
     base_query = db.session.query(
         Agent_Opinion.agent_id,
         Agent_Opinion.topic_id,
         Agent_Opinion.tid,
-        Agent_Opinion.opinion
-    ).filter(
-        Agent_Opinion.tid.in_([r.id for r in rounds_up_to_time])
-    )
-    
+        Agent_Opinion.opinion,
+    ).filter(Agent_Opinion.tid.in_([r.id for r in rounds_up_to_time]))
+
     # Apply topic filter if specified
     if filter_topic_id is not None:
         base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-    
+
     all_opinions = base_query.all()
-    
+
     if not all_opinions:
         return {
-            'timestamps': normalized_positions,
-            'timestamp_mapping': timestamp_mapping,
-            'groups': []
+            "timestamps": normalized_positions,
+            "timestamp_mapping": timestamp_mapping,
+            "groups": [],
         }
-    
+
     # Organize opinions by round
     round_opinions = defaultdict(list)
     for agent_id, topic_id, tid, opinion in all_opinions:
         round_opinions[tid].append((agent_id, topic_id, opinion))
-    
+
     # For each timestamp, calculate group percentages
     # Maintain running dictionary of latest opinions to avoid O(n²) complexity
     group_trends = {group.name: [] for group in opinion_groups}
     latest_at_time = {}  # Running dictionary: (agent_id, topic_id) -> opinion
-    
+
     for round_obj in rounds_up_to_time:
         round_id = round_obj.id
-        
+
         # Update latest opinions with new data from this round
         # Since we're iterating chronologically, later opinions overwrite earlier ones
         for agent_id, topic_id, opinion in round_opinions[round_id]:
             key = (agent_id, topic_id)
             latest_at_time[key] = opinion
-        
+
         # Bin the opinions at this timestamp
         binned_counts = {group.name: 0 for group in opinion_groups}
-        
+
         for opinion_value in latest_at_time.values():
             matched = False
             for group in opinion_groups:
@@ -6227,178 +6225,180 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
                     binned_counts[group.name] += 1
                     matched = True
                     break
-            
+
             if not matched:
                 # Log warning for unmatched opinion value
                 current_app.logger.warning(
                     f"Opinion value {opinion_value} does not match any opinion group in experiment {expid}"
                 )
-        
+
         # Calculate percentages using actual binned count (not total opinions)
         # This ensures percentages sum to 100% even if some opinions don't match groups
         total_binned = sum(binned_counts.values())
-        
+
         for group in opinion_groups:
-            percentage = (binned_counts[group.name] / total_binned * 100) if total_binned > 0 else 0
+            percentage = (
+                (binned_counts[group.name] / total_binned * 100)
+                if total_binned > 0
+                else 0
+            )
             group_trends[group.name].append(percentage)
-    
+
     # Prepare return data
     groups_data = []
     for group in opinion_groups:
-        groups_data.append({
-            'name': group.name,
-            'data': group_trends[group.name]
-        })
-    
+        groups_data.append({"name": group.name, "data": group_trends[group.name]})
+
     return {
-        'timestamps': normalized_positions,
-        'timestamp_mapping': timestamp_mapping,
-        'groups': groups_data
+        "timestamps": normalized_positions,
+        "timestamp_mapping": timestamp_mapping,
+        "groups": groups_data,
     }
 
 
-def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_id, sample_percentage=50):
+def generate_agent_timeseries_data(
+    expid, filter_day, filter_hour, filter_topic_id, sample_percentage=50
+):
     """
     Generate agent opinion time series data for visualization.
-    
+
     Args:
         expid: Experiment ID
         filter_day: Current day filter
         filter_hour: Current hour filter
         filter_topic_id: Topic ID filter (None for all topics)
         sample_percentage: Percentage of agents to sample (10, 25, 50, 75, 100)
-    
+
     Returns:
         dict: Time series data with timestamps, sampled agents, and their opinions
     """
-    from y_web.models import Agent_Opinion, Rounds
-    from sqlalchemy import and_, or_
     import random
-    
+
+    from sqlalchemy import and_, or_
+
+    from y_web.models import Agent_Opinion, Rounds
+
     # Find all rounds up to the specified day/hour
-    rounds_up_to_time = db.session.query(
-        Rounds.id, Rounds.day, Rounds.hour
-    ).filter(
-        or_(
-            Rounds.day < filter_day,
-            and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+    rounds_up_to_time = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            or_(
+                Rounds.day < filter_day,
+                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+            )
         )
-    ).order_by(Rounds.day, Rounds.hour).all()
-    
+        .order_by(Rounds.day, Rounds.hour)
+        .all()
+    )
+
     if not rounds_up_to_time:
-        return {
-            'timestamps': [],
-            'agents': [],
-            'sample_percentage': sample_percentage
-        }
-    
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
     # Create mapping of round_id to (day, hour) for time calculation
     round_time_map = {r.id: (r.day, r.hour) for r in rounds_up_to_time}
     round_ids = [r.id for r in rounds_up_to_time]
-    
+
     # Query all opinions up to this time
     base_query = db.session.query(
         Agent_Opinion.agent_id,
         Agent_Opinion.topic_id,
         Agent_Opinion.tid,
-        Agent_Opinion.opinion
-    ).filter(
-        Agent_Opinion.tid.in_(round_ids)
-    )
-    
+        Agent_Opinion.opinion,
+    ).filter(Agent_Opinion.tid.in_(round_ids))
+
     # Apply topic filter if specified
     if filter_topic_id is not None:
         base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-    
+
     all_opinions = base_query.all()
-    
+
     if not all_opinions:
-        return {
-            'timestamps': [],
-            'agents': [],
-            'sample_percentage': sample_percentage
-        }
-    
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
     # Organize data by agent
     # Structure: {agent_id: {timestamp: opinion_value}}
     agent_data = defaultdict(dict)
     agent_first_opinion = {}  # Track first observed opinion for each agent
-    
+
     for agent_id, topic_id, tid, opinion in all_opinions:
         if tid in round_time_map:
             day, hour = round_time_map[tid]
             timestamp = day * 24 + hour
-            
+
             # Store opinion at this timestamp
             if agent_id not in agent_data:
                 agent_data[agent_id] = {}
-            
+
             # Keep only the latest opinion at each timestamp (in case multiple opinions per round)
             if timestamp not in agent_data[agent_id]:
                 agent_data[agent_id][timestamp] = opinion
-            
+
             # Track first observed opinion for color coding
             if agent_id not in agent_first_opinion:
                 agent_first_opinion[agent_id] = opinion
-    
+
     # Sample agents based on percentage
     all_agent_ids = list(agent_data.keys())
     num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
-    sampled_agent_ids = random.sample(all_agent_ids, min(num_agents_to_sample, len(all_agent_ids)))
-    
+    sampled_agent_ids = random.sample(
+        all_agent_ids, min(num_agents_to_sample, len(all_agent_ids))
+    )
+
     # Generate sorted list of all unique timestamps (day*24+hour)
-    all_timestamps_absolute = sorted(set(
-        timestamp 
-        for agent_opinions in agent_data.values() 
-        for timestamp in agent_opinions.keys()
-    ))
-    
+    all_timestamps_absolute = sorted(
+        set(
+            timestamp
+            for agent_opinions in agent_data.values()
+            for timestamp in agent_opinions.keys()
+        )
+    )
+
     # Create normalized positions: 1, 2, 3, ... for x-axis
     # Also create mapping for tooltip display
     normalized_positions = list(range(1, len(all_timestamps_absolute) + 1))
     timestamp_mapping = {}  # Maps position to (day, hour) for tooltips
-    
+
     for idx, abs_ts in enumerate(all_timestamps_absolute):
         position = idx + 1
         day = abs_ts // 24
         hour = abs_ts % 24
-        timestamp_mapping[position] = {'day': day, 'hour': hour, 'absolute': abs_ts}
-    
+        timestamp_mapping[position] = {"day": day, "hour": hour, "absolute": abs_ts}
+
     # Get opinion groups for color coding
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-    
+
     # Define color palette matching the opinion distribution chart
     color_palette = [
-        'rgba(239, 68, 68, 0.7)',   # Red - Strongly against
-        'rgba(251, 146, 60, 0.7)',  # Orange - Against
-        'rgba(250, 204, 21, 0.7)',  # Yellow - Neutral
-        'rgba(74, 222, 128, 0.7)',  # Light Green - In favor
-        'rgba(34, 197, 94, 0.7)',   # Green - Strongly in favor
+        "rgba(239, 68, 68, 0.7)",  # Red - Strongly against
+        "rgba(251, 146, 60, 0.7)",  # Orange - Against
+        "rgba(250, 204, 21, 0.7)",  # Yellow - Neutral
+        "rgba(74, 222, 128, 0.7)",  # Light Green - In favor
+        "rgba(34, 197, 94, 0.7)",  # Green - Strongly in favor
     ]
-    
+
     # Build agent time series with forward-fill
     agents_timeseries = []
     for agent_id in sampled_agent_ids:
         agent_opinions = agent_data[agent_id]
-        
+
         # Forward-fill: replicate last observed value
         filled_data = []
         last_opinion = None
-        
+
         for abs_timestamp in all_timestamps_absolute:
             if abs_timestamp in agent_opinions:
                 last_opinion = agent_opinions[abs_timestamp]
-            
+
             if last_opinion is not None:
                 filled_data.append(last_opinion)
             else:
                 filled_data.append(None)  # No data yet for this agent
-        
+
         # Determine initial opinion group for color coding
         first_opinion = agent_first_opinion.get(agent_id)
         initial_group = "Unknown"
-        color = 'rgba(156, 163, 175, 0.7)'  # Default gray
-        
+        color = "rgba(156, 163, 175, 0.7)"  # Default gray
+
         if first_opinion is not None:
             for idx, group in enumerate(opinion_groups):
                 if group.lower_bound <= first_opinion <= group.upper_bound:
@@ -6408,22 +6408,24 @@ def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_
                         color = color_palette[idx]
                     else:
                         # Generate color if not in palette
-                        hue = (idx * 360 / len(opinion_groups))
-                        color = f'hsla({hue}, 70%, 60%, 0.7)'
+                        hue = idx * 360 / len(opinion_groups)
+                        color = f"hsla({hue}, 70%, 60%, 0.7)"
                     break
-        
-        agents_timeseries.append({
-            'agent_id': str(agent_id),
-            'data': filled_data,
-            'initial_group': initial_group,
-            'color': color
-        })
-    
+
+        agents_timeseries.append(
+            {
+                "agent_id": str(agent_id),
+                "data": filled_data,
+                "initial_group": initial_group,
+                "color": color,
+            }
+        )
+
     return {
-        'timestamps': normalized_positions,  # Normalized positions: 1, 2, 3, ...
-        'timestamp_mapping': timestamp_mapping,  # Maps position to actual day/hour
-        'agents': agents_timeseries,
-        'sample_percentage': sample_percentage
+        "timestamps": normalized_positions,  # Normalized positions: 1, 2, 3, ...
+        "timestamp_mapping": timestamp_mapping,  # Maps position to actual day/hour
+        "agents": agents_timeseries,
+        "sample_percentage": sample_percentage,
     }
 
 
@@ -6432,128 +6434,158 @@ def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_
 def opinion_evolution(expid):
     """
     Display opinion evolution page for an experiment.
-    
+
     Shows distribution of agent opinions over time.
     For each (agent_id, topic_id) pair, shows the most recent opinion up to the selected day/hour.
-    
+
     Note: Agent_Opinion.tid is a UUID FK to Rounds.id, where day/hour values are stored.
     """
     check_privileges(current_user.username)
-    
+
     # Get experiment
     experiment = Exps.query.filter_by(idexp=expid).first()
     if not experiment:
         flash("Experiment not found.")
         return redirect("/admin/experiments")
-    
+
     # Check if opinions are enabled for this experiment
     if not experiment.annotations or "opinions" not in experiment.annotations:
         flash("Opinion dynamics is not enabled for this experiment.")
         return redirect(f"/admin/experiment_details/{expid}")
-    
+
     # Activate experiment if not active (to access its database)
     from y_web.experiment_context import register_experiment_database
-    
+
     bind_key = f"db_exp_{expid}"
-    
+
     # Ensure the experiment database is registered
     if bind_key not in current_app.config["SQLALCHEMY_BINDS"]:
         register_experiment_database(current_app, expid, experiment.db_name)
-    
+
     # Temporarily switch to experiment database
     old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
     current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
         "SQLALCHEMY_BINDS"
     ][bind_key]
-    
+
     try:
         # Import experiment-specific models
+        from sqlalchemy import and_, func, or_
+
         from y_web.models import Agent_Opinion, Interests, Rounds
-        from sqlalchemy import and_, or_, func
-        
+
         # Get available topics from experiment database
         topics = db.session.query(Interests).all()
-        
+
         # Get max day and hour from Rounds table (start at day 1 hour 1 as per requirements)
-        max_round = db.session.query(Rounds).order_by(Rounds.day.desc(), Rounds.hour.desc()).first()
+        max_round = (
+            db.session.query(Rounds)
+            .order_by(Rounds.day.desc(), Rounds.hour.desc())
+            .first()
+        )
         max_day = max_round.day if max_round else 1
         max_hour = max_round.hour if max_round else 1
-        
+
         # Get filter parameters from request (default to max values)
         filter_day = request.args.get("day", type=int, default=max_day)
         filter_hour = request.args.get("hour", type=int, default=max_hour)
         filter_topic_id = request.args.get("topic_id", type=int, default=None)
-        
+
         # Find all rounds up to the specified day/hour
         # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
-        rounds_up_to_time = db.session.query(Rounds.id).filter(
-            or_(
-                Rounds.day < filter_day,
-                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+        rounds_up_to_time = (
+            db.session.query(Rounds.id)
+            .filter(
+                or_(
+                    Rounds.day < filter_day,
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
             )
-        ).subquery()
-        
-        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
-        base_query = db.session.query(
-            Agent_Opinion.agent_id,
-            Agent_Opinion.topic_id,
-            Agent_Opinion.tid,
-            Agent_Opinion.opinion,
-            Agent_Opinion.id_interacted_with,
-            Rounds.day,
-            Rounds.hour
-        ).join(
-            Rounds, Agent_Opinion.tid == Rounds.id
-        ).filter(
-            Agent_Opinion.tid.in_(rounds_up_to_time)
+            .subquery()
         )
-        
+
+        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
+        base_query = (
+            db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+                Rounds.day,
+                Rounds.hour,
+            )
+            .join(Rounds, Agent_Opinion.tid == Rounds.id)
+            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        )
+
         # Apply topic filter if specified
         if filter_topic_id is not None:
             base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-        
+
         # Get all opinions up to the selected time
         all_opinions = base_query.all()
-        
+
         # Keep only the latest opinion per (agent_id, topic_id) pair
         # Latest means highest (day, hour) combination
         latest_opinions = {}
-        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
             key = (agent_id, topic_id)
-            if key not in latest_opinions or (day, hour) > (latest_opinions[key]['day'], latest_opinions[key]['hour']):
+            if key not in latest_opinions or (day, hour) > (
+                latest_opinions[key]["day"],
+                latest_opinions[key]["hour"],
+            ):
                 latest_opinions[key] = {
-                    'tid': tid,
-                    'opinion': opinion,
-                    'id_interacted_with': id_interacted_with,
-                    'day': day,
-                    'hour': hour
+                    "tid": tid,
+                    "opinion": opinion,
+                    "id_interacted_with": id_interacted_with,
+                    "day": day,
+                    "hour": hour,
                 }
-        
+
         # Extract opinion values for binning
-        opinion_data = [data['opinion'] for data in latest_opinions.values()]
-        
+        opinion_data = [data["opinion"] for data in latest_opinions.values()]
+
         # Count social interactions from ALL opinions up to this time (not just latest)
         # This gives cumulative count of all interactions that happened up to selected time
         social_interactions = 0
-        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
             # Check if interaction is valid: not null, not zero, and if string, not empty
             if id_interacted_with is not None and id_interacted_with != 0:
                 # Convert to string and check if non-empty
                 id_str = str(id_interacted_with).strip()
-                if len(id_str) > 0 and id_str != '0':
+                if len(id_str) > 0 and id_str != "0":
                     social_interactions += 1
-        
+
         # Count unique agents that have an opinion on the selected topic up to current timestamp
         # Extract agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
-        unique_agents = len(set(key[0] for key in latest_opinions.keys()))  # key[0] is agent_id
-        
+        unique_agents = len(
+            set(key[0] for key in latest_opinions.keys())
+        )  # key[0] is agent_id
+
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-        
+
         # Bin the opinions according to opinion_groups
         binned_data = {group.name: 0 for group in opinion_groups}
         unmatched_count = 0
-        
+
         for opinion_value in opinion_data:
             # Find which bin this opinion belongs to
             matched = False
@@ -6562,28 +6594,28 @@ def opinion_evolution(expid):
                     binned_data[group.name] += 1
                     matched = True
                     break
-            
+
             if not matched:
                 unmatched_count += 1
                 current_app.logger.warning(
                     f"Opinion value {opinion_value} does not match any opinion group for experiment {expid}"
                 )
-        
+
         # Prepare data for chart
         chart_labels = [group.name for group in opinion_groups]
         chart_values = [binned_data[group.name] for group in opinion_groups]
-        
+
         # Generate group trends data (opinion group volumes over time)
         group_trends_data = generate_group_trends_data(
             expid, filter_day, filter_hour, filter_topic_id
         )
-        
+
         # Generate agent time series data (default 50% sample)
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
         timeseries_data = generate_agent_timeseries_data(
             expid, filter_day, filter_hour, filter_topic_id, sample_percentage
         )
-        
+
     finally:
         # Restore old bind if it existed, otherwise remove the temporary bind
         if old_bind is not None:
@@ -6591,7 +6623,7 @@ def opinion_evolution(expid):
         else:
             # If no previous bind existed, remove the temporary one
             current_app.config["SQLALCHEMY_BINDS"].pop("db_exp", None)
-    
+
     return render_template(
         "admin/opinion_evolution.html",
         experiment=experiment,
@@ -6616,155 +6648,183 @@ def opinion_evolution(expid):
 def opinion_evolution_data(expid):
     """
     API endpoint for getting opinion evolution data without page reload.
-    
+
     Returns JSON with chart data based on filter parameters.
     For each (agent_id, topic_id) pair, returns the most recent opinion up to the selected day/hour.
     """
     check_privileges(current_user.username)
-    
+
     # Get experiment
     experiment = Exps.query.filter_by(idexp=expid).first()
     if not experiment:
         return jsonify({"error": "Experiment not found"}), 404
-    
+
     # Check if opinions are enabled for this experiment
     if not experiment.annotations or "opinions" not in experiment.annotations:
         return jsonify({"error": "Opinion dynamics not enabled"}), 400
-    
+
     # Activate experiment if not active (to access its database)
     from y_web.experiment_context import register_experiment_database
-    
+
     bind_key = f"db_exp_{expid}"
-    
+
     # Ensure the experiment database is registered
     if bind_key not in current_app.config["SQLALCHEMY_BINDS"]:
         register_experiment_database(current_app, expid, experiment.db_name)
-    
+
     # Temporarily switch to experiment database
     old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
     current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
         "SQLALCHEMY_BINDS"
     ][bind_key]
-    
+
     try:
         # Import experiment-specific models
-        from y_web.models import Agent_Opinion, Rounds
         from sqlalchemy import and_, or_
-        
+
+        from y_web.models import Agent_Opinion, Rounds
+
         # Get filter parameters from request
         filter_day = request.args.get("day", type=int, default=1)
         filter_hour = request.args.get("hour", type=int, default=1)
         filter_topic_id = request.args.get("topic_id", type=int, default=None)
-        
+
         # Handle empty string as None
-        if filter_topic_id == '' or filter_topic_id == 'null':
+        if filter_topic_id == "" or filter_topic_id == "null":
             filter_topic_id = None
-        
+
         # Find all rounds up to the specified day/hour
         # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
-        rounds_up_to_time = db.session.query(Rounds.id).filter(
-            or_(
-                Rounds.day < filter_day,
-                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+        rounds_up_to_time = (
+            db.session.query(Rounds.id)
+            .filter(
+                or_(
+                    Rounds.day < filter_day,
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
             )
-        ).subquery()
-        
-        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
-        base_query = db.session.query(
-            Agent_Opinion.agent_id,
-            Agent_Opinion.topic_id,
-            Agent_Opinion.tid,
-            Agent_Opinion.opinion,
-            Agent_Opinion.id_interacted_with,
-            Rounds.day,
-            Rounds.hour
-        ).join(
-            Rounds, Agent_Opinion.tid == Rounds.id
-        ).filter(
-            Agent_Opinion.tid.in_(rounds_up_to_time)
+            .subquery()
         )
-        
+
+        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
+        base_query = (
+            db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+                Rounds.day,
+                Rounds.hour,
+            )
+            .join(Rounds, Agent_Opinion.tid == Rounds.id)
+            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        )
+
         # Apply topic filter if specified
         if filter_topic_id is not None:
             base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-        
+
         # Get all opinions up to the selected time
         all_opinions = base_query.all()
-        
+
         # Keep only the latest opinion per (agent_id, topic_id) pair
         # Latest means highest (day, hour) combination
         latest_opinions = {}
-        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
             key = (agent_id, topic_id)
-            if key not in latest_opinions or (day, hour) > (latest_opinions[key]['day'], latest_opinions[key]['hour']):
+            if key not in latest_opinions or (day, hour) > (
+                latest_opinions[key]["day"],
+                latest_opinions[key]["hour"],
+            ):
                 latest_opinions[key] = {
-                    'tid': tid,
-                    'opinion': opinion,
-                    'id_interacted_with': id_interacted_with,
-                    'day': day,
-                    'hour': hour
+                    "tid": tid,
+                    "opinion": opinion,
+                    "id_interacted_with": id_interacted_with,
+                    "day": day,
+                    "hour": hour,
                 }
-        
+
         # Extract opinion values for binning
-        opinion_data = [data['opinion'] for data in latest_opinions.values()]
-        
+        opinion_data = [data["opinion"] for data in latest_opinions.values()]
+
         # Count social interactions from ALL opinions up to this time (not just latest)
         # This gives cumulative count of all interactions that happened up to selected time
         social_interactions = 0
-        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
             # Check if interaction is valid: not null, not zero, and if string, not empty
             if id_interacted_with is not None and id_interacted_with != 0:
                 # Convert to string and check if non-empty
                 id_str = str(id_interacted_with).strip()
-                if len(id_str) > 0 and id_str != '0':
+                if len(id_str) > 0 and id_str != "0":
                     social_interactions += 1
-        
+
         # Count unique agents that have an opinion on the selected topic up to current timestamp
         # Extract agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
-        unique_agents = len(set(key[0] for key in latest_opinions.keys()))  # key[0] is agent_id
-        
+        unique_agents = len(
+            set(key[0] for key in latest_opinions.keys())
+        )  # key[0] is agent_id
+
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
-        
+
         # Bin the opinions according to opinion_groups
         binned_data = {group.name: 0 for group in opinion_groups}
-        
+
         for opinion_value in opinion_data:
             # Find which bin this opinion belongs to
             for group in opinion_groups:
                 if group.lower_bound <= opinion_value <= group.upper_bound:
                     binned_data[group.name] += 1
                     break
-        
+
         # Prepare data for chart
         chart_labels = [group.name for group in opinion_groups]
         chart_values = [binned_data[group.name] for group in opinion_groups]
-        
+
         # Get sample percentage from request
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
-        
+
         # Generate group trends data (opinion group volumes over time)
         group_trends_data = generate_group_trends_data(
             expid, filter_day, filter_hour, filter_topic_id
         )
-        
+
         # Generate agent time series data
         timeseries_data = generate_agent_timeseries_data(
             expid, filter_day, filter_hour, filter_topic_id, sample_percentage
         )
-        
-        return jsonify({
-            "chart_labels": chart_labels,
-            "chart_values": chart_values,
-            "total_opinions": len(opinion_data),
-            "social_interactions": social_interactions,
-            "unique_agents": unique_agents,
-            "filter_day": filter_day,
-            "filter_hour": filter_hour,
-            "group_trends_data": group_trends_data,
-            "timeseries_data": timeseries_data,
-        })
-        
+
+        return jsonify(
+            {
+                "chart_labels": chart_labels,
+                "chart_values": chart_values,
+                "total_opinions": len(opinion_data),
+                "social_interactions": social_interactions,
+                "unique_agents": unique_agents,
+                "filter_day": filter_day,
+                "filter_hour": filter_hour,
+                "group_trends_data": group_trends_data,
+                "timeseries_data": timeseries_data,
+            }
+        )
+
     finally:
         # Restore old bind if it existed, otherwise remove the temporary bind
         if old_bind is not None:
