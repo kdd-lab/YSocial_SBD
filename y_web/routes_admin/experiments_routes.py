@@ -6229,6 +6229,21 @@ def opinion_evolution(expid):
             
             # Extract just the opinion values
             opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
+            
+            # Count cumulative social interactions (non-null id_interacted_with)
+            interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
+                Post, Agent_Opinion.id_post == Post.id
+            ).filter(
+                Post.round <= target_round.id,
+                Agent_Opinion.id_interacted_with.isnot(None),
+                Agent_Opinion.id_interacted_with != 0
+            )
+            
+            # Apply topic filter if specified
+            if filter_topic_id is not None:
+                interactions_query = interactions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+            
+            social_interactions = interactions_query.count()
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6276,6 +6291,7 @@ def opinion_evolution(expid):
         chart_labels=chart_labels,
         chart_values=chart_values,
         total_opinions=len(opinion_data),
+        social_interactions=social_interactions,
     )
 
 
@@ -6366,6 +6382,21 @@ def opinion_evolution_data(expid):
             
             # Extract just the opinion values
             opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
+            
+            # Count cumulative social interactions (non-null id_interacted_with)
+            interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
+                Post, Agent_Opinion.id_post == Post.id
+            ).filter(
+                Post.round <= target_round.id,
+                Agent_Opinion.id_interacted_with.isnot(None),
+                Agent_Opinion.id_interacted_with != 0
+            )
+            
+            # Apply topic filter if specified
+            if filter_topic_id is not None:
+                interactions_query = interactions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+            
+            social_interactions = interactions_query.count()
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6388,6 +6419,7 @@ def opinion_evolution_data(expid):
             "chart_labels": chart_labels,
             "chart_values": chart_values,
             "total_opinions": len(opinion_data),
+            "social_interactions": social_interactions,
             "filter_day": filter_day,
             "filter_hour": filter_hour,
         })

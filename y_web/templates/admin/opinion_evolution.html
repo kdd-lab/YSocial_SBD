@@ -174,9 +174,15 @@
     /* Stats within chart box */
     .stats-row {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 10px;
         margin-bottom: 15px;
+    }
+    
+    @media (max-width: 768px) {
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
     
     .stat-box {
@@ -313,6 +319,11 @@
                                 <div class="stat-label">Total Opinions</div>
                             </div>
                             
+                            <div class="stat-box" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">
+                                <div class="stat-value" id="social-interactions">{{ social_interactions }}</div>
+                                <div class="stat-label">Social Interactions</div>
+                            </div>
+                            
                             <div class="stat-box" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
                                 <div class="stat-value">Day <span id="current-day">{{ filter_day }}</span></div>
                                 <div class="stat-label">Current Day</div>
@@ -447,6 +458,7 @@
         
         // Update statistics
         document.getElementById('total-opinions').textContent = data.total_opinions;
+        document.getElementById('social-interactions').textContent = data.social_interactions;
         document.getElementById('current-day').textContent = data.filter_day;
         document.getElementById('current-hour').textContent = data.filter_hour;
         document.getElementById('day-value').textContent = data.filter_day;
