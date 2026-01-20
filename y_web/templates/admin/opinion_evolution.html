@@ -1,0 +1,277 @@
+{% include "admin/head.html" %}
+
+<style>
+    .filter-section {
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-group {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .filter-item {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .filter-item label {
+        font-weight: 600;
+        font-size: 0.9em;
+        color: #374151;
+    }
+    
+    .filter-item select,
+    .filter-item input {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.9em;
+    }
+    
+    .apply-filter-btn {
+        padding: 8px 20px;
+        background-color: #039be5;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        align-self: flex-end;
+        transition: background-color 0.2s;
+    }
+    
+    .apply-filter-btn:hover {
+        background-color: #0277bd;
+    }
+    
+    .chart-container {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-box {
+        background: linear-gradient(135deg, #039be5 0%, #0277bd 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 2em;
+        font-weight: bold;
+    }
+    
+    .stat-label {
+        font-size: 0.9em;
+        opacity: 0.9;
+    }
+</style>
+
+<div class="view-wrapper is-dashboard">
+    <div id="creator-dashboard" class="dashboard-container">
+        {% include "admin/dash_head.html" %}
+
+        <div class="dashboard-body">
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        <a href="/admin/experiments">Experiments</a> > 
+                        <a href="/admin/experiment_details/{{ experiment.idexp }}">{{ experiment.exp_name }}</a> > 
+                        Opinion Evolution
+                    </div>
+                </div>
+            </div>
+
+            {% for message in get_flashed_messages() %}
+            <div class="alert alert-warning">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                {{ message }}
+            </div>
+            {% endfor %}
+
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Distribution Filters</h3>
+                        
+                        <div class="filter-section">
+                            <form method="get" action="/admin/opinion_evolution/{{ experiment.idexp }}">
+                                <div class="filter-group">
+                                    <div class="filter-item">
+                                        <label for="day">Day</label>
+                                        <input type="number" id="day" name="day" min="0" max="{{ max_day }}" 
+                                               value="{{ filter_day }}" style="width: 100px;">
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <label for="hour">Hour</label>
+                                        <input type="number" id="hour" name="hour" min="0" max="23" 
+                                               value="{{ filter_hour }}" style="width: 100px;">
+                                    </div>
+                                    
+                                    <div class="filter-item">
+                                        <label for="topic_id">Topic</label>
+                                        <select id="topic_id" name="topic_id" style="min-width: 200px;">
+                                            <option value="">All Topics</option>
+                                            {% for topic in topics %}
+                                            <option value="{{ topic.iid }}" {% if filter_topic_id == topic.iid %}selected{% endif %}>
+                                                {{ topic.interest }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    
+                                    <button type="submit" class="apply-filter-btn">
+                                        <i class="mdi mdi-filter"></i> Apply Filters
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Statistics</h3>
+                        
+                        <div class="stats-container">
+                            <div class="stat-box">
+                                <div class="stat-value">{{ total_opinions }}</div>
+                                <div class="stat-label">Total Opinions</div>
+                            </div>
+                            
+                            <div class="stat-box" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
+                                <div class="stat-value">Day {{ filter_day }}</div>
+                                <div class="stat-label">Current Filter</div>
+                            </div>
+                            
+                            <div class="stat-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                <div class="stat-value">Hour {{ filter_hour }}</div>
+                                <div class="stat-label">Current Filter</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Distribution</h3>
+                        
+                        <div class="chart-container">
+                            <canvas id="opinionChart" height="100"></canvas>
+                        </div>
+                        
+                        <p style="font-size: 0.85em; color: #666; text-align: center;">
+                            Distribution of agent opinions across different opinion groups.
+                            {% if filter_topic_id %}
+                            Filtered for topic: {{ topics|selectattr('iid', 'equalto', filter_topic_id)|map(attribute='interest')|first }}.
+                            {% else %}
+                            Showing all topics.
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Chart.js configuration
+    const ctx = document.getElementById('opinionChart').getContext('2d');
+    const chartData = {
+        labels: {{ chart_labels|tojson }},
+        datasets: [{
+            label: 'Number of Agents',
+            data: {{ chart_values|tojson }},
+            backgroundColor: [
+                'rgba(239, 68, 68, 0.7)',   // Red - Strongly against
+                'rgba(251, 146, 60, 0.7)',  // Orange - Against
+                'rgba(250, 204, 21, 0.7)',  // Yellow - Neutral
+                'rgba(74, 222, 128, 0.7)',  // Light Green - In favor
+                'rgba(34, 197, 94, 0.7)',   // Green - Strongly in favor
+            ],
+            borderColor: [
+                'rgba(239, 68, 68, 1)',
+                'rgba(251, 146, 60, 1)',
+                'rgba(250, 204, 21, 1)',
+                'rgba(74, 222, 128, 1)',
+                'rgba(34, 197, 94, 1)',
+            ],
+            borderWidth: 2
+        }]
+    };
+    
+    const config = {
+        type: 'bar',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
+                            return `${context.parsed.y} agents (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    },
+                    title: {
+                        display: true,
+                        text: 'Number of Agents'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Opinion Group'
+                    }
+                }
+            }
+        }
+    };
+    
+    new Chart(ctx, config);
+</script>
+
+{% include "admin/foot.html" %}

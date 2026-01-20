@@ -102,6 +102,16 @@
                             </div>
                             {% endif %}
 
+                            {% if experiment.annotations and 'opinions' in experiment.annotations %}
+                            <div class="box-line">
+                                <span class="left">Opinion Evolution</span>
+                                <span class="right">
+                                    <a class="link-tooltip" href="/admin/opinion_evolution/{{ experiment.idexp }}" title="View Opinion Evolution">
+                                        <i class="mdi mdi-chart-line" style="font-size: 24px;"></i></a>
+                                </span>
+                            </div>
+                            {% endif %}
+
                             <div class="box-line">
                                 <span class="left">Download Experiment</span>
                                 <span class="right"><a class="link-tooltip" href="/admin/download_experiment/{{ experiment.idexp }}" title="Download"><i
