@@ -348,6 +348,9 @@ def augment_text(text, exp_id):
 
     Returns:
         the augmented text"""
+    # Remove leading/trailing quote characters
+    text = text.strip('"')
+
     # text = text.split("(")[0]
 
     # Extract the mentions and hashtags
@@ -368,7 +371,15 @@ def augment_text(text, exp_id):
     # Get the used hashtag id
     for h in hashtags:
         try:
-            used_hastag[h] = Hashtags.query.filter_by(hashtag=h).first().id
+            # Try exact match first
+            hashtag_obj = Hashtags.query.filter_by(hashtag=h).first()
+            if hashtag_obj:
+                used_hastag[h] = hashtag_obj.id
+            else:
+                # Try without # prefix for HPC compatibility
+                hashtag_obj = Hashtags.query.filter_by(hashtag=h[1:]).first()
+                if hashtag_obj:
+                    used_hastag[h] = hashtag_obj.id
         except:
             pass
 
@@ -1131,7 +1142,7 @@ def get_posts_associated_to_interest(
                 "comments": cms,
                 "t_comments": len(cms),
                 "emotions": emotions,
-                "topics": get_topics(post.id, ost.user_id),
+                "topics": get_topics(post.id, post.user_id),
             }
         )
 
@@ -1460,13 +1471,18 @@ def get_topics(post_id, user_id):
     return list(cleaned.values())
 
 
-def get_unanswered_mentions(user_id):
+def get_unanswered_mentions(username):
     """
     Args:
         user_id:
 
     Returns:
     """
+
+    user = User_mgmt.query.filter_by(username=username).first()
+    if user is None:
+        return []
+    user_id = user.id
 
     res = (
         Mentions.query.filter_by(user_id=user_id, answered=0)

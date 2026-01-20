@@ -18,7 +18,7 @@ from y_web.models import (
 )
 
 
-def get_suggested_users(user_id, pages=False):
+def get_suggested_users(username, pages=False):
     """
     Get follow recommendations for a user.
 
@@ -33,10 +33,11 @@ def get_suggested_users(user_id, pages=False):
         List of dictionaries with keys: 'username', 'id', 'profile_pic'
     """
 
-    if user_id == "all":
+    if username == "all":
         return []
 
-    user = User_mgmt.query.filter_by(id=user_id).first()
+    user = User_mgmt.query.filter_by(username=username).first()
+    user_id = user.id
 
     users = __follow_suggestions(user.frecsys_type, user.id, 5, 1.5)
     if len(users) == 0:

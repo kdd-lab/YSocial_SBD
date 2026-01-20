@@ -26,7 +26,7 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import current_user, login_required
+from flask_login import current_user, login_required, login_user
 
 from y_web import db  # , app
 from y_web.models import (
@@ -379,45 +379,94 @@ def change_active_experiment(exp_id):
         register_experiment_database(current_app, exp_id, exp.db_name)
 
         # Ensure user exists in the experiment database
+        # For HPC experiments with SQLite: database is created by server on first startup
+        # We skip user registration if database doesn't exist yet
         # We need to switch to the correct bind temporarily
         bind_key = f"db_exp_{exp_id}"
 
-        # Check if user exists in this experiment's database
-        # Note: User_mgmt uses db_exp bind, so we need to query with bind
-        with db.session.no_autoflush:
-            # Temporarily set db_exp to this experiment
-            old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
-            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
-                "SQLALCHEMY_BINDS"
-            ][bind_key]
+        # For HPC experiments with SQLite, check if database exists
+        skip_user_registration = False
+        if exp.simulator_type == "HPC":
+            # Check database type
+            if current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                # Check if the SQLite database file exists
+                from y_web.utils.path_utils import get_writable_path
 
-            try:
-                user = (
-                    db.session.query(User_mgmt)
-                    .filter_by(username=current_user.username)
-                    .first()
-                )
-
-                if user is None:
-                    new_user = User_mgmt(
-                        id=current_user.id,
-                        email=current_user.email,
-                        username=current_user.username,
-                        password=current_user.password,
-                        user_type="user",
-                        leaning="neutral",
-                        age=0,
-                        recsys_type="default",
-                        language="en",
-                        frecsys_type="default",
-                        round_actions=1,
-                        toxicity="no",
+                db_path = get_writable_path(os.path.join("y_web", exp.db_name))
+                if not os.path.exists(db_path):
+                    skip_user_registration = True
+                    current_app.logger.info(
+                        f"HPC experiment database doesn't exist yet for experiment {exp_id}. "
+                        f"User will be added when server creates database on first startup."
                     )
-                    db.session.add(new_user)
-                    db.session.commit()
-            finally:
-                # Restore old bind
-                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+
+        if not skip_user_registration:
+            # Check if user exists in this experiment's database
+            # Note: User_mgmt uses db_exp bind, so we need to query with bind
+            with db.session.no_autoflush:
+                # Temporarily set db_exp to this experiment
+                old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
+                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+                    "SQLALCHEMY_BINDS"
+                ][bind_key]
+
+                try:
+                    user = (
+                        db.session.query(User_mgmt)
+                        .filter_by(username=current_user.username)
+                        .first()
+                    )
+
+                    if user is None:
+                        # For HPC experiments, we need to use UUID strings as IDs
+                        # Standard experiments use integer IDs with auto-increment
+                        if exp.simulator_type == "HPC":
+                            # Generate a UUID string for HPC user ID
+                            user_id = str(uuid.uuid4())
+                            current_app.logger.info(
+                                f"Assigning HPC user UUID {user_id} to {current_user.username} for experiment {exp_id}"
+                            )
+                        else:
+                            # For Standard experiments, use the admin user's ID (auto-increment behavior)
+                            user_id = current_user.id
+
+                        try:
+                            # Set recsys_type based on experiment type
+                            # HPC experiments use rchrono, Standard use default
+                            content_recsys = (
+                                "rchrono" if exp.simulator_type == "HPC" else "default"
+                            )
+
+                            new_user = User_mgmt(
+                                id=user_id,
+                                email=current_user.email,
+                                username=current_user.username,
+                                password=current_user.password,
+                                user_type="user",
+                                leaning="neutral",
+                                age=0,
+                                recsys_type=content_recsys,
+                                language="en",
+                                frecsys_type="default",
+                                round_actions=1,
+                                toxicity="no",
+                                joined_on=int(time.time()),
+                            )
+                            db.session.add(new_user)
+                            db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            # If IntegrityError due to duplicate ID, log and re-raise
+                            current_app.logger.error(
+                                f"Error adding user {current_user.username} to experiment {exp_id}: {e}"
+                            )
+                            flash(
+                                f"Error activating experiment: {str(e)}. Please try again."
+                            )
+                            raise
+                finally:
+                    # Restore old bind
+                    current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
 
         # Add user to experiment if not present
         user_exp = (
@@ -432,7 +481,11 @@ def change_active_experiment(exp_id):
 
         flash(f"Experiment '{exp.exp_name}' activated.")
 
-    reload_current_user(uname)
+    # Reload user session from admin database (not experiment database)
+    # Use Admin_users which is in the main database
+    admin_user = Admin_users.query.filter_by(username=uname).first()
+    if admin_user:
+        login_user(admin_user, remember=True, force=True)
 
     return redirect("/admin/dashboard")
 
@@ -1371,6 +1424,8 @@ def create_experiment():
     # copy the clean database to the experiments folder
     if platform_type == "microblogging" or platform_type == "forum":
         if db_type == "sqlite":
+            # Only Standard experiments get a pre-created database
+            # HPC experiments: database is created automatically by the server on first startup
             if simulator_type == "Standard":
                 clean_db_source = get_resource_path(
                     os.path.join("data_schema", "database_clean_server.db")
@@ -1926,32 +1981,6 @@ def experiment_details(uid):
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
 
-    # For HPC experiments, ensure the owner exists in user_mgmt table
-    # This is needed because HPC experiments use non-autoincrement IDs
-    if experiment and experiment.simulator_type == "HPC":
-        # Get the admin user who owns this experiment
-        owner_admin = Admin_users.query.filter_by(username=experiment.owner).first()
-        if owner_admin:
-            # Check if owner already exists in user_mgmt with their admin ID
-            existing_user = User_mgmt.query.filter_by(
-                username=owner_admin.username
-            ).first()
-            if not existing_user:
-                # Create user_mgmt entry with admin user's ID
-                owner_user = User_mgmt(
-                    id=owner_admin.id,  # Use admin user's ID (non-autoincrement for HPC)
-                    username=owner_admin.username,
-                    email=owner_admin.email or "",
-                    password="",  # Password not needed for HPC owner entry
-                    user_type="owner",
-                    joined_on=int(time.time()),
-                )
-                db.session.add(owner_user)
-                db.session.commit()
-                current_app.logger.info(
-                    f"Added owner {owner_admin.username} (ID: {owner_admin.id}) to user_mgmt for HPC experiment {uid}"
-                )
-
     # get experiment populations along with population names and ids
     experiment_populations = (
         db.session.query(Population_Experiment, Population)
@@ -2371,21 +2400,48 @@ def experiment_trends(exp_id):
                     client_hourly[key] += metric.total_execution_time
                 client_hourly_compute[client.name] = dict(client_hourly)
 
-        return jsonify(
-            {
-                "daily_compute": dict(daily_durations),
-                "daily_simulation": daily_simulation,
-                "hourly_compute": dict(hourly_durations),
-                "hourly_simulation": hourly_simulation,
-                "total_expected_days": total_days,
-                "total_expected_rounds": max_expected_rounds,
-                "max_remaining_rounds": max(0, max_remaining_rounds),
-                "max_remaining_days": max_remaining_days,
-                "client_daily_compute": client_daily_compute,
-                "client_hourly_compute": client_hourly_compute,
-                "client_progress": client_progress,
+        result_data = {
+            "daily_compute": dict(daily_durations),
+            "daily_simulation": daily_simulation,
+            "hourly_compute": dict(hourly_durations),
+            "hourly_simulation": hourly_simulation,
+            "total_expected_days": total_days,
+            "total_expected_rounds": max_expected_rounds,
+            "max_remaining_rounds": max(0, max_remaining_rounds),
+            "max_remaining_days": max_remaining_days,
+            "client_daily_compute": client_daily_compute,
+            "client_hourly_compute": client_hourly_compute,
+            "client_progress": client_progress,
+        }
+
+        # Log data for debugging HPC plots
+        if experiment.simulator_type == "HPC":
+            result_data["debug_info"] = {
+                "daily_compute_count": len(result_data["daily_compute"]),
+                "daily_compute_keys": list(result_data["daily_compute"].keys()),
+                "daily_compute_sample": {
+                    k: result_data["daily_compute"][k]
+                    for k in list(result_data["daily_compute"].keys())[:3]
+                },
+                "hourly_compute_count": len(result_data["hourly_compute"]),
+                "hourly_compute_keys": list(result_data["hourly_compute"].keys())[:5],
+                "daily_simulation_count": len(result_data["daily_simulation"]),
+                "hourly_simulation_count": len(result_data["hourly_simulation"]),
+                "log_file_path": log_file,
+                "log_file_exists": os.path.exists(log_file),
             }
-        )
+            # Also log to console for server-side visibility
+            print(f"\n=== HPC Experiment {exp_id} Trends Debug ===")
+            print(f"Daily compute entries: {len(result_data['daily_compute'])}")
+            print(f"Daily compute keys: {list(result_data['daily_compute'].keys())}")
+            print(
+                f"Daily compute sample: {result_data['debug_info']['daily_compute_sample']}"
+            )
+            print(f"Hourly compute entries: {len(result_data['hourly_compute'])}")
+            print(f"Log file: {log_file} (exists: {os.path.exists(log_file)})")
+            print("==========================================\n")
+
+        return jsonify(result_data)
 
     except Exception as e:
         # Catch any unhandled exceptions and return JSON error

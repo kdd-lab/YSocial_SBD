@@ -430,7 +430,9 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     trans_expl_expl = float(form_data.get("trans_expl_expl", "0.85"))
 
     # Extract LLM backend
-    llm_backend = form_data.get("llm_backend", "vllm")
+    llm_backend = form_data.get(
+        "llm_backend", "ollama"
+    )  # Changed default from vllm to ollama for HPC
 
     # Check if LLM agents are enabled
     llm_agents_enabled = (
@@ -930,6 +932,150 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     )
     db.session.add(client_exec)
     db.session.commit()
+
+    # Handle optional network configuration (same logic as Standard clients)
+    network_model = form_data.get("network_model")
+    network_p = form_data.get("network_p")
+    network_m = form_data.get("network_m")
+    network_file = request.files.get(
+        "network_file"
+    )  # Get from request.files, not form_data
+
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"HPC client network config - model: {network_model}, file: {network_file.filename if network_file else None}"
+    )
+
+    if network_model or (network_file and network_file.filename):
+        # Get agents and pages for the population (same logic as Standard)
+        agent_pops = Agent_Population.query.filter_by(population_id=population_id).all()
+        agents = [Agent.query.filter_by(id=ap.agent_id).first() for ap in agent_pops]
+        agent_ids = [a.name for a in agents if a]
+
+        page_pops = Page_Population.query.filter_by(population_id=population_id).all()
+        pages_list = [Page.query.filter_by(id=pp.page_id).first() for pp in page_pops]
+        page_ids = [p.name for p in pages_list if p]
+
+        # Combine agent and page IDs
+        all_node_ids = agent_ids + page_ids
+
+        network_path = f"{exp_dir}{os.sep}{client.name}_network.csv"
+
+        if network_file and network_file.filename:
+            # Handle uploaded network file (replicate Standard logic exactly)
+            temp_path = network_path.replace("_network.csv", "_network_temp.csv")
+            network_file.save(temp_path)
+
+            try:
+                with open(network_path, "w") as o:
+                    error, error2 = False, False
+                    with open(temp_path, "r") as f:
+                        for l in f:
+                            l = l.rstrip().split(",")
+                            if len(l) < 2:
+                                continue
+
+                            # Validate agent_1 (same logic as Standard)
+                            agent_1 = Agent.query.filter_by(name=l[0]).all()
+                            aids = [a.id for a in agent_1]
+
+                            if agent_1 is not None:
+                                test = Agent_Population.query.filter(
+                                    Agent_Population.agent_id.in_(aids),
+                                    Agent_Population.population_id
+                                    == client.population_id,
+                                ).all()
+                                error = len(test) == 0
+                            else:
+                                agent_1 = Page.query.filter_by(name=l[0]).all()
+                                aids = [a.id for a in agent_1]
+
+                                if agent_1 is not None:
+                                    test = Page_Population.query.filter(
+                                        Page_Population.page_id.in_(aids),
+                                        Page_Population.population_id
+                                        == client.population_id,
+                                    ).all()
+                                    error = len(test) == 0
+                                if agent_1 is None:
+                                    error = True
+
+                            # Validate agent_2 (same logic as Standard)
+                            agent_2 = Agent.query.filter_by(name=l[1]).all()
+                            aids = [a.id for a in agent_2]
+
+                            if agent_2 is not None:
+                                test = Agent_Population.query.filter(
+                                    Agent_Population.agent_id.in_(aids),
+                                    Agent_Population.population_id
+                                    == client.population_id,
+                                ).all()
+                                error2 = len(test) == 0
+                            else:
+                                agent_2 = Page.query.filter_by(name=l[1]).all()
+                                aids = [a.id for a in agent_2]
+
+                                if agent_2 is not None:
+                                    test = Page_Population.query.filter(
+                                        Page_Population.page_id.in_(aids),
+                                        Page_Population.population_id
+                                        == client.population_id,
+                                    ).all()
+                                    error2 = len(test) == 0
+
+                                if agent_2 is None:
+                                    error2 = True
+
+                            if not error and not error2:
+                                o.write(f"{l[0]},{l[1]}\n")
+                            else:
+                                flash(
+                                    f"Agent {l[0]} or {l[1]} not found in network file.",
+                                    "warning",
+                                )
+
+                os.remove(temp_path)
+                client.network_type = "Custom Network"
+                db.session.commit()
+                logger.info(f"HPC client network file created: {network_path}")
+            except Exception as e:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                if os.path.exists(network_path):
+                    os.remove(network_path)
+                flash(
+                    "Network file format error: provide a csv file containing two columns with agent names. No header required.",
+                    "error",
+                )
+
+        elif network_model:
+            # Handle synthetic network generation (replicate Standard logic exactly)
+            m = int(network_m) if network_m else 2
+            p = float(network_p) if network_p else 0.1
+
+            if network_model == "BA":
+                g = nx.barabasi_albert_graph(len(all_node_ids), m=m)
+            elif network_model == "ER":
+                g = nx.erdos_renyi_graph(len(all_node_ids), p=p)
+            else:
+                g = None
+
+            if g:
+                # Since the network is undirected and Y assumes directed relations,
+                # we need to write the edges in both directions (same as Standard)
+                with open(network_path, "w") as f:
+                    for n in g.edges:
+                        f.write(f"{all_node_ids[n[0]]},{all_node_ids[n[1]]}\n")
+                        f.write(f"{all_node_ids[n[1]]},{all_node_ids[n[0]]}\n")
+                    f.flush()
+
+                client.network_type = network_model
+                db.session.commit()
+                logger.info(
+                    f"HPC client synthetic network created: {network_path}, type: {network_model}"
+                )
 
     flash(f"HPC client '{name}' created successfully")
 

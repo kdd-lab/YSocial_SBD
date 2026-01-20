@@ -391,14 +391,14 @@ def create_app(db_type="sqlite", desktop_mode=False):
         Returns:
             Admin_users or User_mgmt object if found, None otherwise
         """
-        user_id_str = str(user_id)
+        user_id_str = user_id
         if user_id_str.startswith("admin_"):
             # Admin or researcher user
-            admin_id = int(user_id_str.replace("admin_", ""))
+            admin_id = user_id_str.replace("admin_", "")
             return Admin_users.query.get(admin_id)
         else:
             # Regular experiment participant
-            return User_mgmt.query.get(int(user_id))
+            return User_mgmt.query.get(user_id)
 
     # Setup experiment context handler
     from .experiment_context import (

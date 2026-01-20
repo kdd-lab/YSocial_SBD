@@ -516,8 +516,8 @@
                                         <span class="left">LLM Backend</span>
                                         <div class="select">
                                             <select name="llm_backend" id="llm_backend" onchange="toggleLLMFields()">
+                                                <option value="ollama" selected>Ollama</option>
                                                 <option value="vllm">vLLM</option>
-                                                <option value="ollama">Ollama</option>
                                             </select>
                                         </div>
                                     </div>
@@ -1524,7 +1524,7 @@ function updateFormButtonStateForBackend(backend) {
 function updateFormButtonState() {
     const submitButton = document.getElementById('create_client_button');
     if (submitButton) {
-        const backend = document.getElementById('llm_backend')?.value || 'vllm';
+        const backend = document.getElementById('llm_backend')?.value || 'ollama';
         if (backend === 'vllm') {
             // vLLM mode - always enabled
             submitButton.disabled = false;
