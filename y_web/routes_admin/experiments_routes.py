@@ -6154,6 +6154,8 @@ def opinion_evolution(expid):
         register_experiment_database(current_app, expid, experiment.db_name)
     
     # Temporarily switch to experiment database
+    # Note: This pattern is used throughout the codebase. While not ideal for
+    # thread-safety, it matches the existing architecture.
     old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
     current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
         "SQLALCHEMY_BINDS"
@@ -6235,13 +6237,22 @@ def opinion_evolution(expid):
         
         # Bin the opinions according to opinion_groups
         binned_data = {group.name: 0 for group in opinion_groups}
+        unmatched_count = 0
         
         for opinion_value in opinion_data:
             # Find which bin this opinion belongs to
+            matched = False
             for group in opinion_groups:
                 if group.lower_bound <= opinion_value <= group.upper_bound:
                     binned_data[group.name] += 1
+                    matched = True
                     break
+            
+            if not matched:
+                unmatched_count += 1
+                current_app.logger.warning(
+                    f"Opinion value {opinion_value} does not match any opinion group for experiment {expid}"
+                )
         
         # Prepare data for chart
         chart_labels = [group.name for group in opinion_groups]

@@ -202,27 +202,49 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Generate colors dynamically based on number of groups
+    function generateChartColors(count) {
+        const colors = [];
+        const borderColors = [];
+        
+        // Define a color palette that works well for opinion groups
+        const colorPalette = [
+            { bg: 'rgba(239, 68, 68, 0.7)', border: 'rgba(239, 68, 68, 1)' },   // Red - Strongly against
+            { bg: 'rgba(251, 146, 60, 0.7)', border: 'rgba(251, 146, 60, 1)' }, // Orange - Against
+            { bg: 'rgba(250, 204, 21, 0.7)', border: 'rgba(250, 204, 21, 1)' }, // Yellow - Neutral
+            { bg: 'rgba(74, 222, 128, 0.7)', border: 'rgba(74, 222, 128, 1)' }, // Light Green - In favor
+            { bg: 'rgba(34, 197, 94, 0.7)', border: 'rgba(34, 197, 94, 1)' },   // Green - Strongly in favor
+        ];
+        
+        // Use palette colors if we have enough, otherwise generate from gradient
+        for (let i = 0; i < count; i++) {
+            if (i < colorPalette.length) {
+                colors.push(colorPalette[i].bg);
+                borderColors.push(colorPalette[i].border);
+            } else {
+                // Generate additional colors using a gradient
+                const hue = (i * 360 / count);
+                colors.push(`hsla(${hue}, 70%, 60%, 0.7)`);
+                borderColors.push(`hsla(${hue}, 70%, 60%, 1)`);
+            }
+        }
+        
+        return { colors, borderColors };
+    }
+    
     // Chart.js configuration
     const ctx = document.getElementById('opinionChart').getContext('2d');
+    const chartLabels = {{ chart_labels|tojson }};
+    const chartValues = {{ chart_values|tojson }};
+    const { colors, borderColors } = generateChartColors(chartLabels.length);
+    
     const chartData = {
-        labels: {{ chart_labels|tojson }},
+        labels: chartLabels,
         datasets: [{
             label: 'Number of Agents',
-            data: {{ chart_values|tojson }},
-            backgroundColor: [
-                'rgba(239, 68, 68, 0.7)',   // Red - Strongly against
-                'rgba(251, 146, 60, 0.7)',  // Orange - Against
-                'rgba(250, 204, 21, 0.7)',  // Yellow - Neutral
-                'rgba(74, 222, 128, 0.7)',  // Light Green - In favor
-                'rgba(34, 197, 94, 0.7)',   // Green - Strongly in favor
-            ],
-            borderColor: [
-                'rgba(239, 68, 68, 1)',
-                'rgba(251, 146, 60, 1)',
-                'rgba(250, 204, 21, 1)',
-                'rgba(74, 222, 128, 1)',
-                'rgba(34, 197, 94, 1)',
-            ],
+            data: chartValues,
+            backgroundColor: colors,
+            borderColor: borderColors,
             borderWidth: 2
         }]
     };
