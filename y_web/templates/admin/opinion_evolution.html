@@ -1,51 +1,26 @@
 {% include "admin/head.html" %}
 
 <style>
+    /* Filter section styling */
     .filter-section {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: #fafafa;
+        border: 1px solid #e6e6e6;
+        border-left: 4px solid #039be5;
         border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-    }
-    
-    .filter-group {
-        display: flex;
-        gap: 15px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-    }
-    
-    .filter-item {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        flex: 1;
-        min-width: 200px;
-    }
-    
-    .filter-item label {
-        font-weight: 600;
-        font-size: 0.9em;
-        color: #374151;
-    }
-    
-    .filter-item select {
-        padding: 8px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 0.9em;
+        padding: 15px;
+        margin-bottom: 15px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
     
     /* Slider styling */
     .slider-container {
-        flex: 2;
-        min-width: 300px;
+        margin-bottom: 15px;
     }
     
     .slider-label {
         display: flex;
         justify-content: space-between;
+        align-items: center;
         margin-bottom: 8px;
     }
     
@@ -54,8 +29,14 @@
         color: #039be5;
     }
     
+    .slider-controls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
     .time-slider {
-        width: 100%;
+        flex: 1;
         height: 8px;
         border-radius: 4px;
         background: #e5e7eb;
@@ -92,37 +73,121 @@
         background: #0277bd;
     }
     
+    .play-button {
+        background: #039be5;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s;
+        font-size: 18px;
+    }
+    
+    .play-button:hover {
+        background: #0277bd;
+    }
+    
+    .play-button.playing {
+        background: #ef4444;
+    }
+    
+    .play-button.playing:hover {
+        background: #dc2626;
+    }
+    
+    /* Tag-based topic selection */
+    .topics-container {
+        margin-bottom: 15px;
+    }
+    
+    .topics-label {
+        font-weight: 600;
+        font-size: 0.9em;
+        color: #374151;
+        margin-bottom: 8px;
+        display: block;
+    }
+    
+    .topics-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .topic-tag {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid #d1d5db;
+        background: white;
+        color: #6b7280;
+        user-select: none;
+    }
+    
+    .topic-tag:hover {
+        border-color: #039be5;
+        transform: scale(1.05);
+    }
+    
+    .topic-tag.active {
+        background: #039be5;
+        border-color: #039be5;
+        color: white;
+        font-weight: 600;
+    }
+    
+    /* Chart container - aligned admin panel style */
+    .chart-box {
+        background: #fafafa;
+        border: 1px solid #e6e6e6;
+        border-left: 4px solid #039be5;
+        border-radius: 8px;
+        padding: 15px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        position: relative;
+    }
+    
     .chart-container {
         background: white;
         border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 15px;
     }
     
-    .stats-container {
+    /* Stats within chart box */
+    .stats-row {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 15px;
     }
     
     .stat-box {
         background: linear-gradient(135deg, #039be5 0%, #0277bd 100%);
         color: white;
-        padding: 15px;
-        border-radius: 8px;
+        padding: 12px;
+        border-radius: 6px;
         text-align: center;
     }
     
     .stat-value {
-        font-size: 2em;
+        font-size: 1.5em;
         font-weight: bold;
+        margin-bottom: 4px;
     }
     
     .stat-label {
-        font-size: 0.9em;
-        opacity: 0.9;
+        font-size: 0.75em;
+        opacity: 0.95;
     }
     
     .loading-overlay {
@@ -131,7 +196,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.9);
         display: none;
         justify-content: center;
         align-items: center;
@@ -183,33 +248,38 @@
             <div class="columns">
                 <div class="column is-12">
                     <div class="dashboard-box">
-                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Distribution Filters</h3>
+                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Temporal Controls</h3>
                         
                         <div class="filter-section">
-                            <div class="filter-group">
-                                <div class="slider-container">
-                                    <div class="slider-label">
-                                        <label>Time Period</label>
-                                        <span class="slider-value">
-                                            Day <span id="day-value">{{ filter_day }}</span>, 
-                                            Hour <span id="hour-value">{{ filter_hour }}</span>
-                                        </span>
-                                    </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <label>Time Period</label>
+                                    <span class="slider-value">
+                                        Day <span id="day-value">{{ filter_day }}</span>, 
+                                        Hour <span id="hour-value">{{ filter_hour }}</span>
+                                    </span>
+                                </div>
+                                <div class="slider-controls">
+                                    <button id="play-button" class="play-button" title="Play">
+                                        <i class="mdi mdi-play"></i>
+                                    </button>
                                     <input type="range" id="time-slider" class="time-slider" 
                                            min="0" max="{{ max_day * 24 + max_hour }}" 
                                            value="{{ filter_day * 24 + filter_hour }}">
                                 </div>
-                                
-                                <div class="filter-item">
-                                    <label for="topic_id">Topic</label>
-                                    <select id="topic_id" name="topic_id">
-                                        <option value="">All Topics</option>
-                                        {% for topic in topics %}
-                                        <option value="{{ topic.iid }}" {% if filter_topic_id == topic.iid %}selected{% endif %}>
-                                            {{ topic.interest }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
+                            </div>
+                            
+                            <div class="topics-container">
+                                <label class="topics-label">Topics</label>
+                                <div class="topics-tags">
+                                    <div class="topic-tag active" data-topic-id="">
+                                        All Topics
+                                    </div>
+                                    {% for topic in topics %}
+                                    <div class="topic-tag" data-topic-id="{{ topic.iid }}">
+                                        {{ topic.interest }}
+                                    </div>
+                                    {% endfor %}
                                 </div>
                             </div>
                         </div>
@@ -218,11 +288,15 @@
             </div>
 
             <div class="columns">
-                <div class="column is-12">
-                    <div class="dashboard-box">
-                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Statistics</h3>
+                <div class="column is-6">
+                    <div class="dashboard-box chart-box" style="position: relative;">
+                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Distribution</h3>
                         
-                        <div class="stats-container">
+                        <div class="loading-overlay" id="loading-overlay">
+                            <div class="spinner"></div>
+                        </div>
+                        
+                        <div class="stats-row">
                             <div class="stat-box">
                                 <div class="stat-value" id="total-opinions">{{ total_opinions }}</div>
                                 <div class="stat-label">Total Opinions</div>
@@ -230,38 +304,21 @@
                             
                             <div class="stat-box" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">
                                 <div class="stat-value">Day <span id="current-day">{{ filter_day }}</span></div>
-                                <div class="stat-label">Current Filter</div>
+                                <div class="stat-label">Current Day</div>
                             </div>
                             
                             <div class="stat-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                                 <div class="stat-value">Hour <span id="current-hour">{{ filter_hour }}</span></div>
-                                <div class="stat-label">Current Filter</div>
+                                <div class="stat-label">Current Hour</div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="columns">
-                <div class="column is-12">
-                    <div class="dashboard-box" style="position: relative;">
-                        <h3 class="title is-5 is-thin" style="margin-bottom: 15px;">Opinion Distribution</h3>
-                        
-                        <div class="loading-overlay" id="loading-overlay">
-                            <div class="spinner"></div>
                         </div>
                         
                         <div class="chart-container">
-                            <canvas id="opinionChart" height="100"></canvas>
+                            <canvas id="opinionChart" height="120"></canvas>
                         </div>
                         
-                        <p style="font-size: 0.85em; color: #666; text-align: center;" id="chart-description">
+                        <p style="font-size: 0.8em; color: #666; text-align: center; margin-top: 10px;" id="chart-description">
                             Distribution of agent opinions across different opinion groups.
-                            {% if filter_topic_id %}
-                            Filtered for topic: {{ topics|selectattr('iid', 'equalto', filter_topic_id)|map(attribute='interest')|first }}.
-                            {% else %}
-                            Showing all topics.
-                            {% endif %}
                         </p>
                     </div>
                 </div>
@@ -412,6 +469,10 @@
     // Time slider handler
     const timeSlider = document.getElementById('time-slider');
     let sliderTimeout = null;
+    let currentTopicId = {% if filter_topic_id %}{{ filter_topic_id }}{% else %}''{% endif %};
+    let isPlaying = false;
+    let playInterval = null;
+    const maxTimeValue = {{ max_day * 24 + max_hour }};
     
     timeSlider.addEventListener('input', function() {
         const totalHours = parseInt(this.value);
@@ -425,20 +486,77 @@
         // Debounce the API call
         clearTimeout(sliderTimeout);
         sliderTimeout = setTimeout(() => {
-            const topicId = document.getElementById('topic_id').value;
-            fetchOpinionData(day, hour, topicId);
+            fetchOpinionData(day, hour, currentTopicId);
         }, 300);
     });
     
-    // Topic filter handler
-    document.getElementById('topic_id').addEventListener('change', function() {
-        const totalHours = parseInt(timeSlider.value);
-        const day = Math.floor(totalHours / 24);
-        const hour = totalHours % 24;
-        const topicId = this.value;
-        
-        fetchOpinionData(day, hour, topicId);
+    // Topic tag handlers
+    const topicTags = document.querySelectorAll('.topic-tag');
+    topicTags.forEach(tag => {
+        tag.addEventListener('click', function() {
+            // Remove active class from all tags
+            topicTags.forEach(t => t.classList.remove('active'));
+            // Add active class to clicked tag
+            this.classList.add('active');
+            
+            // Get topic ID
+            currentTopicId = this.dataset.topicId;
+            
+            // Fetch data with new topic filter
+            const totalHours = parseInt(timeSlider.value);
+            const day = Math.floor(totalHours / 24);
+            const hour = totalHours % 24;
+            
+            fetchOpinionData(day, hour, currentTopicId);
+        });
+    });
+    
+    // Play button functionality
+    const playButton = document.getElementById('play-button');
+    const playIcon = playButton.querySelector('i');
+    
+    playButton.addEventListener('click', function() {
+        if (isPlaying) {
+            // Stop playing
+            isPlaying = false;
+            clearInterval(playInterval);
+            playButton.classList.remove('playing');
+            playIcon.classList.remove('mdi-pause');
+            playIcon.classList.add('mdi-play');
+            playButton.title = 'Play';
+        } else {
+            // Start playing
+            isPlaying = true;
+            playButton.classList.add('playing');
+            playIcon.classList.remove('mdi-play');
+            playIcon.classList.add('mdi-pause');
+            playButton.title = 'Pause';
+            
+            // Play animation - advance one hour every 500ms
+            playInterval = setInterval(() => {
+                let currentValue = parseInt(timeSlider.value);
+                
+                if (currentValue >= maxTimeValue) {
+                    // Loop back to start
+                    currentValue = 0;
+                } else {
+                    currentValue++;
+                }
+                
+                timeSlider.value = currentValue;
+                
+                const day = Math.floor(currentValue / 24);
+                const hour = currentValue % 24;
+                
+                // Update display
+                document.getElementById('day-value').textContent = day;
+                document.getElementById('hour-value').textContent = hour;
+                
+                // Fetch data
+                fetchOpinionData(day, hour, currentTopicId);
+            }, 500); // Update every 500ms
+        }
     });
 </script>
 
-{% include "admin/footer.html" %}
+{% include "admin/foot.html" %}
