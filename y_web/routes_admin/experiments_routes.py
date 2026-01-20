@@ -6277,3 +6277,124 @@ def opinion_evolution(expid):
         chart_values=chart_values,
         total_opinions=len(opinion_data),
     )
+
+
+@experiments.route("/admin/opinion_evolution_data/<int:expid>")
+@login_required
+def opinion_evolution_data(expid):
+    """
+    API endpoint for getting opinion evolution data without page reload.
+    
+    Returns JSON with chart data based on filter parameters.
+    """
+    check_privileges(current_user.username)
+    
+    # Get experiment
+    experiment = Exps.query.filter_by(idexp=expid).first()
+    if not experiment:
+        return jsonify({"error": "Experiment not found"}), 404
+    
+    # Check if opinions are enabled for this experiment
+    if not experiment.annotations or "opinions" not in experiment.annotations:
+        return jsonify({"error": "Opinion dynamics not enabled"}), 400
+    
+    # Activate experiment if not active (to access its database)
+    from y_web.experiment_context import register_experiment_database
+    
+    bind_key = f"db_exp_{expid}"
+    
+    # Ensure the experiment database is registered
+    if bind_key not in current_app.config["SQLALCHEMY_BINDS"]:
+        register_experiment_database(current_app, expid, experiment.db_name)
+    
+    # Temporarily switch to experiment database
+    old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
+    current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+        "SQLALCHEMY_BINDS"
+    ][bind_key]
+    
+    try:
+        # Import experiment-specific models
+        from y_web.models import Agent_Opinion, Interests, Post, Rounds
+        
+        # Get filter parameters from request
+        filter_day = request.args.get("day", type=int, default=0)
+        filter_hour = request.args.get("hour", type=int, default=0)
+        filter_topic_id = request.args.get("topic_id", type=int, default=None)
+        
+        # Query agent_opinion table with filters
+        from sqlalchemy import and_, or_
+        
+        # First, get the round ID that corresponds to the specified day/hour
+        target_round = db.session.query(Rounds).filter(
+            or_(
+                Rounds.day < filter_day,
+                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+            )
+        ).order_by(Rounds.id.desc()).first()
+        
+        if not target_round:
+            # No data yet
+            opinion_data = []
+        else:
+            # Get all agent opinions up to the target round
+            query = db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.opinion,
+                Post.round,
+                Agent_Opinion.tid
+            ).join(
+                Post, Agent_Opinion.id_post == Post.id
+            ).filter(
+                Post.round <= target_round.id
+            )
+            
+            # Apply topic filter if specified
+            if filter_topic_id is not None:
+                query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
+            
+            # Get all opinions
+            all_opinions = query.all()
+            
+            # Keep only the most recent opinion for each (agent_id, topic_id) pair
+            latest_opinions = {}
+            for agent_id, topic_id, opinion, round_id, tid in all_opinions:
+                key = (agent_id, topic_id)
+                if key not in latest_opinions or tid > latest_opinions[key][3]:
+                    latest_opinions[key] = (agent_id, topic_id, opinion, tid)
+            
+            # Extract just the opinion values
+            opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
+        
+        # Get opinion groups from dashboard database for binning
+        opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+        
+        # Bin the opinions according to opinion_groups
+        binned_data = {group.name: 0 for group in opinion_groups}
+        
+        for opinion_value in opinion_data:
+            # Find which bin this opinion belongs to
+            for group in opinion_groups:
+                if group.lower_bound <= opinion_value <= group.upper_bound:
+                    binned_data[group.name] += 1
+                    break
+        
+        # Prepare data for chart
+        chart_labels = [group.name for group in opinion_groups]
+        chart_values = [binned_data[group.name] for group in opinion_groups]
+        
+        return jsonify({
+            "chart_labels": chart_labels,
+            "chart_values": chart_values,
+            "total_opinions": len(opinion_data),
+            "filter_day": filter_day,
+            "filter_hour": filter_hour,
+        })
+        
+    finally:
+        # Restore old bind if it existed, otherwise remove the temporary bind
+        if old_bind is not None:
+            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+        else:
+            current_app.config["SQLALCHEMY_BINDS"].pop("db_exp", None)
