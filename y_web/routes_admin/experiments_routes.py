@@ -6408,6 +6408,9 @@ def opinion_evolution(expid):
                 if len(id_str) > 0 and id_str != '0':
                     social_interactions += 1
         
+        # Count unique agents seen so far
+        unique_agents = len(set(agent_id for agent_id, _, _, _, _, _, _ in all_opinions))
+        
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
         
@@ -6461,6 +6464,7 @@ def opinion_evolution(expid):
         chart_values=chart_values,
         total_opinions=len(opinion_data),
         social_interactions=social_interactions,
+        unique_agents=unique_agents,
         timeseries_data=timeseries_data,
     )
 
@@ -6573,6 +6577,9 @@ def opinion_evolution_data(expid):
                 if len(id_str) > 0 and id_str != '0':
                     social_interactions += 1
         
+        # Count unique agents seen so far
+        unique_agents = len(set(agent_id for agent_id, _, _, _, _, _, _ in all_opinions))
+        
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
         
@@ -6603,6 +6610,7 @@ def opinion_evolution_data(expid):
             "chart_values": chart_values,
             "total_opinions": len(opinion_data),
             "social_interactions": social_interactions,
+            "unique_agents": unique_agents,
             "filter_day": filter_day,
             "filter_hour": filter_hour,
             "timeseries_data": timeseries_data,

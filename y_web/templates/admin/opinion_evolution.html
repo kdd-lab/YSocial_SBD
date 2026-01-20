@@ -213,18 +213,35 @@
         margin-bottom: 15px;
     }
     
-    /* Stats within chart box */
+    /* Stats within temporal control box */
     .stats-row {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         gap: 10px;
-        margin-bottom: 15px;
+        margin-top: 15px;
     }
     
     @media (max-width: 768px) {
         .stats-row {
             grid-template-columns: repeat(2, 1fr);
         }
+    }
+    
+    /* Make chart boxes same height */
+    .chart-box-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+    
+    .chart-box-container .chart-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chart-box-container canvas {
+        flex: 1;
     }
     
     .stat-box {
@@ -347,6 +364,34 @@
                                     {% endfor %}
                                 </div>
                             </div>
+                            
+                            <!-- Statistics boxes moved here -->
+                            <div class="stats-row">
+                                <div class="stat-box" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                                    <div class="stat-value"><span id="total-opinions">{{ total_opinions }}</span></div>
+                                    <div class="stat-label">Total Opinions</div>
+                                </div>
+                                
+                                <div class="stat-box" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);">
+                                    <div class="stat-value"><span id="social-interactions">{{ social_interactions }}</span></div>
+                                    <div class="stat-label">Social Interactions</div>
+                                </div>
+                                
+                                <div class="stat-box" style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);">
+                                    <div class="stat-value"><span id="unique-agents">{{ unique_agents }}</span></div>
+                                    <div class="stat-label">Unique Agents</div>
+                                </div>
+                                
+                                <div class="stat-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                    <div class="stat-value">Day <span id="current-day">{{ filter_day }}</span></div>
+                                    <div class="stat-label">Current Day</div>
+                                </div>
+                                
+                                <div class="stat-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                    <div class="stat-value">Hour <span id="current-hour">{{ filter_hour }}</span></div>
+                                    <div class="stat-label">Current Hour</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -355,31 +400,8 @@
             <!-- Opinion Distribution Chart -->
             <div class="columns">
                 <div class="column is-6">
-                    <div class="dashboard-box">
+                    <div class="dashboard-box chart-box-container">
                         <h3 class="title is-6 is-thin" style="margin-bottom: 15px;">Opinion Distribution</h3>
-                        
-                        <!-- Statistics boxes -->
-                        <div class="stats-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px;">
-                            <div class="stat-box" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
-                                <div class="stat-value"><span id="total-opinions">{{ total_opinions }}</span></div>
-                                <div class="stat-label">Total Opinions</div>
-                            </div>
-                            
-                            <div class="stat-box" style="background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);">
-                                <div class="stat-value"><span id="social-interactions">{{ social_interactions }}</span></div>
-                                <div class="stat-label">Social Interactions</div>
-                            </div>
-                            
-                            <div class="stat-box" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                                <div class="stat-value">Day <span id="current-day">{{ filter_day }}</span></div>
-                                <div class="stat-label">Current Day</div>
-                            </div>
-                            
-                            <div class="stat-box" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                                <div class="stat-value">Hour <span id="current-hour">{{ filter_hour }}</span></div>
-                                <div class="stat-label">Current Hour</div>
-                            </div>
-                        </div>
                         
                         <div class="chart-container">
                             <canvas id="opinionChart" height="120"></canvas>
@@ -393,32 +415,17 @@
 
                 <!-- Agent Opinion Time Series Chart -->
                 <div class="column is-6">
-                    <div class="dashboard-box">
-                        <h3 class="title is-6 is-thin" style="margin-bottom: 15px;">Agent Opinion Evolution</h3>
-                        
-                        <!-- Sampling control -->
-                        <div style="margin-bottom: 15px; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
-                            <div class="slider-label" style="margin-bottom: 8px;">
-                                <label style="font-size: 0.85em; font-weight: 600; color: #374151;">Sample Size</label>
-                                <span class="slider-value" style="font-size: 0.85em;">
-                                    <span id="sample-percentage-value">50</span>% of agents
-                                </span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <input type="range" id="sample-slider" class="time-slider" 
-                                       min="10" max="100" step="15" value="50"
-                                       list="sample-values">
-                                <datalist id="sample-values">
-                                    <option value="10" label="10%"></option>
-                                    <option value="25" label="25%"></option>
-                                    <option value="50" label="50%"></option>
-                                    <option value="75" label="75%"></option>
-                                    <option value="100" label="100%"></option>
-                                </datalist>
-                                <div style="display: flex; gap: 2px; font-size: 0.7em; color: #9ca3af;">
-                                    <span>10%</span>
-                                    <span style="margin-left: auto;">100%</span>
-                                </div>
+                    <div class="dashboard-box chart-box-container">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 class="title is-6 is-thin" style="margin-bottom: 0;">Agent Opinion Evolution</h3>
+                            
+                            <!-- Sample size text input in upper right corner -->
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 0.85em; font-weight: 600; color: #374151;">Sample Size:</label>
+                                <input type="number" id="sample-input" 
+                                       min="1" max="100" value="50"
+                                       style="width: 60px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85em;">
+                                <span style="font-size: 0.85em; color: #6b7280;">%</span>
                             </div>
                         </div>
                         
@@ -652,6 +659,7 @@
         // Update statistics
         document.getElementById('total-opinions').textContent = data.total_opinions;
         document.getElementById('social-interactions').textContent = data.social_interactions;
+        document.getElementById('unique-agents').textContent = data.unique_agents;
         document.getElementById('current-day').textContent = data.filter_day;
         document.getElementById('current-hour').textContent = data.filter_hour;
         document.getElementById('day-value').textContent = data.filter_day;
@@ -735,20 +743,27 @@
         }, 300);
     });
     
-    // Sample percentage slider handler
-    const sampleSlider = document.getElementById('sample-slider');
-    let sampleSliderTimeout = null;
+    // Sample percentage text input handler (replaces slider)
+    const sampleInput = document.getElementById('sample-input');
+    let sampleInputTimeout = null;
     
-    sampleSlider.addEventListener('input', function() {
-        const percentage = parseInt(this.value);
+    sampleInput.addEventListener('input', function() {
+        let percentage = parseInt(this.value);
+        
+        // Validate input: clamp between 1 and 100
+        if (isNaN(percentage) || percentage < 1) {
+            percentage = 1;
+            this.value = 1;
+        } else if (percentage > 100) {
+            percentage = 100;
+            this.value = 100;
+        }
+        
         currentSamplePercentage = percentage;
         
-        // Update display immediately
-        document.getElementById('sample-percentage-value').textContent = percentage;
-        
         // Debounce the API call
-        clearTimeout(sampleSliderTimeout);
-        sampleSliderTimeout = setTimeout(() => {
+        clearTimeout(sampleInputTimeout);
+        sampleInputTimeout = setTimeout(() => {
             const totalHours = parseInt(timeSlider.value);
             const day = Math.floor(totalHours / 24);
             const hour = totalHours % 24;
@@ -803,8 +818,14 @@
                 let currentValue = parseInt(timeSlider.value);
                 
                 if (currentValue >= maxTimeValue) {
-                    // Loop back to start (day 1 hour 1)
-                    currentValue = minTimeValue;
+                    // Stop at the end (don't loop)
+                    isPlaying = false;
+                    clearInterval(playInterval);
+                    playButton.classList.remove('playing');
+                    playIcon.classList.remove('mdi-pause');
+                    playIcon.classList.add('mdi-play');
+                    playButton.title = 'Play';
+                    return;
                 } else {
                     currentValue++;
                 }
@@ -843,7 +864,14 @@
                     let currentValue = parseInt(timeSlider.value);
                     
                     if (currentValue >= maxTimeValue) {
-                        currentValue = minTimeValue;
+                        // Stop at the end (don't loop)
+                        isPlaying = false;
+                        clearInterval(playInterval);
+                        playButton.classList.remove('playing');
+                        playIcon.classList.remove('mdi-pause');
+                        playIcon.classList.add('mdi-play');
+                        playButton.title = 'Play';
+                        return;
                     } else {
                         currentValue++;
                     }
@@ -874,7 +902,14 @@
                     let currentValue = parseInt(timeSlider.value);
                     
                     if (currentValue >= maxTimeValue) {
-                        currentValue = minTimeValue;
+                        // Stop at the end (don't loop)
+                        isPlaying = false;
+                        clearInterval(playInterval);
+                        playButton.classList.remove('playing');
+                        playIcon.classList.remove('mdi-pause');
+                        playIcon.classList.add('mdi-play');
+                        playButton.title = 'Play';
+                        return;
                     } else {
                         currentValue++;
                     }
