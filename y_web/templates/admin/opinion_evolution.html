@@ -503,6 +503,9 @@
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            animation: {
+                duration: 0  // Disable animations to prevent flickering
+            },
             plugins: {
                 legend: {
                     display: false
@@ -570,6 +573,9 @@
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            animation: {
+                duration: 0  // Disable animations to prevent flickering
+            },
             interaction: {
                 mode: 'nearest',
                 axis: 'x',
@@ -583,21 +589,7 @@
                     display: false
                 },
                 tooltip: {
-                    callbacks: {
-                        title: function(context) {
-                            const position = context[0].label;
-                            // Use timestamp_mapping to get actual day/hour
-                            if (initialTimeseriesData.timestamp_mapping && initialTimeseriesData.timestamp_mapping[position]) {
-                                const info = initialTimeseriesData.timestamp_mapping[position];
-                                return `Day ${info.day}, Hour ${info.hour} (Step ${position})`;
-                            }
-                            return `Step ${position}`;
-                        },
-                        label: function(context) {
-                            const agent = initialTimeseriesData.agents[context.datasetIndex];
-                            return `Agent ${agent.agent_id} (${agent.initial_group}): ${context.parsed.y.toFixed(3)}`;
-                        }
-                    }
+                    enabled: false  // Disable tooltips as requested
                 }
             },
             scales: {
@@ -639,7 +631,7 @@
             // Update both labels and data
             chartInstance.data.labels = data.chart_labels;
             chartInstance.data.datasets[0].data = data.chart_values;
-            chartInstance.update();
+            chartInstance.update('none');  // Update without animation
             console.log('Chart updated'); // Debug log
         } else {
             console.error('chartInstance is null'); // Debug log
@@ -647,27 +639,13 @@
         
         // Update time series chart
         if (timeseriesChartInstance && data.timeseries_data) {
-            // Store the new timeseries data for tooltip callbacks
+            // Store the new timeseries data for reference
             currentTimeseriesData = data.timeseries_data;
             
             timeseriesChartInstance.data.labels = data.timeseries_data.timestamps;
             timeseriesChartInstance.data.datasets = createTimeseriesDatasets(data.timeseries_data);
             
-            // Update tooltip callbacks to use new timestamp_mapping
-            timeseriesChartInstance.options.plugins.tooltip.callbacks.title = function(context) {
-                const position = context[0].label;
-                if (currentTimeseriesData.timestamp_mapping && currentTimeseriesData.timestamp_mapping[position]) {
-                    const info = currentTimeseriesData.timestamp_mapping[position];
-                    return `Day ${info.day}, Hour ${info.hour} (Step ${position})`;
-                }
-                return `Step ${position}`;
-            };
-            timeseriesChartInstance.options.plugins.tooltip.callbacks.label = function(context) {
-                const agent = currentTimeseriesData.agents[context.datasetIndex];
-                return `Agent ${agent.agent_id} (${agent.initial_group}): ${context.parsed.y.toFixed(3)}`;
-            };
-            
-            timeseriesChartInstance.update();
+            timeseriesChartInstance.update('none');  // Update without animation
             console.log('Timeseries chart updated'); // Debug log
         }
         
