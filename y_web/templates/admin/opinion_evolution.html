@@ -492,6 +492,10 @@
     const totalAgents = chartValues.reduce((a, b) => a + b, 0);
     const chartPercentages = chartValues.map(val => totalAgents > 0 ? (val / totalAgents * 100) : 0);
     
+    // Calculate dynamic y-axis max (max percentage + 5% margin)
+    const maxPercentage = chartPercentages.length > 0 ? Math.max(...chartPercentages) : 0;
+    const yAxisMax = maxPercentage * 1.05;  // Add 5% margin
+    
     const { colors, borderColors } = generateChartColors(chartLabels.length);
     
     const chartData = {
@@ -534,10 +538,10 @@
             scales: {
                 y: {
                     beginAtZero: true,
-                    max: 100,
+                    max: yAxisMax,
                     ticks: {
                         callback: function(value) {
-                            return value + '%';
+                            return value.toFixed(1) + '%';
                         }
                     },
                     title: {
@@ -643,9 +647,16 @@
             const total = data.chart_values.reduce((a, b) => a + b, 0);
             const percentages = data.chart_values.map(val => total > 0 ? (val / total * 100) : 0);
             
+            // Calculate dynamic y-axis max (max percentage + 5% margin)
+            const maxPercentage = percentages.length > 0 ? Math.max(...percentages) : 0;
+            const yAxisMax = maxPercentage * 1.05;  // Add 5% margin
+            
             // Update both labels and data (as percentages)
             chartInstance.data.labels = data.chart_labels;
             chartInstance.data.datasets[0].data = percentages;
+            
+            // Update y-axis max
+            chartInstance.options.scales.y.max = yAxisMax;
             
             // Store original values for tooltip
             chartValues.length = 0;
