@@ -492,11 +492,15 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         username = user.username
 
     res, res_additional = [], []
+    
+    # Get experiment user ID for reactions
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    exp_user_id = exp_user.id if exp_user else current_user.id
 
     if posts is not None:
-        res = __get_discussions(posts, username, page, exp_id)
+        res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id)
+        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
@@ -1134,9 +1138,14 @@ def recursive_visit(data):
             return recursive_visit(c)
 
 
-def __get_discussions(posts, username, page, exp_id):
+def __get_discussions(posts, username, page, exp_id, exp_user_id=None):
     """Handle   get discussions operation."""
     res = []
+    
+    # Get experiment user ID if not provided
+    if exp_user_id is None:
+        exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+        exp_user_id = exp_user.id if exp_user else current_user.id
 
     for post in posts.items:
         try:
@@ -1221,11 +1230,11 @@ def __get_discussions(posts, username, page, exp_id):
                         list(Reactions.query.filter_by(post_id=c.id, type="dislike"))
                     ),
                     "is_liked": Reactions.query.filter_by(
-                        post_id=c.id, user_id=current_user.id, type="like"
+                        post_id=c.id, user_id=exp_user_id, type="like"
                     ).first()
                     is None,
                     "is_disliked": Reactions.query.filter_by(
-                        post_id=c.id, user_id=current_user.id, type="dislike"
+                        post_id=c.id, user_id=exp_user_id, type="dislike"
                     ).first()
                     is None,
                     "is_shared": len(Post.query.filter_by(shared_from=c.id).all()),
@@ -1329,11 +1338,11 @@ def __get_discussions(posts, username, page, exp_id):
                     list(Reactions.query.filter_by(post_id=post.id, type="dislike"))
                 ),
                 "is_liked": Reactions.query.filter_by(
-                    post_id=post.id, user_id=current_user.id, type="like"
+                    post_id=post.id, user_id=exp_user_id, type="like"
                 ).first()
                 is None,
                 "is_disliked": Reactions.query.filter_by(
-                    post_id=post.id, user_id=current_user.id, type="dislike"
+                    post_id=post.id, user_id=exp_user_id, type="dislike"
                 ).first()
                 is None,
                 "is_shared": len(Post.query.filter_by(shared_from=post.id).all()),
@@ -1713,10 +1722,15 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
 
     res, res_additional = [], []
 
+    
+    # Get experiment user ID for reactions
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    exp_user_id = exp_user.id if exp_user else current_user.id
+
     if posts is not None:
-        res = __get_discussions(posts, username, page, exp_id)
+        res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id)
+        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
@@ -1826,11 +1840,15 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         username = user.username
 
     res, res_additional = [], []
+    
+    # Get experiment user ID for reactions
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    exp_user_id = exp_user.id if exp_user else current_user.id
 
     if posts is not None:
-        res = __get_discussions(posts, username, page, exp_id)
+        res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id)
+        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
@@ -1939,11 +1957,15 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
         username = user.username
 
     res, res_additional = [], []
+    
+    # Get experiment user ID for reactions
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    exp_user_id = exp_user.id if exp_user else current_user.id
 
     if posts is not None:
-        res = __get_discussions(posts, username, page, exp_id)
+        res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id)
+        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
