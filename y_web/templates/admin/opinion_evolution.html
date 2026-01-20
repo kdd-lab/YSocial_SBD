@@ -587,12 +587,12 @@
             label: group.name,
             data: group.data,
             borderColor: colors.borderColors[index],
-            backgroundColor: colors.colors[index].replace('0.7', '0.1'),
-            borderWidth: 2,
+            backgroundColor: colors.colors[index].replace('0.7', '0.6'),  // More visible for stacked area
+            borderWidth: 1,
             pointRadius: 0,
-            pointHoverRadius: 4,
+            pointHoverRadius: 3,
             tension: 0.3,
-            fill: false
+            fill: true  // Enable fill for stacked area chart
         }));
     }
     
@@ -609,8 +609,7 @@
                 duration: 0  // Disable animations to prevent flickering
             },
             interaction: {
-                mode: 'nearest',
-                axis: 'x',
+                mode: 'index',
                 intersect: false
             },
             plugins: {
@@ -630,6 +629,7 @@
                 },
                 tooltip: {
                     enabled: true,
+                    mode: 'index',
                     callbacks: {
                         title: function(context) {
                             const position = context[0].label;
@@ -647,6 +647,7 @@
             },
             scales: {
                 y: {
+                    stacked: true,  // Enable stacking on y-axis
                     beginAtZero: true,
                     max: 100,
                     ticks: {
@@ -660,6 +661,7 @@
                     }
                 },
                 x: {
+                    stacked: true,  // Enable stacking on x-axis
                     title: {
                         display: true,
                         text: 'Time Step'
