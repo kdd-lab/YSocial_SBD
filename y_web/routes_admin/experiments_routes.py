@@ -6181,11 +6181,15 @@ def opinion_evolution(expid):
         # We need to get the most recent opinion for each (agent_id, topic_id) pair
         # up to the specified day/hour
         from y_web.models import Post
-        from sqlalchemy import and_
+        from sqlalchemy import and_, or_
         
         # First, get the round ID that corresponds to the specified day/hour
+        # We want rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
         target_round = db.session.query(Rounds).filter(
-            and_(Rounds.day <= filter_day, Rounds.hour <= filter_hour)
+            or_(
+                Rounds.day < filter_day,
+                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+            )
         ).order_by(Rounds.id.desc()).first()
         
         if not target_round:
