@@ -492,7 +492,7 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         username = user.username
 
     res, res_additional = [], []
-    
+
     # Get experiment user ID for reactions
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     exp_user_id = exp_user.id if exp_user else current_user.id
@@ -500,7 +500,9 @@ def feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if posts is not None:
         res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
+        res_additional = __get_discussions(
+            additional, username, page, exp_id, exp_user_id
+        )
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
@@ -920,8 +922,10 @@ def get_thread(exp_id, post_id):
         return redirect(url_for("main.index"))
 
     # Get all comments with this thread_id
-    comment_posts = Post.query.filter_by(thread_id=post_id).order_by(Post.id.asc()).all()
-    
+    comment_posts = (
+        Post.query.filter_by(thread_id=post_id).order_by(Post.id.asc()).all()
+    )
+
     # Combine root post and comments
     posts = [root_post] + comment_posts
 
@@ -1141,7 +1145,7 @@ def recursive_visit(data):
 def __get_discussions(posts, username, page, exp_id, exp_user_id=None):
     """Handle   get discussions operation."""
     res = []
-    
+
     # Get experiment user ID if not provided
     if exp_user_id is None:
         exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
@@ -1719,7 +1723,6 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
 
     res, res_additional = [], []
 
-    
     # Get experiment user ID for reactions
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     exp_user_id = exp_user.id if exp_user else current_user.id
@@ -1727,7 +1730,9 @@ def feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if posts is not None:
         res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
+        res_additional = __get_discussions(
+            additional, username, page, exp_id, exp_user_id
+        )
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
@@ -1837,7 +1842,7 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
         username = user.username
 
     res, res_additional = [], []
-    
+
     # Get experiment user ID for reactions
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     exp_user_id = exp_user.id if exp_user else current_user.id
@@ -1845,7 +1850,9 @@ def api_feed(exp_id, user_id="all", timeline="timeline", mode="rf", page=1):
     if posts is not None:
         res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
+        res_additional = __get_discussions(
+            additional, username, page, exp_id, exp_user_id
+        )
 
     # combine the posts and additional posts
     if len(res_additional) > 0:
@@ -1954,7 +1961,7 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
         username = user.username
 
     res, res_additional = [], []
-    
+
     # Get experiment user ID for reactions
     exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
     exp_user_id = exp_user.id if exp_user else current_user.id
@@ -1962,7 +1969,9 @@ def api_feed_reddit(exp_id, user_id="all", timeline="timeline", mode="rf", page=
     if posts is not None:
         res = __get_discussions(posts, username, page, exp_id, exp_user_id)
     if additional is not None:
-        res_additional = __get_discussions(additional, username, page, exp_id, exp_user_id)
+        res_additional = __get_discussions(
+            additional, username, page, exp_id, exp_user_id
+        )
 
     # combine the posts and additional posts
     if len(res_additional) > 0:

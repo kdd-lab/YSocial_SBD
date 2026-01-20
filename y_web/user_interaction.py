@@ -840,7 +840,7 @@ def publish_comment(exp_id):
 
     text = request.args.get("post")
     pid = request.args.get("parent")
-    
+
     # Handle both int and UUID parent ID formats (Standard vs HPC experiments)
     try:
         pid = int(pid)
@@ -861,7 +861,7 @@ def publish_comment(exp_id):
             else redirect(url_for("main.index"))
         )
     thread_id = parent_post.thread_id if parent_post.thread_id else parent_post.id
-    
+
     # If parent post has no thread_id, update it to use its own ID
     # This ensures queries for thread_id = post.id will find all comments
     if not parent_post.thread_id:
