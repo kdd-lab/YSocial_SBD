@@ -6163,15 +6163,17 @@ def opinion_evolution(expid):
     
     try:
         # Import experiment-specific models
+        # These models are expected to exist in any experiment with opinion dynamics enabled
         from y_web.models import Agent_Opinion, Interests, Post, Rounds
         
         # Get available topics from experiment database
         topics = db.session.query(Interests).all()
         
         # Get max day and hour from Rounds table
+        # Default to day 0, hour 23 (end of first day) if no rounds exist yet
         max_round = db.session.query(Rounds).order_by(Rounds.id.desc()).first()
         max_day = max_round.day if max_round else 0
-        max_hour = max_round.hour if max_round else 23
+        max_hour = max_round.hour if max_round else 23  # End of day as default
         
         # Get filter parameters from request
         filter_day = request.args.get("day", type=int, default=max_day)
@@ -6255,9 +6257,12 @@ def opinion_evolution(expid):
         chart_values = [binned_data[group.name] for group in opinion_groups]
         
     finally:
-        # Restore old bind
+        # Restore old bind if it existed, otherwise remove the temporary bind
         if old_bind is not None:
             current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+        else:
+            # If no previous bind existed, remove the temporary one
+            current_app.config["SQLALCHEMY_BINDS"].pop("db_exp", None)
     
     return render_template(
         "admin/opinion_evolution.html",
