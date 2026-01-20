@@ -6409,7 +6409,7 @@ def opinion_evolution(expid):
                     social_interactions += 1
         
         # Count unique agents seen so far
-        unique_agents = len(set(agent_id for agent_id, _, _, _, _, _, _ in all_opinions))
+        unique_agents = len(set(row[0] for row in all_opinions))  # row[0] is agent_id
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6578,7 +6578,7 @@ def opinion_evolution_data(expid):
                     social_interactions += 1
         
         # Count unique agents seen so far
-        unique_agents = len(set(agent_id for agent_id, _, _, _, _, _, _ in all_opinions))
+        unique_agents = len(set(row[0] for row in all_opinions))  # row[0] is agent_id
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
