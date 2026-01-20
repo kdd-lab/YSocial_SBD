@@ -6230,7 +6230,10 @@ def opinion_evolution(expid):
             # Extract just the opinion values
             opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
             
-            # Count cumulative social interactions (non-null id_interacted_with)
+            # Count cumulative social interactions (non-null, non-zero, non-empty id_interacted_with)
+            # This count is reset at start and incremental up to observed time
+            from sqlalchemy import func, cast, String
+            
             interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
@@ -6238,6 +6241,16 @@ def opinion_evolution(expid):
                 Agent_Opinion.id_interacted_with.isnot(None),
                 Agent_Opinion.id_interacted_with != 0
             )
+            
+            # Filter out empty and blank strings (cast to string first for safety)
+            try:
+                interactions_query = interactions_query.filter(
+                    cast(Agent_Opinion.id_interacted_with, String) != '',
+                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0
+                )
+            except:
+                # If casting fails, just use the basic filters
+                pass
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
@@ -6383,7 +6396,10 @@ def opinion_evolution_data(expid):
             # Extract just the opinion values
             opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
             
-            # Count cumulative social interactions (non-null id_interacted_with)
+            # Count cumulative social interactions (non-null, non-zero, non-empty id_interacted_with)
+            # This count is reset at start and incremental up to observed time
+            from sqlalchemy import func, cast, String
+            
             interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
@@ -6391,6 +6407,16 @@ def opinion_evolution_data(expid):
                 Agent_Opinion.id_interacted_with.isnot(None),
                 Agent_Opinion.id_interacted_with != 0
             )
+            
+            # Filter out empty and blank strings (cast to string first for safety)
+            try:
+                interactions_query = interactions_query.filter(
+                    cast(Agent_Opinion.id_interacted_with, String) != '',
+                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0
+                )
+            except:
+                # If casting fails, just use the basic filters
+                pass
             
             # Apply topic filter if specified
             if filter_topic_id is not None:

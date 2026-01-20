@@ -108,6 +108,48 @@
         background: #dc2626;
     }
     
+    /* Speed control buttons */
+    .speed-controls {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: 8px;
+    }
+    
+    .speed-button {
+        background: #6b7280;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+    
+    .speed-button:hover {
+        background: #4b5563;
+    }
+    
+    .speed-button:disabled {
+        background: #d1d5db;
+        color: #9ca3af;
+        cursor: not-allowed;
+    }
+    
+    .speed-display {
+        font-size: 0.75em;
+        color: #6b7280;
+        font-weight: 600;
+        min-width: 32px;
+        text-align: center;
+    }
+    
     /* Compact tag-based topic selection */
     .topics-container {
         margin-bottom: 0;
@@ -281,8 +323,17 @@
                                         <i class="mdi mdi-play"></i>
                                     </button>
                                     <input type="range" id="time-slider" class="time-slider" 
-                                           min="0" max="{{ max_day * 24 + max_hour }}" 
-                                           value="{{ filter_day * 24 + filter_hour }}">
+                                           min="25" max="{{ max_day * 24 + max_hour }}" 
+                                           value="{{ filter_day * 24 + filter_hour if filter_day * 24 + filter_hour >= 25 else 25 }}">
+                                    <div class="speed-controls">
+                                        <button id="speed-down" class="speed-button" title="Slower">
+                                            <i class="mdi mdi-minus"></i>
+                                        </button>
+                                        <span class="speed-display" id="speed-display">1x</span>
+                                        <button id="speed-up" class="speed-button" title="Faster">
+                                            <i class="mdi mdi-plus"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -502,6 +553,25 @@
     let isPlaying = false;
     let playInterval = null;
     const maxTimeValue = {{ max_day * 24 + max_hour }};
+    const minTimeValue = 25; // Start at day 1 hour 1
+    
+    // Speed control (speeds: 0.25x, 0.5x, 1x, 2x, 4x)
+    const speeds = [0.25, 0.5, 1, 2, 4];
+    let currentSpeedIndex = 2; // Start at 1x (index 2)
+    let baseInterval = 500; // Base interval in ms
+    
+    function getCurrentInterval() {
+        return baseInterval / speeds[currentSpeedIndex];
+    }
+    
+    function updateSpeedDisplay() {
+        document.getElementById('speed-display').textContent = speeds[currentSpeedIndex] + 'x';
+        document.getElementById('speed-down').disabled = currentSpeedIndex === 0;
+        document.getElementById('speed-up').disabled = currentSpeedIndex === speeds.length - 1;
+    }
+    
+    // Initialize speed display
+    updateSpeedDisplay();
     
     timeSlider.addEventListener('input', function() {
         const totalHours = parseInt(this.value);
@@ -561,13 +631,13 @@
             playIcon.classList.add('mdi-pause');
             playButton.title = 'Pause';
             
-            // Play animation - advance one hour every 500ms
-            playInterval = setInterval(() => {
+            // Play animation - advance one hour at current speed
+            function playStep() {
                 let currentValue = parseInt(timeSlider.value);
                 
                 if (currentValue >= maxTimeValue) {
-                    // Loop back to start
-                    currentValue = 0;
+                    // Loop back to start (day 1 hour 1)
+                    currentValue = minTimeValue;
                 } else {
                     currentValue++;
                 }
@@ -583,7 +653,76 @@
                 
                 // Fetch data
                 fetchOpinionData(day, hour, currentTopicId);
-            }, 500); // Update every 500ms
+            }
+            
+            // Initial step
+            playStep();
+            
+            // Set interval with current speed
+            playInterval = setInterval(playStep, getCurrentInterval());
+        }
+    });
+    
+    // Speed control button handlers
+    document.getElementById('speed-down').addEventListener('click', function() {
+        if (currentSpeedIndex > 0) {
+            currentSpeedIndex--;
+            updateSpeedDisplay();
+            
+            // If currently playing, restart interval with new speed
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playInterval = setInterval(() => {
+                    let currentValue = parseInt(timeSlider.value);
+                    
+                    if (currentValue >= maxTimeValue) {
+                        currentValue = minTimeValue;
+                    } else {
+                        currentValue++;
+                    }
+                    
+                    timeSlider.value = currentValue;
+                    
+                    const day = Math.floor(currentValue / 24);
+                    const hour = currentValue % 24;
+                    
+                    document.getElementById('day-value').textContent = day;
+                    document.getElementById('hour-value').textContent = hour;
+                    
+                    fetchOpinionData(day, hour, currentTopicId);
+                }, getCurrentInterval());
+            }
+        }
+    });
+    
+    document.getElementById('speed-up').addEventListener('click', function() {
+        if (currentSpeedIndex < speeds.length - 1) {
+            currentSpeedIndex++;
+            updateSpeedDisplay();
+            
+            // If currently playing, restart interval with new speed
+            if (isPlaying) {
+                clearInterval(playInterval);
+                playInterval = setInterval(() => {
+                    let currentValue = parseInt(timeSlider.value);
+                    
+                    if (currentValue >= maxTimeValue) {
+                        currentValue = minTimeValue;
+                    } else {
+                        currentValue++;
+                    }
+                    
+                    timeSlider.value = currentValue;
+                    
+                    const day = Math.floor(currentValue / 24);
+                    const hour = currentValue % 24;
+                    
+                    document.getElementById('day-value').textContent = day;
+                    document.getElementById('hour-value').textContent = hour;
+                    
+                    fetchOpinionData(day, hour, currentTopicId);
+                }, getCurrentInterval());
+            }
         }
     });
 </script>
