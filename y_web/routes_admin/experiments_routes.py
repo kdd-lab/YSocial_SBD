@@ -6227,14 +6227,14 @@ def opinion_evolution(expid):
         # Extract opinion values for binning
         opinion_data = [data['opinion'] for data in latest_opinions.values()]
         
-        # Count social interactions (non-null, non-zero, non-empty id_interacted_with)
+        # Count social interactions from ALL opinions up to this time (not just latest)
+        # This gives cumulative count of all interactions that happened up to selected time
         social_interactions = 0
-        for data in latest_opinions.values():
-            id_interacted = data['id_interacted_with']
+        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
             # Check if interaction is valid: not null, not zero, and if string, not empty
-            if id_interacted is not None and id_interacted != 0:
+            if id_interacted_with is not None and id_interacted_with != 0:
                 # Convert to string and check if non-empty
-                id_str = str(id_interacted).strip()
+                id_str = str(id_interacted_with).strip()
                 if len(id_str) > 0 and id_str != '0':
                     social_interactions += 1
         
@@ -6385,14 +6385,14 @@ def opinion_evolution_data(expid):
         # Extract opinion values for binning
         opinion_data = [data['opinion'] for data in latest_opinions.values()]
         
-        # Count social interactions (non-null, non-zero, non-empty id_interacted_with)
+        # Count social interactions from ALL opinions up to this time (not just latest)
+        # This gives cumulative count of all interactions that happened up to selected time
         social_interactions = 0
-        for data in latest_opinions.values():
-            id_interacted = data['id_interacted_with']
+        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
             # Check if interaction is valid: not null, not zero, and if string, not empty
-            if id_interacted is not None and id_interacted != 0:
+            if id_interacted_with is not None and id_interacted_with != 0:
                 # Convert to string and check if non-empty
-                id_str = str(id_interacted).strip()
+                id_str = str(id_interacted_with).strip()
                 if len(id_str) > 0 and id_str != '0':
                     social_interactions += 1
         
