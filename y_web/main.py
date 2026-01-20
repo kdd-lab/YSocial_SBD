@@ -909,10 +909,17 @@ def get_thread(exp_id, post_id):
         return redirect(url_for("main.index"))
     exp_user_id = logged_user.id
 
-    # thread_id = Post.query.filter_by(id=post_id).first().thread_id
+    # Get the root post first
+    root_post = Post.query.filter_by(id=post_id).first()
+    if not root_post:
+        flash("Post not found", "error")
+        return redirect(url_for("main.index"))
 
-    # get all posts with the specified thread id
-    posts = Post.query.filter_by(thread_id=post_id).order_by(Post.id.asc()).all()
+    # Get all comments with this thread_id
+    comment_posts = Post.query.filter_by(thread_id=post_id).order_by(Post.id.asc()).all()
+    
+    # Combine root post and comments
+    posts = [root_post] + comment_posts
 
     print(posts)
 
