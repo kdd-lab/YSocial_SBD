@@ -6197,59 +6197,55 @@ def opinion_evolution(expid):
         if not target_round:
             # No data yet
             opinion_data = []
+            social_interactions = 0
         else:
-            # Get all agent opinions up to the target round
-            # Join with Post to get the round information
+            # Get all agent opinions at the exact target round
+            # Show ALL opinions at this timestep, not filtered by agent
             query = db.session.query(
                 Agent_Opinion.agent_id,
                 Agent_Opinion.topic_id,
                 Agent_Opinion.opinion,
-                Post.round,
-                Agent_Opinion.tid
+                Agent_Opinion.id_interacted_with
             ).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round <= target_round.id
+                Post.round == target_round.id  # Exact round, not <=
             )
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
                 query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
             
-            # Get all opinions
+            # Get all opinions at this timestep
             all_opinions = query.all()
             
-            # Keep only the most recent opinion for each (agent_id, topic_id) pair
-            # Group by (agent_id, topic_id) and keep the one with max tid
-            latest_opinions = {}
-            for agent_id, topic_id, opinion, round_id, tid in all_opinions:
-                key = (agent_id, topic_id)
-                if key not in latest_opinions or tid > latest_opinions[key][3]:
-                    latest_opinions[key] = (agent_id, topic_id, opinion, tid)
+            # Extract opinion values
+            opinion_data = [opinion for _, _, opinion, _ in all_opinions]
             
-            # Extract just the opinion values
-            opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
-            
-            # Count cumulative social interactions (non-null, non-zero, non-empty id_interacted_with)
-            # This count is reset at start and incremental up to observed time
+            # Count cumulative social interactions up to this round (non-null, non-zero, non-empty, valid UUID)
+            # This count is cumulative from start to observed time
             from sqlalchemy import func, cast, String
             
             interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round <= target_round.id,
+                Post.round <= target_round.id,  # Cumulative up to this round
                 Agent_Opinion.id_interacted_with.isnot(None),
                 Agent_Opinion.id_interacted_with != 0
             )
             
-            # Filter out empty and blank strings (cast to string first for safety)
+            # Filter out empty and blank strings, and validate UUID format
             try:
                 interactions_query = interactions_query.filter(
                     cast(Agent_Opinion.id_interacted_with, String) != '',
-                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0
+                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0,
+                    # UUID validation: standard UUID format (8-4-4-4-12 hex digits)
+                    cast(Agent_Opinion.id_interacted_with, String).op('~')(
+                        '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                    )
                 )
             except:
-                # If casting fails, just use the basic filters
+                # If regex fails, just use the basic filters
                 pass
             
             # Apply topic filter if specified
@@ -6365,57 +6361,55 @@ def opinion_evolution_data(expid):
         if not target_round:
             # No data yet
             opinion_data = []
+            social_interactions = 0
         else:
-            # Get all agent opinions up to the target round
+            # Get all agent opinions at the exact target round
+            # Show ALL opinions at this timestep, not filtered by agent
             query = db.session.query(
                 Agent_Opinion.agent_id,
                 Agent_Opinion.topic_id,
                 Agent_Opinion.opinion,
-                Post.round,
-                Agent_Opinion.tid
+                Agent_Opinion.id_interacted_with
             ).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round <= target_round.id
+                Post.round == target_round.id  # Exact round, not <=
             )
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
                 query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
             
-            # Get all opinions
+            # Get all opinions at this timestep
             all_opinions = query.all()
             
-            # Keep only the most recent opinion for each (agent_id, topic_id) pair
-            latest_opinions = {}
-            for agent_id, topic_id, opinion, round_id, tid in all_opinions:
-                key = (agent_id, topic_id)
-                if key not in latest_opinions or tid > latest_opinions[key][3]:
-                    latest_opinions[key] = (agent_id, topic_id, opinion, tid)
+            # Extract opinion values
+            opinion_data = [opinion for _, _, opinion, _ in all_opinions]
             
-            # Extract just the opinion values
-            opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
-            
-            # Count cumulative social interactions (non-null, non-zero, non-empty id_interacted_with)
-            # This count is reset at start and incremental up to observed time
+            # Count cumulative social interactions up to this round (non-null, non-zero, non-empty, valid UUID)
+            # This count is cumulative from start to observed time
             from sqlalchemy import func, cast, String
             
             interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round <= target_round.id,
+                Post.round <= target_round.id,  # Cumulative up to this round
                 Agent_Opinion.id_interacted_with.isnot(None),
                 Agent_Opinion.id_interacted_with != 0
             )
             
-            # Filter out empty and blank strings (cast to string first for safety)
+            # Filter out empty and blank strings, and validate UUID format
             try:
                 interactions_query = interactions_query.filter(
                     cast(Agent_Opinion.id_interacted_with, String) != '',
-                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0
+                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0,
+                    # UUID validation: standard UUID format (8-4-4-4-12 hex digits)
+                    cast(Agent_Opinion.id_interacted_with, String).op('~')(
+                        '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                    )
                 )
             except:
-                # If casting fails, just use the basic filters
+                # If regex fails, just use the basic filters
                 pass
             
             # Apply topic filter if specified
