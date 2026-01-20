@@ -330,6 +330,21 @@
                             <div class="slider-container">
                                 <div class="slider-label">
                                     <label>Time Period</label>
+                                    <!-- Granularity selector -->
+                                    <div style="display: flex; gap: 4px;">
+                                        <button class="granularity-button active" data-granularity="hourly" 
+                                                style="padding: 2px 6px; font-size: 0.7em; border: 1px solid #d1d5db; border-radius: 3px; background: #039be5; color: white; cursor: pointer; transition: all 0.2s;">
+                                            Hourly
+                                        </button>
+                                        <button class="granularity-button" data-granularity="daily"
+                                                style="padding: 2px 6px; font-size: 0.7em; border: 1px solid #d1d5db; border-radius: 3px; background: white; color: #374151; cursor: pointer; transition: all 0.2s;">
+                                            Daily
+                                        </button>
+                                        <button class="granularity-button" data-granularity="weekly"
+                                                style="padding: 2px 6px; font-size: 0.7em; border: 1px solid #d1d5db; border-radius: 3px; background: white; color: #374151; cursor: pointer; transition: all 0.2s;">
+                                            Weekly
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="slider-controls">
                                     <button id="play-button" class="play-button" title="Play">
@@ -337,6 +352,7 @@
                                     </button>
                                     <input type="range" id="time-slider" class="time-slider" 
                                            min="25" max="{{ max_day * 24 + max_hour }}" 
+                                           step="1"
                                            value="{{ filter_day * 24 + filter_hour if filter_day * 24 + filter_hour >= 25 else 25 }}">
                                     <div class="speed-controls">
                                         <button id="speed-down" class="speed-button" title="Slower">
@@ -861,6 +877,74 @@
     const maxTimeValue = {{ max_day * 24 + max_hour }};
     const minTimeValue = 25; // Start at day 1 hour 1
     
+    // Granularity control
+    let currentGranularity = 'hourly'; // 'hourly', 'daily', 'weekly'
+    
+    function getGranularityStep() {
+        switch (currentGranularity) {
+            case 'hourly': return 1;
+            case 'daily': return 24;
+            case 'weekly': return 168; // 7 * 24
+            default: return 1;
+        }
+    }
+    
+    function snapToGranularity(value) {
+        const step = getGranularityStep();
+        if (step === 1) return value;
+        
+        // Snap to nearest valid value based on granularity
+        // For daily: hour should be 0 (midnight)
+        // For weekly: day should be multiple of 7, hour should be 0
+        const day = Math.floor(value / 24);
+        const hour = value % 24;
+        
+        if (currentGranularity === 'daily') {
+            // Snap to day 0 hour 0 (midnight)
+            return day * 24;
+        } else if (currentGranularity === 'weekly') {
+            // Snap to week boundary (every 7 days, hour 0)
+            const week = Math.floor(day / 7);
+            return week * 168;
+        }
+        
+        return value;
+    }
+    
+    // Granularity button handlers
+    document.querySelectorAll('.granularity-button').forEach(button => {
+        button.addEventListener('click', function() {
+            // Remove active class from all buttons
+            document.querySelectorAll('.granularity-button').forEach(btn => {
+                btn.style.background = 'white';
+                btn.style.color = '#374151';
+                btn.classList.remove('active');
+            });
+            
+            // Add active class to clicked button
+            this.style.background = '#039be5';
+            this.style.color = 'white';
+            this.classList.add('active');
+            
+            // Update granularity
+            currentGranularity = this.dataset.granularity;
+            
+            // Update slider step
+            timeSlider.step = getGranularityStep();
+            
+            // Snap current value to new granularity
+            const currentValue = parseInt(timeSlider.value);
+            const snappedValue = snapToGranularity(currentValue);
+            
+            if (snappedValue !== currentValue) {
+                timeSlider.value = snappedValue;
+                const day = Math.floor(snappedValue / 24);
+                const hour = snappedValue % 24;
+                fetchOpinionData(day, hour, currentTopicId);
+            }
+        });
+    });
+    
     // Speed control (speeds: 0.25x, 0.5x, 1x, 2x, 4x)
     const speeds = [0.25, 0.5, 1, 2, 4, 6, 8, 10];
     let currentSpeedIndex = 2; // Start at 1x (index 2)
@@ -966,9 +1050,10 @@
             playIcon.classList.add('mdi-pause');
             playButton.title = 'Pause';
             
-            // Play animation - advance one hour at current speed
+            // Play animation - advance by granularity step at current speed
             function playStep() {
                 let currentValue = parseInt(timeSlider.value);
+                const step = getGranularityStep();
                 
                 if (currentValue >= maxTimeValue) {
                     // Stop at the end (don't loop)
@@ -980,7 +1065,11 @@
                     playButton.title = 'Play';
                     return;
                 } else {
-                    currentValue++;
+                    currentValue += step;
+                    // Make sure we don't exceed max
+                    if (currentValue > maxTimeValue) {
+                        currentValue = maxTimeValue;
+                    }
                 }
                 
                 timeSlider.value = currentValue;
@@ -1011,6 +1100,7 @@
                 clearInterval(playInterval);
                 playInterval = setInterval(() => {
                     let currentValue = parseInt(timeSlider.value);
+                    const step = getGranularityStep();
                     
                     if (currentValue >= maxTimeValue) {
                         // Stop at the end (don't loop)
@@ -1022,7 +1112,10 @@
                         playButton.title = 'Play';
                         return;
                     } else {
-                        currentValue++;
+                        currentValue += step;
+                        if (currentValue > maxTimeValue) {
+                            currentValue = maxTimeValue;
+                        }
                     }
                     
                     timeSlider.value = currentValue;
@@ -1047,6 +1140,7 @@
                 clearInterval(playInterval);
                 playInterval = setInterval(() => {
                     let currentValue = parseInt(timeSlider.value);
+                    const step = getGranularityStep();
                     
                     if (currentValue >= maxTimeValue) {
                         // Stop at the end (don't loop)
@@ -1058,7 +1152,10 @@
                         playButton.title = 'Play';
                         return;
                     } else {
-                        currentValue++;
+                        currentValue += step;
+                        if (currentValue > maxTimeValue) {
+                            currentValue = maxTimeValue;
+                        }
                     }
                     
                     timeSlider.value = currentValue;
