@@ -6128,8 +6128,10 @@ def opinion_evolution(expid):
     """
     Display opinion evolution page for an experiment.
     
-    Shows distribution of agent opinions over time, filtered by day/hour and topic.
-    Uses opinion_groups from dashboard database for binning.
+    Shows distribution of agent opinions over time.
+    For each (agent_id, topic_id) pair, shows the most recent opinion up to the selected day/hour.
+    
+    Note: Agent_Opinion.tid is a UUID FK to Rounds.id, where day/hour values are stored.
     """
     check_privileges(current_user.username)
     
@@ -6154,8 +6156,6 @@ def opinion_evolution(expid):
         register_experiment_database(current_app, expid, experiment.db_name)
     
     # Temporarily switch to experiment database
-    # Note: This pattern is used throughout the codebase. While not ideal for
-    # thread-safety, it matches the existing architecture.
     old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
     current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
         "SQLALCHEMY_BINDS"
@@ -6163,81 +6163,80 @@ def opinion_evolution(expid):
     
     try:
         # Import experiment-specific models
-        # These models are expected to exist in any experiment with opinion dynamics enabled
-        from y_web.models import Agent_Opinion, Interests, Post, Rounds
+        from y_web.models import Agent_Opinion, Interests, Rounds
+        from sqlalchemy import and_, or_, func
         
         # Get available topics from experiment database
         topics = db.session.query(Interests).all()
         
-        # Get max day and hour from Rounds table
-        # Default to day 0, hour 23 (end of first day) if no rounds exist yet
-        max_round = db.session.query(Rounds).order_by(Rounds.id.desc()).first()
-        max_day = max_round.day if max_round else 0
-        max_hour = max_round.hour if max_round else 23  # End of day as default
+        # Get max day and hour from Rounds table (start at day 1 hour 1 as per requirements)
+        max_round = db.session.query(Rounds).order_by(Rounds.day.desc(), Rounds.hour.desc()).first()
+        max_day = max_round.day if max_round else 1
+        max_hour = max_round.hour if max_round else 1
         
-        # Get filter parameters from request
+        # Get filter parameters from request (default to max values)
         filter_day = request.args.get("day", type=int, default=max_day)
         filter_hour = request.args.get("hour", type=int, default=max_hour)
         filter_topic_id = request.args.get("topic_id", type=int, default=None)
         
-        # Query agent_opinion table with filters
-        from sqlalchemy import and_, or_, func, cast, String
-        
-        # First, get the round ID that corresponds to the specified day/hour
-        # We want rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
-        target_round = db.session.query(Rounds).filter(
+        # Find all rounds up to the specified day/hour
+        # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
+        rounds_up_to_time = db.session.query(Rounds.id).filter(
             or_(
                 Rounds.day < filter_day,
                 and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
             )
-        ).order_by(Rounds.day.desc(), Rounds.hour.desc()).first()
+        ).subquery()
         
-        if not target_round:
-            # No data yet
-            opinion_data = []
-            social_interactions = 0
-        else:
-            # Get all agent opinions at the exact target round
-            # Show ALL opinions at this timestep
-            query = db.session.query(
-                Agent_Opinion.agent_id,
-                Agent_Opinion.topic_id,
-                Agent_Opinion.opinion
-            ).join(
-                Post, Agent_Opinion.id_post == Post.id
-            ).filter(
-                Post.round == target_round.id  # Exact round match using UUID equality
-            )
-            
-            # Apply topic filter if specified
-            if filter_topic_id is not None:
-                query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
-            
-            # Get all opinions at this timestep
-            all_opinions = query.all()
-            
-            # Extract opinion values
-            opinion_data = [opinion for _, _, opinion in all_opinions]
-            
-            # Count social interactions at this specific round (non-null, non-zero, non-empty strings)
-            interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
-                Post, Agent_Opinion.id_post == Post.id
-            ).filter(
-                Post.round == target_round.id,  # Same exact round
-                Agent_Opinion.id_interacted_with.isnot(None),
-                Agent_Opinion.id_interacted_with != 0
-            )
-            
-            # Filter out empty strings by checking length
-            interactions_query = interactions_query.filter(
-                func.length(cast(Agent_Opinion.id_interacted_with, String)) > 0
-            )
-            
-            # Apply topic filter if specified
-            if filter_topic_id is not None:
-                interactions_query = interactions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-            
-            social_interactions = interactions_query.count()
+        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
+        base_query = db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Agent_Opinion.id_interacted_with,
+            Rounds.day,
+            Rounds.hour
+        ).join(
+            Rounds, Agent_Opinion.tid == Rounds.id
+        ).filter(
+            Agent_Opinion.tid.in_(rounds_up_to_time)
+        )
+        
+        # Apply topic filter if specified
+        if filter_topic_id is not None:
+            base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+        
+        # Get all opinions up to the selected time
+        all_opinions = base_query.all()
+        
+        # Keep only the latest opinion per (agent_id, topic_id) pair
+        # Latest means highest (day, hour) combination
+        latest_opinions = {}
+        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
+            key = (agent_id, topic_id)
+            if key not in latest_opinions or (day, hour) > (latest_opinions[key]['day'], latest_opinions[key]['hour']):
+                latest_opinions[key] = {
+                    'tid': tid,
+                    'opinion': opinion,
+                    'id_interacted_with': id_interacted_with,
+                    'day': day,
+                    'hour': hour
+                }
+        
+        # Extract opinion values for binning
+        opinion_data = [data['opinion'] for data in latest_opinions.values()]
+        
+        # Count social interactions (non-null, non-zero, non-empty id_interacted_with)
+        social_interactions = 0
+        for data in latest_opinions.values():
+            id_interacted = data['id_interacted_with']
+            # Check if interaction is valid: not null, not zero, and if string, not empty
+            if id_interacted is not None and id_interacted != 0:
+                # Convert to string and check if non-empty
+                id_str = str(id_interacted).strip()
+                if len(id_str) > 0 and id_str != '0':
+                    social_interactions += 1
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6296,6 +6295,7 @@ def opinion_evolution_data(expid):
     API endpoint for getting opinion evolution data without page reload.
     
     Returns JSON with chart data based on filter parameters.
+    For each (agent_id, topic_id) pair, returns the most recent opinion up to the selected day/hour.
     """
     check_privileges(current_user.username)
     
@@ -6325,71 +6325,72 @@ def opinion_evolution_data(expid):
     
     try:
         # Import experiment-specific models
-        from y_web.models import Agent_Opinion, Interests, Post, Rounds
+        from y_web.models import Agent_Opinion, Rounds
+        from sqlalchemy import and_, or_
         
         # Get filter parameters from request
-        filter_day = request.args.get("day", type=int, default=0)
-        filter_hour = request.args.get("hour", type=int, default=0)
+        filter_day = request.args.get("day", type=int, default=1)
+        filter_hour = request.args.get("hour", type=int, default=1)
         filter_topic_id = request.args.get("topic_id", type=int, default=None)
         
-        # Query agent_opinion table with filters
-        from sqlalchemy import and_, or_, func, cast, String
-        
-        # First, get the round ID that corresponds to the specified day/hour
-        # We want rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
-        target_round = db.session.query(Rounds).filter(
+        # Find all rounds up to the specified day/hour
+        # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
+        rounds_up_to_time = db.session.query(Rounds.id).filter(
             or_(
                 Rounds.day < filter_day,
                 and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
             )
-        ).order_by(Rounds.day.desc(), Rounds.hour.desc()).first()
+        ).subquery()
         
-        if not target_round:
-            # No data yet
-            opinion_data = []
-            social_interactions = 0
-        else:
-            # Get all agent opinions at the exact target round
-            # Show ALL opinions at this timestep
-            query = db.session.query(
-                Agent_Opinion.agent_id,
-                Agent_Opinion.topic_id,
-                Agent_Opinion.opinion
-            ).join(
-                Post, Agent_Opinion.id_post == Post.id
-            ).filter(
-                Post.round == target_round.id  # Exact round match using UUID equality
-            )
-            
-            # Apply topic filter if specified
-            if filter_topic_id is not None:
-                query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
-            
-            # Get all opinions at this timestep
-            all_opinions = query.all()
-            
-            # Extract opinion values
-            opinion_data = [opinion for _, _, opinion in all_opinions]
-            
-            # Count social interactions at this specific round (non-null, non-zero, non-empty strings)
-            interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
-                Post, Agent_Opinion.id_post == Post.id
-            ).filter(
-                Post.round == target_round.id,  # Same exact round
-                Agent_Opinion.id_interacted_with.isnot(None),
-                Agent_Opinion.id_interacted_with != 0
-            )
-            
-            # Filter out empty strings by checking length
-            interactions_query = interactions_query.filter(
-                func.length(cast(Agent_Opinion.id_interacted_with, String)) > 0
-            )
-            
-            # Apply topic filter if specified
-            if filter_topic_id is not None:
-                interactions_query = interactions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-            
-            social_interactions = interactions_query.count()
+        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
+        base_query = db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Agent_Opinion.id_interacted_with,
+            Rounds.day,
+            Rounds.hour
+        ).join(
+            Rounds, Agent_Opinion.tid == Rounds.id
+        ).filter(
+            Agent_Opinion.tid.in_(rounds_up_to_time)
+        )
+        
+        # Apply topic filter if specified
+        if filter_topic_id is not None:
+            base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+        
+        # Get all opinions up to the selected time
+        all_opinions = base_query.all()
+        
+        # Keep only the latest opinion per (agent_id, topic_id) pair
+        # Latest means highest (day, hour) combination
+        latest_opinions = {}
+        for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in all_opinions:
+            key = (agent_id, topic_id)
+            if key not in latest_opinions or (day, hour) > (latest_opinions[key]['day'], latest_opinions[key]['hour']):
+                latest_opinions[key] = {
+                    'tid': tid,
+                    'opinion': opinion,
+                    'id_interacted_with': id_interacted_with,
+                    'day': day,
+                    'hour': hour
+                }
+        
+        # Extract opinion values for binning
+        opinion_data = [data['opinion'] for data in latest_opinions.values()]
+        
+        # Count social interactions (non-null, non-zero, non-empty id_interacted_with)
+        social_interactions = 0
+        for data in latest_opinions.values():
+            id_interacted = data['id_interacted_with']
+            # Check if interaction is valid: not null, not zero, and if string, not empty
+            if id_interacted is not None and id_interacted != 0:
+                # Convert to string and check if non-empty
+                id_str = str(id_interacted).strip()
+                if len(id_str) > 0 and id_str != '0':
+                    social_interactions += 1
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
