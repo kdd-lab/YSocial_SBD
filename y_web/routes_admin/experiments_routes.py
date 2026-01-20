@@ -6199,37 +6199,51 @@ def opinion_evolution(expid):
             opinion_data = []
             social_interactions = 0
         else:
-            # Get all agent opinions at the exact target round
-            # Show ALL opinions at this timestep, not filtered by agent
+            # Get all agent opinions up to the target round
+            # We'll filter to keep only the latest opinion per (agent_id, topic_id) from the most recent round
             query = db.session.query(
                 Agent_Opinion.agent_id,
                 Agent_Opinion.topic_id,
                 Agent_Opinion.opinion,
-                Agent_Opinion.id_interacted_with
+                Post.round
             ).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round == target_round.id  # Exact round, not <=
+                Post.round <= target_round.id
             )
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
                 query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
             
-            # Get all opinions at this timestep
+            # Get all opinions up to this timestep
             all_opinions = query.all()
             
-            # Extract opinion values
-            opinion_data = [opinion for _, _, opinion, _ in all_opinions]
+            # Keep only opinions from the latest round for each (agent_id, topic_id) pair
+            # This ensures we show ALL agents' opinions from the most recent timestep
+            latest_opinions = {}
+            for agent_id, topic_id, opinion, round_num in all_opinions:
+                key = (agent_id, topic_id)
+                if key not in latest_opinions or round_num > latest_opinions[key][3]:
+                    latest_opinions[key] = (agent_id, topic_id, opinion, round_num)
             
-            # Count cumulative social interactions up to this round (non-null, non-zero, non-empty, valid UUID)
-            # This count is cumulative from start to observed time
+            # Extract opinion values from the latest opinions
+            opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
+            
+            # Count cumulative social interactions up to this round (non-null, non-zero, non-empty strings)
+            # Only count the LATEST interaction per agent-topic pair
             from sqlalchemy import func, cast, String
             
-            interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
+            # Get all interactions up to this round with round number
+            interactions_query = db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.id_interacted_with,
+                Post.round
+            ).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round <= target_round.id,  # Cumulative up to this round
+                Post.round <= target_round.id,
                 Agent_Opinion.id_interacted_with.isnot(None),
                 Agent_Opinion.id_interacted_with != 0
             )
@@ -6243,7 +6257,16 @@ def opinion_evolution(expid):
             if filter_topic_id is not None:
                 interactions_query = interactions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
             
-            social_interactions = interactions_query.count()
+            # Get all interactions and keep only latest per agent-topic pair
+            all_interactions = interactions_query.all()
+            latest_interactions = {}
+            for agent_id, topic_id, interaction, round_num in all_interactions:
+                key = (agent_id, topic_id)
+                if key not in latest_interactions or round_num > latest_interactions[key][3]:
+                    latest_interactions[key] = (agent_id, topic_id, interaction, round_num)
+            
+            # Count only the latest interactions (those that actually happened, not default/empty values)
+            social_interactions = sum(1 for _, _, interaction, _ in latest_interactions.values() if interaction and str(interaction).strip())
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6354,37 +6377,51 @@ def opinion_evolution_data(expid):
             opinion_data = []
             social_interactions = 0
         else:
-            # Get all agent opinions at the exact target round
-            # Show ALL opinions at this timestep, not filtered by agent
+            # Get all agent opinions up to the target round
+            # We'll filter to keep only the latest opinion per (agent_id, topic_id) from the most recent round
             query = db.session.query(
                 Agent_Opinion.agent_id,
                 Agent_Opinion.topic_id,
                 Agent_Opinion.opinion,
-                Agent_Opinion.id_interacted_with
+                Post.round
             ).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round == target_round.id  # Exact round, not <=
+                Post.round <= target_round.id
             )
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
                 query = query.filter(Agent_Opinion.topic_id == filter_topic_id)
             
-            # Get all opinions at this timestep
+            # Get all opinions up to this timestep
             all_opinions = query.all()
             
-            # Extract opinion values
-            opinion_data = [opinion for _, _, opinion, _ in all_opinions]
+            # Keep only opinions from the latest round for each (agent_id, topic_id) pair
+            # This ensures we show ALL agents' opinions from the most recent timestep
+            latest_opinions = {}
+            for agent_id, topic_id, opinion, round_num in all_opinions:
+                key = (agent_id, topic_id)
+                if key not in latest_opinions or round_num > latest_opinions[key][3]:
+                    latest_opinions[key] = (agent_id, topic_id, opinion, round_num)
             
-            # Count cumulative social interactions up to this round (non-null, non-zero, non-empty, valid UUID)
-            # This count is cumulative from start to observed time
+            # Extract opinion values from the latest opinions
+            opinion_data = [opinion for _, _, opinion, _ in latest_opinions.values()]
+            
+            # Count cumulative social interactions up to this round (non-null, non-zero, non-empty strings)
+            # Only count the LATEST interaction per agent-topic pair
             from sqlalchemy import func, cast, String
             
-            interactions_query = db.session.query(Agent_Opinion.id_interacted_with).join(
+            # Get all interactions up to this round with round number
+            interactions_query = db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.id_interacted_with,
+                Post.round
+            ).join(
                 Post, Agent_Opinion.id_post == Post.id
             ).filter(
-                Post.round <= target_round.id,  # Cumulative up to this round
+                Post.round <= target_round.id,
                 Agent_Opinion.id_interacted_with.isnot(None),
                 Agent_Opinion.id_interacted_with != 0
             )
@@ -6398,7 +6435,16 @@ def opinion_evolution_data(expid):
             if filter_topic_id is not None:
                 interactions_query = interactions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
             
-            social_interactions = interactions_query.count()
+            # Get all interactions and keep only latest per agent-topic pair
+            all_interactions = interactions_query.all()
+            latest_interactions = {}
+            for agent_id, topic_id, interaction, round_num in all_interactions:
+                key = (agent_id, topic_id)
+                if key not in latest_interactions or round_num > latest_interactions[key][3]:
+                    latest_interactions[key] = (agent_id, topic_id, interaction, round_num)
+            
+            # Count only the latest interactions (those that actually happened, not default/empty values)
+            social_interactions = sum(1 for _, _, interaction, _ in latest_interactions.values() if interaction and str(interaction).strip())
         
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
