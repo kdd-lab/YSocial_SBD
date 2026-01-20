@@ -840,12 +840,27 @@ def publish_comment(exp_id):
 
     text = request.args.get("post")
     pid = request.args.get("parent")
+    
+    # Handle both int and UUID parent ID formats (Standard vs HPC experiments)
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
 
     # get the last round id from Rounds
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
     # get the thread if of the post with id pid
-    thread_id = Post.query.filter_by(id=pid).first().thread_id
+    parent_post = Post.query.filter_by(id=pid).first()
+    if not parent_post:
+        flash("Parent post not found", "error")
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
+    thread_id = parent_post.thread_id if parent_post.thread_id else parent_post.id
 
     try:
         # add post to the db
