@@ -5,24 +5,24 @@
     .filter-section {
         background: #fafafa;
         border: 1px solid #e6e6e6;
-        border-left: 4px solid #039be5;
-        border-radius: 6px;
-        padding: 10px 12px;
-        margin-bottom: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        border-left: 3px solid #039be5;
+        border-radius: 4px;
+        padding: 8px 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
     }
     
     /* Compact slider styling */
     .slider-container {
-        margin-bottom: 8px;
+        margin-bottom: 6px;
     }
     
     .slider-label {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 5px;
-        font-size: 0.85em;
+        margin-bottom: 4px;
+        font-size: 0.8em;
     }
     
     .slider-label label {
@@ -33,19 +33,19 @@
     .slider-value {
         font-weight: bold;
         color: #039be5;
-        font-size: 0.9em;
+        font-size: 0.85em;
     }
     
     .slider-controls {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
     }
     
     .time-slider {
         flex: 1;
-        height: 6px;
-        border-radius: 3px;
+        height: 5px;
+        border-radius: 2.5px;
         background: #e5e7eb;
         outline: none;
         -webkit-appearance: none;
@@ -54,8 +54,8 @@
     .time-slider::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         background: #039be5;
         cursor: pointer;
@@ -67,8 +67,8 @@
     }
     
     .time-slider::-moz-range-thumb {
-        width: 16px;
-        height: 16px;
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
         background: #039be5;
         cursor: pointer;
@@ -85,14 +85,14 @@
         color: white;
         border: none;
         border-radius: 50%;
-        width: 32px;
-        height: 32px;
+        width: 28px;
+        height: 28px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: background 0.2s;
-        font-size: 16px;
+        font-size: 14px;
         flex-shrink: 0;
     }
     
@@ -112,23 +112,23 @@
     .speed-controls {
         display: flex;
         align-items: center;
-        gap: 4px;
-        margin-left: 8px;
+        gap: 3px;
+        margin-left: 6px;
     }
     
     .speed-button {
         background: #6b7280;
         color: white;
         border: none;
-        border-radius: 4px;
-        width: 28px;
-        height: 28px;
+        border-radius: 3px;
+        width: 24px;
+        height: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
         transition: background 0.2s;
-        font-size: 14px;
+        font-size: 12px;
         flex-shrink: 0;
     }
     
@@ -143,10 +143,10 @@
     }
     
     .speed-display {
-        font-size: 0.75em;
+        font-size: 0.7em;
         color: #6b7280;
         font-weight: 600;
-        min-width: 32px;
+        min-width: 26px;
         text-align: center;
     }
     
@@ -157,23 +157,23 @@
     
     .topics-label {
         font-weight: 600;
-        font-size: 0.85em;
+        font-size: 0.8em;
         color: #374151;
-        margin-bottom: 5px;
+        margin-bottom: 4px;
         display: block;
     }
     
     .topics-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 5px;
+        gap: 4px;
     }
     
     .topic-tag {
         display: inline-block;
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 0.8em;
+        padding: 3px 8px;
+        border-radius: 10px;
+        font-size: 0.75em;
         cursor: pointer;
         transition: all 0.2s;
         border: 1.5px solid #d1d5db;
@@ -217,8 +217,8 @@
     .stats-row {
         display: grid;
         grid-template-columns: repeat(5, 1fr);
-        gap: 10px;
-        margin-top: 15px;
+        gap: 8px;
+        margin-top: 10px;
     }
     
     @media (max-width: 768px) {
@@ -247,19 +247,19 @@
     .stat-box {
         background: linear-gradient(135deg, #039be5 0%, #0277bd 100%);
         color: white;
-        padding: 12px;
-        border-radius: 6px;
+        padding: 8px 10px;
+        border-radius: 4px;
         text-align: center;
     }
     
     .stat-value {
-        font-size: 1.5em;
+        font-size: 1.3em;
         font-weight: bold;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
     
     .stat-label {
-        font-size: 0.75em;
+        font-size: 0.7em;
         opacity: 0.95;
     }
     
@@ -330,10 +330,6 @@
                             <div class="slider-container">
                                 <div class="slider-label">
                                     <label>Time Period</label>
-                                    <span class="slider-value">
-                                        Day <span id="day-value">{{ filter_day }}</span>, 
-                                        Hour <span id="hour-value">{{ filter_hour }}</span>
-                                    </span>
                                 </div>
                                 <div class="slider-controls">
                                     <button id="play-button" class="play-button" title="Play">
@@ -404,7 +400,7 @@
                         <h3 class="title is-6 is-thin" style="margin-bottom: 15px;">Opinion Distribution</h3>
                         
                         <div class="chart-container">
-                            <canvas id="opinionChart" height="120"></canvas>
+                            <canvas id="opinionChart" height="200"></canvas>
                         </div>
                         
                         <p style="font-size: 0.8em; color: #666; text-align: center; margin-top: 10px;" id="chart-description">
@@ -430,7 +426,7 @@
                         </div>
                         
                         <div class="chart-container">
-                            <canvas id="timeseriesChart" height="120"></canvas>
+                            <canvas id="timeseriesChart" height="200"></canvas>
                         </div>
                         
                         <p style="font-size: 0.8em; color: #666; text-align: center; margin-top: 10px;">
@@ -491,13 +487,18 @@
     const ctx = document.getElementById('opinionChart').getContext('2d');
     const chartLabels = {{ chart_labels|tojson }};
     const chartValues = {{ chart_values|tojson }};
+    
+    // Calculate total agents and percentages
+    const totalAgents = chartValues.reduce((a, b) => a + b, 0);
+    const chartPercentages = chartValues.map(val => totalAgents > 0 ? (val / totalAgents * 100) : 0);
+    
     const { colors, borderColors } = generateChartColors(chartLabels.length);
     
     const chartData = {
         labels: chartLabels,
         datasets: [{
-            label: 'Number of Agents',
-            data: chartValues,
+            label: 'Percentage of Agents',
+            data: chartPercentages,
             backgroundColor: colors,
             borderColor: borderColors,
             borderWidth: 2
@@ -523,9 +524,9 @@
                 tooltip: {
                     callbacks: {
                         label: function(context) {
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((context.parsed.y / total) * 100).toFixed(1) : 0;
-                            return `${context.parsed.y} agents (${percentage}%)`;
+                            const percentage = context.parsed.y.toFixed(1);
+                            const agentCount = chartValues[context.dataIndex];
+                            return `${percentage}% (${agentCount} agents)`;
                         }
                     }
                 }
@@ -533,12 +534,15 @@
             scales: {
                 y: {
                     beginAtZero: true,
+                    max: 100,
                     ticks: {
-                        stepSize: 1
+                        callback: function(value) {
+                            return value + '%';
+                        }
                     },
                     title: {
                         display: true,
-                        text: 'Number of Agents'
+                        text: 'Percentage of Agents'
                     }
                 },
                 x: {
@@ -635,9 +639,18 @@
         console.log('updateChart called with:', data); // Debug log
         
         if (chartInstance) {
-            // Update both labels and data
+            // Calculate total and convert to percentages
+            const total = data.chart_values.reduce((a, b) => a + b, 0);
+            const percentages = data.chart_values.map(val => total > 0 ? (val / total * 100) : 0);
+            
+            // Update both labels and data (as percentages)
             chartInstance.data.labels = data.chart_labels;
-            chartInstance.data.datasets[0].data = data.chart_values;
+            chartInstance.data.datasets[0].data = percentages;
+            
+            // Store original values for tooltip
+            chartValues.length = 0;
+            chartValues.push(...data.chart_values);
+            
             chartInstance.update('none');  // Update without animation
             console.log('Chart updated'); // Debug log
         } else {
@@ -662,8 +675,6 @@
         document.getElementById('unique-agents').textContent = data.unique_agents;
         document.getElementById('current-day').textContent = data.filter_day;
         document.getElementById('current-hour').textContent = data.filter_hour;
-        document.getElementById('day-value').textContent = data.filter_day;
-        document.getElementById('hour-value').textContent = data.filter_hour;
     }
     
     // Function to fetch updated data
@@ -731,10 +742,6 @@
         const totalHours = parseInt(this.value);
         const day = Math.floor(totalHours / 24);
         const hour = totalHours % 24;
-        
-        // Update display immediately
-        document.getElementById('day-value').textContent = day;
-        document.getElementById('hour-value').textContent = hour;
         
         // Debounce the API call
         clearTimeout(sliderTimeout);
@@ -840,10 +847,6 @@
                 const day = Math.floor(currentValue / 24);
                 const hour = currentValue % 24;
                 
-                // Update display
-                document.getElementById('day-value').textContent = day;
-                document.getElementById('hour-value').textContent = hour;
-                
                 // Fetch data
                 fetchOpinionData(day, hour, currentTopicId);
             }
@@ -886,8 +889,6 @@
                     const day = Math.floor(currentValue / 24);
                     const hour = currentValue % 24;
                     
-                    document.getElementById('day-value').textContent = day;
-                    document.getElementById('hour-value').textContent = hour;
                     
                     fetchOpinionData(day, hour, currentTopicId);
                 }, getCurrentInterval());
@@ -924,8 +925,6 @@
                     const day = Math.floor(currentValue / 24);
                     const hour = currentValue % 24;
                     
-                    document.getElementById('day-value').textContent = day;
-                    document.getElementById('hour-value').textContent = hour;
                     
                     fetchOpinionData(day, hour, currentTopicId);
                 }, getCurrentInterval());
