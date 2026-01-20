@@ -6122,6 +6122,139 @@ def delete_opinion_distribution(dist_id):
     return jsonify({"success": True})
 
 
+def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
+    """
+    Generate opinion group volume trends over time.
+    
+    For each timestamp up to (filter_day, filter_hour), calculates the percentage
+    of agents in each opinion group.
+    
+    Args:
+        expid: Experiment ID
+        filter_day: Current day filter
+        filter_hour: Current hour filter
+        filter_topic_id: Topic ID filter (None for all topics)
+    
+    Returns:
+        dict: Time series data with timestamps and group percentages
+    """
+    from y_web.models import Agent_Opinion, Rounds
+    from sqlalchemy import and_, or_
+    
+    # Get opinion groups from dashboard database for binning
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+    
+    # Find all rounds up to the specified day/hour
+    rounds_up_to_time = db.session.query(
+        Rounds.id, Rounds.day, Rounds.hour
+    ).filter(
+        or_(
+            Rounds.day < filter_day,
+            and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+        )
+    ).order_by(Rounds.day, Rounds.hour).all()
+    
+    if not rounds_up_to_time:
+        return {
+            'timestamps': [],
+            'timestamp_mapping': {},
+            'groups': []
+        }
+    
+    # Create list of all timestamps (normalized positions)
+    all_timestamps_absolute = [r.day * 24 + r.hour for r in rounds_up_to_time]
+    normalized_positions = list(range(1, len(all_timestamps_absolute) + 1))
+    
+    # Create timestamp mapping for tooltip context
+    timestamp_mapping = {}
+    for idx, r in enumerate(rounds_up_to_time):
+        position = idx + 1
+        timestamp_mapping[position] = {
+            'day': r.day,
+            'hour': r.hour,
+            'absolute': r.day * 24 + r.hour
+        }
+    
+    # Query all opinions up to this time
+    base_query = db.session.query(
+        Agent_Opinion.agent_id,
+        Agent_Opinion.topic_id,
+        Agent_Opinion.tid,
+        Agent_Opinion.opinion
+    ).filter(
+        Agent_Opinion.tid.in_([r.id for r in rounds_up_to_time])
+    )
+    
+    # Apply topic filter if specified
+    if filter_topic_id is not None:
+        base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+    
+    all_opinions = base_query.all()
+    
+    if not all_opinions:
+        return {
+            'timestamps': normalized_positions,
+            'timestamp_mapping': timestamp_mapping,
+            'groups': []
+        }
+    
+    # Organize opinions by round
+    round_opinions = defaultdict(list)
+    for agent_id, topic_id, tid, opinion in all_opinions:
+        round_opinions[tid].append((agent_id, topic_id, opinion))
+    
+    # For each timestamp, calculate group percentages
+    group_trends = {group.name: [] for group in opinion_groups}
+    
+    for round_obj in rounds_up_to_time:
+        round_id = round_obj.id
+        day = round_obj.day
+        hour = round_obj.hour
+        
+        # Get all opinions up to this specific timestamp
+        # Need to keep only latest opinion per (agent_id, topic_id) up to this point
+        opinions_up_to_now = []
+        for r in rounds_up_to_time:
+            if (r.day < day) or (r.day == day and r.hour <= hour):
+                opinions_up_to_now.extend(round_opinions[r.id])
+        
+        # Keep only latest opinion per (agent_id, topic_id)
+        latest_at_time = {}
+        for agent_id, topic_id, opinion in opinions_up_to_now:
+            key = (agent_id, topic_id)
+            # Since we're iterating chronologically, later opinions overwrite earlier ones
+            latest_at_time[key] = opinion
+        
+        # Bin the opinions
+        binned_counts = {group.name: 0 for group in opinion_groups}
+        total_opinions = len(latest_at_time)
+        
+        for opinion_value in latest_at_time.values():
+            for group in opinion_groups:
+                if group.lower_bound <= opinion_value <= group.upper_bound:
+                    binned_counts[group.name] += 1
+                    break
+        
+        # Calculate percentages
+        for group in opinion_groups:
+            percentage = (binned_counts[group.name] / total_opinions * 100) if total_opinions > 0 else 0
+            group_trends[group.name].append(percentage)
+    
+    # Prepare return data
+    groups_data = []
+    for group in opinion_groups:
+        groups_data.append({
+            'name': group.name,
+            'data': group_trends[group.name]
+        })
+    
+    return {
+        'timestamps': normalized_positions,
+        'timestamp_mapping': timestamp_mapping,
+        'groups': groups_data
+    }
+
+
 def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_id, sample_percentage=50):
     """
     Generate agent opinion time series data for visualization.
@@ -6437,6 +6570,11 @@ def opinion_evolution(expid):
         chart_labels = [group.name for group in opinion_groups]
         chart_values = [binned_data[group.name] for group in opinion_groups]
         
+        # Generate group trends data (opinion group volumes over time)
+        group_trends_data = generate_group_trends_data(
+            expid, filter_day, filter_hour, filter_topic_id
+        )
+        
         # Generate agent time series data (default 50% sample)
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
         timeseries_data = generate_agent_timeseries_data(
@@ -6465,6 +6603,7 @@ def opinion_evolution(expid):
         total_opinions=len(opinion_data),
         social_interactions=social_interactions,
         unique_agents=unique_agents,
+        group_trends_data=group_trends_data,
         timeseries_data=timeseries_data,
     )
 
@@ -6600,6 +6739,11 @@ def opinion_evolution_data(expid):
         # Get sample percentage from request
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
         
+        # Generate group trends data (opinion group volumes over time)
+        group_trends_data = generate_group_trends_data(
+            expid, filter_day, filter_hour, filter_topic_id
+        )
+        
         # Generate agent time series data
         timeseries_data = generate_agent_timeseries_data(
             expid, filter_day, filter_hour, filter_topic_id, sample_percentage
@@ -6613,6 +6757,7 @@ def opinion_evolution_data(expid):
             "unique_agents": unique_agents,
             "filter_day": filter_day,
             "filter_hour": filter_hour,
+            "group_trends_data": group_trends_data,
             "timeseries_data": timeseries_data,
         })
         

@@ -395,7 +395,7 @@
 
             <!-- Opinion Distribution Chart -->
             <div class="columns">
-                <div class="column is-6">
+                <div class="column is-4">
                     <div class="dashboard-box chart-box-container">
                         <h3 class="title is-6 is-thin" style="margin-bottom: 15px;">Opinion Distribution</h3>
                         
@@ -409,8 +409,23 @@
                     </div>
                 </div>
 
+                <!-- Opinion Group Trends Chart -->
+                <div class="column is-4">
+                    <div class="dashboard-box chart-box-container">
+                        <h3 class="title is-6 is-thin" style="margin-bottom: 15px;">Opinion Group Trends</h3>
+                        
+                        <div class="chart-container">
+                            <canvas id="groupTrendsChart" height="250"></canvas>
+                        </div>
+                        
+                        <p style="font-size: 0.8em; color: #666; text-align: center; margin-top: 10px;">
+                            Evolution of opinion group volumes (percentage of agents in each group over time).
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Agent Opinion Time Series Chart -->
-                <div class="column is-6">
+                <div class="column is-4">
                     <div class="dashboard-box chart-box-container">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                             <h3 class="title is-6 is-thin" style="margin-bottom: 0;">Agent Opinion Evolution</h3>
@@ -450,6 +465,7 @@
     // Store experiment ID and initial data
     const expId = {{ experiment.idexp }};
     let chartInstance = null;
+    let groupTrendsChartInstance = null;
     let timeseriesChartInstance = null;
     let currentSamplePercentage = 50;
     
@@ -561,6 +577,106 @@
     
     chartInstance = new Chart(ctx, config);
     
+    // Initialize group trends chart
+    const groupTrendsCtx = document.getElementById('groupTrendsChart').getContext('2d');
+    const initialGroupTrendsData = {{ group_trends_data|tojson }};
+    
+    function createGroupTrendsDatasets(groupTrendsData) {
+        const colors = generateChartColors(groupTrendsData.groups.length);
+        return groupTrendsData.groups.map((group, index) => ({
+            label: group.name,
+            data: group.data,
+            borderColor: colors.borderColors[index],
+            backgroundColor: colors.colors[index].replace('0.7', '0.1'),
+            borderWidth: 2,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.3,
+            fill: false
+        }));
+    }
+    
+    const groupTrendsConfig = {
+        type: 'line',
+        data: {
+            labels: initialGroupTrendsData.timestamps,
+            datasets: createGroupTrendsDatasets(initialGroupTrendsData)
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: {
+                duration: 0  // Disable animations to prevent flickering
+            },
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        font: {
+                            size: 10
+                        },
+                        padding: 8
+                    }
+                },
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        title: function(context) {
+                            const position = context[0].label;
+                            const mapping = initialGroupTrendsData.timestamp_mapping[position];
+                            if (mapping) {
+                                return `Day ${mapping.day}, Hour ${mapping.hour}`;
+                            }
+                            return `Step ${position}`;
+                        },
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(0) + '%';
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Percentage of Agents'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time Step'
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                }
+            }
+        }
+    };
+    
+    groupTrendsChartInstance = new Chart(groupTrendsCtx, groupTrendsConfig);
+    
+    // Store reference to current group trends data for tooltip access
+    let currentGroupTrendsData = initialGroupTrendsData;
+    
     // Initialize time series chart
     const timeseriesCtx = document.getElementById('timeseriesChart').getContext('2d');
     const initialTimeseriesData = {{ timeseries_data|tojson }};
@@ -666,6 +782,18 @@
             console.log('Chart updated'); // Debug log
         } else {
             console.error('chartInstance is null'); // Debug log
+        }
+        
+        // Update group trends chart
+        if (groupTrendsChartInstance && data.group_trends_data) {
+            // Store the new group trends data for reference
+            currentGroupTrendsData = data.group_trends_data;
+            
+            groupTrendsChartInstance.data.labels = data.group_trends_data.timestamps;
+            groupTrendsChartInstance.data.datasets = createGroupTrendsDatasets(data.group_trends_data);
+            
+            groupTrendsChartInstance.update('none');  // Update without animation
+            console.log('Group trends chart updated'); // Debug log
         }
         
         // Update time series chart
