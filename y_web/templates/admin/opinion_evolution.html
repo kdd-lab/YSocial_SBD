@@ -390,6 +390,47 @@
                         </p>
                     </div>
                 </div>
+
+                <!-- Agent Opinion Time Series Chart -->
+                <div class="column is-6">
+                    <div class="dashboard-box">
+                        <h3 class="title is-6 is-thin" style="margin-bottom: 15px;">Agent Opinion Evolution</h3>
+                        
+                        <!-- Sampling control -->
+                        <div style="margin-bottom: 15px; padding: 12px; background: #f9fafb; border-radius: 6px; border: 1px solid #e5e7eb;">
+                            <div class="slider-label" style="margin-bottom: 8px;">
+                                <label style="font-size: 0.85em; font-weight: 600; color: #374151;">Sample Size</label>
+                                <span class="slider-value" style="font-size: 0.85em;">
+                                    <span id="sample-percentage-value">50</span>% of agents
+                                </span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="range" id="sample-slider" class="time-slider" 
+                                       min="10" max="100" step="15" value="50"
+                                       list="sample-values">
+                                <datalist id="sample-values">
+                                    <option value="10" label="10%"></option>
+                                    <option value="25" label="25%"></option>
+                                    <option value="50" label="50%"></option>
+                                    <option value="75" label="75%"></option>
+                                    <option value="100" label="100%"></option>
+                                </datalist>
+                                <div style="display: flex; gap: 2px; font-size: 0.7em; color: #9ca3af;">
+                                    <span>10%</span>
+                                    <span style="margin-left: auto;">100%</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="chart-container">
+                            <canvas id="timeseriesChart" height="120"></canvas>
+                        </div>
+                        
+                        <p style="font-size: 0.8em; color: #666; text-align: center; margin-top: 10px;">
+                            Individual agent opinion trajectories over time (colored by initial opinion group).
+                        </p>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -406,6 +447,8 @@
     // Store experiment ID and initial data
     const expId = {{ experiment.idexp }};
     let chartInstance = null;
+    let timeseriesChartInstance = null;
+    let currentSamplePercentage = 50;
     
     // Generate colors dynamically based on number of groups
     function generateChartColors(count) {
@@ -437,7 +480,7 @@
         return { colors, borderColors };
     }
     
-    // Initialize chart
+    // Initialize opinion distribution chart
     const ctx = document.getElementById('opinionChart').getContext('2d');
     const chartLabels = {{ chart_labels|tojson }};
     const chartValues = {{ chart_values|tojson }};
@@ -500,7 +543,89 @@
     
     chartInstance = new Chart(ctx, config);
     
-    // Function to update chart with new data
+    // Initialize time series chart
+    const timeseriesCtx = document.getElementById('timeseriesChart').getContext('2d');
+    const initialTimeseriesData = {{ timeseries_data|tojson }};
+    
+    function createTimeseriesDatasets(timeseriesData) {
+        return timeseriesData.agents.map(agent => ({
+            label: `Agent ${agent.agent_id}`,
+            data: agent.data,
+            borderColor: agent.color,
+            backgroundColor: agent.color.replace('0.7', '0.1'),
+            borderWidth: 1.5,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+            tension: 0.3,
+            spanGaps: false
+        }));
+    }
+    
+    const timeseriesConfig = {
+        type: 'line',
+        data: {
+            labels: initialTimeseriesData.timestamps,
+            datasets: createTimeseriesDatasets(initialTimeseriesData)
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'nearest',
+                axis: 'x',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(context) {
+                            const timestamp = context[0].label;
+                            const day = Math.floor(timestamp / 24);
+                            const hour = timestamp % 24;
+                            return `Day ${day}, Hour ${hour}`;
+                        },
+                        label: function(context) {
+                            const agent = initialTimeseriesData.agents[context.datasetIndex];
+                            return `Agent ${agent.agent_id} (${agent.initial_group}): ${context.parsed.y.toFixed(3)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 0,
+                    max: 1,
+                    ticks: {
+                        stepSize: 0.2
+                    },
+                    title: {
+                        display: true,
+                        text: 'Opinion Value'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time (day*24 + hour)'
+                    },
+                    ticks: {
+                        maxTicksLimit: 10
+                    }
+                }
+            }
+        }
+    };
+    
+    timeseriesChartInstance = new Chart(timeseriesCtx, timeseriesConfig);
+    
+    // Function to update charts with new data
     function updateChart(data) {
         console.log('updateChart called with:', data); // Debug log
         
@@ -512,6 +637,14 @@
             console.log('Chart updated'); // Debug log
         } else {
             console.error('chartInstance is null'); // Debug log
+        }
+        
+        // Update time series chart
+        if (timeseriesChartInstance && data.timeseries_data) {
+            timeseriesChartInstance.data.labels = data.timeseries_data.timestamps;
+            timeseriesChartInstance.data.datasets = createTimeseriesDatasets(data.timeseries_data);
+            timeseriesChartInstance.update();
+            console.log('Timeseries chart updated'); // Debug log
         }
         
         // Update statistics
@@ -532,7 +665,7 @@
             document.getElementById('loading-overlay').classList.add('active');
         }, 200);
         
-        let url = `/admin/opinion_evolution_data/${expId}?day=${day}&hour=${hour}`;
+        let url = `/admin/opinion_evolution_data/${expId}?day=${day}&hour=${hour}&sample_percentage=${currentSamplePercentage}`;
         // Only append topic_id if it's not empty string and not null/undefined
         if (topicId && topicId !== '') {
             url += `&topic_id=${topicId}`;
@@ -596,6 +729,27 @@
         // Debounce the API call
         clearTimeout(sliderTimeout);
         sliderTimeout = setTimeout(() => {
+            fetchOpinionData(day, hour, currentTopicId);
+        }, 300);
+    });
+    
+    // Sample percentage slider handler
+    const sampleSlider = document.getElementById('sample-slider');
+    let sampleSliderTimeout = null;
+    
+    sampleSlider.addEventListener('input', function() {
+        const percentage = parseInt(this.value);
+        currentSamplePercentage = percentage;
+        
+        // Update display immediately
+        document.getElementById('sample-percentage-value').textContent = percentage;
+        
+        // Debounce the API call
+        clearTimeout(sampleSliderTimeout);
+        sampleSliderTimeout = setTimeout(() => {
+            const totalHours = parseInt(timeSlider.value);
+            const day = Math.floor(totalHours / 24);
+            const hour = totalHours % 24;
             fetchOpinionData(day, hour, currentTopicId);
         }, 300);
     });

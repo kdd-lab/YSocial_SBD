@@ -6122,6 +6122,164 @@ def delete_opinion_distribution(dist_id):
     return jsonify({"success": True})
 
 
+def generate_agent_timeseries_data(expid, filter_day, filter_hour, filter_topic_id, sample_percentage=50):
+    """
+    Generate agent opinion time series data for visualization.
+    
+    Args:
+        expid: Experiment ID
+        filter_day: Current day filter
+        filter_hour: Current hour filter
+        filter_topic_id: Topic ID filter (None for all topics)
+        sample_percentage: Percentage of agents to sample (10, 25, 50, 75, 100)
+    
+    Returns:
+        dict: Time series data with timestamps, sampled agents, and their opinions
+    """
+    from y_web.models import Agent_Opinion, Rounds
+    from sqlalchemy import and_, or_
+    import random
+    
+    # Find all rounds up to the specified day/hour
+    rounds_up_to_time = db.session.query(
+        Rounds.id, Rounds.day, Rounds.hour
+    ).filter(
+        or_(
+            Rounds.day < filter_day,
+            and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+        )
+    ).order_by(Rounds.day, Rounds.hour).all()
+    
+    if not rounds_up_to_time:
+        return {
+            'timestamps': [],
+            'agents': [],
+            'sample_percentage': sample_percentage
+        }
+    
+    # Create mapping of round_id to (day, hour) for time calculation
+    round_time_map = {r.id: (r.day, r.hour) for r in rounds_up_to_time}
+    round_ids = [r.id for r in rounds_up_to_time]
+    
+    # Query all opinions up to this time
+    base_query = db.session.query(
+        Agent_Opinion.agent_id,
+        Agent_Opinion.topic_id,
+        Agent_Opinion.tid,
+        Agent_Opinion.opinion
+    ).filter(
+        Agent_Opinion.tid.in_(round_ids)
+    )
+    
+    # Apply topic filter if specified
+    if filter_topic_id is not None:
+        base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+    
+    all_opinions = base_query.all()
+    
+    if not all_opinions:
+        return {
+            'timestamps': [],
+            'agents': [],
+            'sample_percentage': sample_percentage
+        }
+    
+    # Organize data by agent
+    # Structure: {agent_id: {timestamp: opinion_value}}
+    agent_data = defaultdict(dict)
+    agent_first_opinion = {}  # Track first observed opinion for each agent
+    
+    for agent_id, topic_id, tid, opinion in all_opinions:
+        if tid in round_time_map:
+            day, hour = round_time_map[tid]
+            timestamp = day * 24 + hour
+            
+            # Store opinion at this timestamp
+            if agent_id not in agent_data:
+                agent_data[agent_id] = {}
+            
+            # Keep only the latest opinion at each timestamp (in case multiple opinions per round)
+            if timestamp not in agent_data[agent_id]:
+                agent_data[agent_id][timestamp] = opinion
+            
+            # Track first observed opinion for color coding
+            if agent_id not in agent_first_opinion:
+                agent_first_opinion[agent_id] = opinion
+    
+    # Sample agents based on percentage
+    all_agent_ids = list(agent_data.keys())
+    num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
+    sampled_agent_ids = random.sample(all_agent_ids, min(num_agents_to_sample, len(all_agent_ids)))
+    
+    # Generate sorted list of all unique timestamps
+    all_timestamps = sorted(set(
+        timestamp 
+        for agent_opinions in agent_data.values() 
+        for timestamp in agent_opinions.keys()
+    ))
+    
+    # Get opinion groups for color coding
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+    
+    # Define color palette matching the opinion distribution chart
+    color_palette = [
+        'rgba(239, 68, 68, 0.7)',   # Red - Strongly against
+        'rgba(251, 146, 60, 0.7)',  # Orange - Against
+        'rgba(250, 204, 21, 0.7)',  # Yellow - Neutral
+        'rgba(74, 222, 128, 0.7)',  # Light Green - In favor
+        'rgba(34, 197, 94, 0.7)',   # Green - Strongly in favor
+    ]
+    
+    # Build agent time series with forward-fill
+    agents_timeseries = []
+    for agent_id in sampled_agent_ids:
+        agent_opinions = agent_data[agent_id]
+        
+        # Forward-fill: replicate last observed value
+        filled_data = []
+        last_opinion = None
+        
+        for timestamp in all_timestamps:
+            if timestamp in agent_opinions:
+                last_opinion = agent_opinions[timestamp]
+            
+            if last_opinion is not None:
+                filled_data.append(last_opinion)
+            else:
+                filled_data.append(None)  # No data yet for this agent
+        
+        # Determine initial opinion group for color coding
+        first_opinion = agent_first_opinion.get(agent_id)
+        initial_group = "Unknown"
+        color = 'rgba(156, 163, 175, 0.7)'  # Default gray
+        
+        if first_opinion is not None:
+            for idx, group in enumerate(opinion_groups):
+                if group.lower_bound <= first_opinion <= group.upper_bound:
+                    initial_group = group.name
+                    # Use color from palette if available
+                    if idx < len(color_palette):
+                        color = color_palette[idx]
+                    else:
+                        # Generate color if not in palette
+                        hue = (idx * 360 / len(opinion_groups))
+                        color = f'hsla({hue}, 70%, 60%, 0.7)'
+                    break
+        
+        agents_timeseries.append({
+            'agent_id': str(agent_id),
+            'data': filled_data,
+            'initial_group': initial_group,
+            'color': color
+        })
+    
+    return {
+        'timestamps': all_timestamps,
+        'agents': agents_timeseries,
+        'sample_percentage': sample_percentage
+    }
+
+
 @experiments.route("/admin/opinion_evolution/<int:expid>")
 @login_required
 def opinion_evolution(expid):
@@ -6264,6 +6422,12 @@ def opinion_evolution(expid):
         chart_labels = [group.name for group in opinion_groups]
         chart_values = [binned_data[group.name] for group in opinion_groups]
         
+        # Generate agent time series data (default 50% sample)
+        sample_percentage = request.args.get("sample_percentage", type=int, default=50)
+        timeseries_data = generate_agent_timeseries_data(
+            expid, filter_day, filter_hour, filter_topic_id, sample_percentage
+        )
+        
     finally:
         # Restore old bind if it existed, otherwise remove the temporary bind
         if old_bind is not None:
@@ -6285,6 +6449,7 @@ def opinion_evolution(expid):
         chart_values=chart_values,
         total_opinions=len(opinion_data),
         social_interactions=social_interactions,
+        timeseries_data=timeseries_data,
     )
 
 
@@ -6413,6 +6578,14 @@ def opinion_evolution_data(expid):
         chart_labels = [group.name for group in opinion_groups]
         chart_values = [binned_data[group.name] for group in opinion_groups]
         
+        # Get sample percentage from request
+        sample_percentage = request.args.get("sample_percentage", type=int, default=50)
+        
+        # Generate agent time series data
+        timeseries_data = generate_agent_timeseries_data(
+            expid, filter_day, filter_hour, filter_topic_id, sample_percentage
+        )
+        
         return jsonify({
             "chart_labels": chart_labels,
             "chart_values": chart_values,
@@ -6420,6 +6593,7 @@ def opinion_evolution_data(expid):
             "social_interactions": social_interactions,
             "filter_day": filter_day,
             "filter_hour": filter_hour,
+            "timeseries_data": timeseries_data,
         })
         
     finally:
