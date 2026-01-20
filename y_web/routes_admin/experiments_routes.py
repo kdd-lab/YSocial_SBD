@@ -6234,19 +6234,10 @@ def opinion_evolution(expid):
                 Agent_Opinion.id_interacted_with != 0
             )
             
-            # Filter out empty and blank strings, and validate UUID format
-            try:
-                interactions_query = interactions_query.filter(
-                    cast(Agent_Opinion.id_interacted_with, String) != '',
-                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0,
-                    # UUID validation: standard UUID format (8-4-4-4-12 hex digits)
-                    cast(Agent_Opinion.id_interacted_with, String).op('~')(
-                        '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                    )
-                )
-            except:
-                # If regex fails, just use the basic filters
-                pass
+            # Filter out empty strings by checking length
+            interactions_query = interactions_query.filter(
+                func.length(cast(Agent_Opinion.id_interacted_with, String)) > 0
+            )
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
@@ -6398,19 +6389,10 @@ def opinion_evolution_data(expid):
                 Agent_Opinion.id_interacted_with != 0
             )
             
-            # Filter out empty and blank strings, and validate UUID format
-            try:
-                interactions_query = interactions_query.filter(
-                    cast(Agent_Opinion.id_interacted_with, String) != '',
-                    func.length(func.trim(cast(Agent_Opinion.id_interacted_with, String))) > 0,
-                    # UUID validation: standard UUID format (8-4-4-4-12 hex digits)
-                    cast(Agent_Opinion.id_interacted_with, String).op('~')(
-                        '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-                    )
-                )
-            except:
-                # If regex fails, just use the basic filters
-                pass
+            # Filter out empty strings by checking length
+            interactions_query = interactions_query.filter(
+                func.length(cast(Agent_Opinion.id_interacted_with, String)) > 0
+            )
             
             # Apply topic filter if specified
             if filter_topic_id is not None:
