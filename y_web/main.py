@@ -902,6 +902,13 @@ def get_thread(exp_id, post_id):
         # Keep as string if it's a UUID
         pass
 
+    # Get experiment user (not admin user)
+    logged_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not logged_user:
+        flash("User not found in experiment", "error")
+        return redirect(url_for("main.index"))
+    exp_user_id = logged_user.id
+
     # thread_id = Post.query.filter_by(id=post_id).first().thread_id
 
     # get all posts with the specified thread id
@@ -975,11 +982,11 @@ def get_thread(exp_id, post_id):
             list(Reactions.query.filter_by(post_id=posts[0].id, type="dislike").all())
         ),
         "is_liked": Reactions.query.filter_by(
-            post_id=posts[0].id, user_id=current_user.id, type="like"
+            post_id=posts[0].id, user_id=exp_user_id, type="like"
         ).first()
         is None,
         "is_disliked": Reactions.query.filter_by(
-            post_id=posts[0].id, user_id=current_user.id, type="dislike"
+            post_id=posts[0].id, user_id=exp_user_id, type="dislike"
         ).first()
         is None,
         "is_shared": len(Post.query.filter_by(shared_from=posts[0].id).all()),
@@ -1036,11 +1043,11 @@ def get_thread(exp_id, post_id):
                 list(Reactions.query.filter_by(post_id=post.id, type="dislike").all())
             ),
             "is_liked": Reactions.query.filter_by(
-                post_id=post.id, user_id=current_user.id, type="like"
+                post_id=post.id, user_id=exp_user_id, type="like"
             ).first()
             is None,
             "is_disliked": Reactions.query.filter_by(
-                post_id=post.id, user_id=current_user.id, type="dislike"
+                post_id=post.id, user_id=exp_user_id, type="dislike"
             ).first()
             is None,
             "is_shared": len(Post.query.filter_by(shared_from=post.id).all()),
@@ -1060,7 +1067,7 @@ def get_thread(exp_id, post_id):
     tree = __expand_tree(post_to_child, post_to_data)
     discussion_tree = tree[root]
     trending_ht = get_trending_hashtags()
-    mentions = get_unanswered_mentions(current_user.id)
+    mentions = get_unanswered_mentions(exp_user_id)
 
     # get user profile pic
     user = User_mgmt.query.filter_by(username=current_user.username).first()
@@ -1088,7 +1095,7 @@ def get_thread(exp_id, post_id):
         "thread.html",
         thread=discussion_tree,
         profile_pic=profile_pic,
-        user_id=current_user.id,
+        user_id=logged_id,
         username=current_user.username,
         logged_username=current_user.username,
         logged_id=logged_id,
