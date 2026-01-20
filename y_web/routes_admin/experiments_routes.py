@@ -6219,17 +6219,27 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
         
         # Bin the opinions at this timestamp
         binned_counts = {group.name: 0 for group in opinion_groups}
-        total_opinions = len(latest_at_time)
         
         for opinion_value in latest_at_time.values():
+            matched = False
             for group in opinion_groups:
                 if group.lower_bound <= opinion_value <= group.upper_bound:
                     binned_counts[group.name] += 1
+                    matched = True
                     break
+            
+            if not matched:
+                # Log warning for unmatched opinion value
+                current_app.logger.warning(
+                    f"Opinion value {opinion_value} does not match any opinion group in experiment {expid}"
+                )
         
-        # Calculate percentages
+        # Calculate percentages using actual binned count (not total opinions)
+        # This ensures percentages sum to 100% even if some opinions don't match groups
+        total_binned = sum(binned_counts.values())
+        
         for group in opinion_groups:
-            percentage = (binned_counts[group.name] / total_opinions * 100) if total_opinions > 0 else 0
+            percentage = (binned_counts[group.name] / total_binned * 100) if total_binned > 0 else 0
             group_trends[group.name].append(percentage)
     
     # Prepare return data
