@@ -191,11 +191,13 @@ def stop_all_exps():
         # Terminate all running client processes
         cleanup_client_processes_from_db()
 
-        # set to 0 all Exps.running
+        # set to 0 all Exps.running and set exp_status to "stopped"
         exps = db.session.query(Exps).all()
         for exp in exps:
             exp.running = 0
             exp.server_pid = None
+            # Set experiment status to stopped for both Standard and HPC experiments
+            exp.exp_status = "stopped"
 
         # set to 0 all Client.status
         clis = db.session.query(Client).all()
@@ -210,7 +212,7 @@ def stop_all_exps():
         db.session.flush()
 
         print(
-            f"Successfully cleared PIDs for {len(exps)} experiments and {len(clis)} clients"
+            f"Successfully cleared PIDs and set status to 'stopped' for {len(exps)} experiments and {len(clis)} clients"
         )
 
     except Exception as e:
@@ -220,11 +222,11 @@ def stop_all_exps():
             db.session.rollback()
 
             # Try again with a fresh query
-            db.session.query(Exps).update({Exps.running: 0, Exps.server_pid: None})
+            db.session.query(Exps).update({Exps.running: 0, Exps.server_pid: None, Exps.exp_status: "stopped"})
             db.session.query(Client).update({Client.status: 0, Client.pid: None})
             db.session.commit()
 
-            print("Successfully cleared PIDs on retry after error")
+            print("Successfully cleared PIDs and set status to 'stopped' on retry after error")
         except Exception as e2:
             print(f"Failed to clear PIDs even on retry: {e2}")
 
