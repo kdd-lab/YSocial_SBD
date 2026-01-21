@@ -6174,10 +6174,10 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     
     current_app.logger.info(f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid}")
     
-    # If no hour==0 rounds exist (e.g., simulation only has other hours),
-    # fall back to selecting one round per day
+    # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
+    # fall back to selecting one round per day (this is expected for HPC experiments)
     if not rounds_up_to_time:
-        current_app.logger.warning(f"No hour==0 rounds found for exp {expid}, using fallback")
+        current_app.logger.info(f"No hour==0 rounds found for exp {expid}, using fallback to first hour per day")
         # Group by day and take the first round from each day
         from sqlalchemy import func
         subquery = (
@@ -6454,9 +6454,9 @@ def generate_agent_timeseries_data(
     current_app.logger.info(f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid} in generate_agent_timeseries_data")
     
     # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
-    # fall back to selecting one round per day
+    # fall back to selecting one round per day (this is expected for HPC experiments)
     if not rounds_up_to_time:
-        current_app.logger.warning(f"No hour==0 rounds, using fallback in generate_agent_timeseries_data for exp {expid}")
+        current_app.logger.info(f"No hour==0 rounds for exp {expid}, using fallback to first hour per day")
         # Group by day and take the first round from each day
         from sqlalchemy import func
         subquery = (
