@@ -68,6 +68,37 @@ clientsr = Blueprint("clientsr", __name__)
 DISTRIBUTION_SCALE_FACTOR = 10.0  # Scale factor for gamma/lognormal distributions
 
 
+def allocate_topics_by_percentage(topics, topic_percentages):
+    """
+    Allocate topics to an agent based on specified interest percentages.
+    
+    Args:
+        topics: List of topic names
+        topic_percentages: Dict mapping topic names to percentage (0-100)
+    
+    Returns:
+        List of topics the agent is interested in
+    """
+    import random
+    
+    agent_topics = []
+    for topic in topics:
+        percentage = topic_percentages.get(topic, 100.0)  # Default to 100% if not specified
+        # Randomly decide if agent is interested based on percentage
+        if random.random() * 100 <= percentage:
+            agent_topics.append(topic)
+    
+    # Ensure at least one topic if any topics have non-zero percentage
+    if not agent_topics and any(topic_percentages.get(t, 100.0) > 0 for t in topics):
+        # Pick one topic probabilistically based on percentages
+        valid_topics = [t for t in topics if topic_percentages.get(t, 100.0) > 0]
+        if valid_topics:
+            weights = [topic_percentages.get(t, 100.0) for t in valid_topics]
+            agent_topics = [random.choices(valid_topics, weights=weights)[0]]
+    
+    return agent_topics if agent_topics else []
+
+
 @clientsr.route("/admin/reset_client/<int:uid>")
 @login_required
 def reset_client(uid):
@@ -287,6 +318,12 @@ def clients(idexp):
     crecsys = Content_Recsys.query.all()
     frecsys = Follow_Recsys.query.all()
 
+    # Get experiment topics
+    topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
+    topics_ids = [t.topic_id for t in topics]
+    topics_objs = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics_list = [{"id": t.id, "name": t.name} for t in topics_objs]
+
     # Check if LLM agents are enabled for this experiment
     llm_agents_enabled = (
         exp.llm_agents_enabled if hasattr(exp, "llm_agents_enabled") else True
@@ -309,6 +346,7 @@ def clients(idexp):
         crecsys=crecsys,
         frecsys=frecsys,
         llm_agents_enabled=llm_agents_enabled,
+        topics=topics_list,
     )
 
 
@@ -565,6 +603,16 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     )
     discussion_topics = [t.name for t in topics_objs]
     topics = discussion_topics  # Use topic names (strings) for JSON serialization
+    
+    # Get topic interest percentages from form
+    topic_percentages = {}
+    for topic_obj in topics_objs:
+        percentage_key = f"topic_interest_{topic_obj.id}"
+        percentage_value = form_data.get(percentage_key, "100")
+        try:
+            topic_percentages[topic_obj.name] = float(percentage_value)
+        except (ValueError, TypeError):
+            topic_percentages[topic_obj.name] = 100.0  # Default to 100% if invalid
 
     # Read server config to get shared values
     if "database_server.db" in exp.db_name:
@@ -737,15 +785,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         custom_prompt = Agent_Profile.query.filter_by(agent_id=agent.id).first()
         custom_prompt = custom_prompt.profile if custom_prompt else None
 
-        # Randomly select interests from topics
-        fake = faker.Faker()
-        interests = list(
-            set(
-                fake.random_elements(
-                    elements=set(topics), length=fake.random_int(min=1, max=5)
-                )
-            )
-        )
+        # Allocate topics based on specified percentages
+        interests = allocate_topics_by_percentage(topics, topic_percentages)
 
         activity_profile_obj = (
             db.session.query(ActivityProfile)
@@ -1292,8 +1333,18 @@ def create_client():
     topics = Exp_Topic.query.filter_by(exp_id=exp_id).all()
     topics_ids = [t.topic_id for t in topics]
     # get the topics names from the Topic_list table
-    topics = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
-    topics = [t.name for t in topics]
+    topics_objs = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics = [t.name for t in topics_objs]
+    
+    # Get topic interest percentages from form
+    topic_percentages = {}
+    for topic_obj in topics_objs:
+        percentage_key = f"topic_interest_{topic_obj.id}"
+        percentage_value = request.form.get(percentage_key, "100")
+        try:
+            topic_percentages[topic_obj.name] = float(percentage_value)
+        except (ValueError, TypeError):
+            topic_percentages[topic_obj.name] = 100.0  # Default to 100% if invalid
 
     # if name already exists, return to the previous page
     if Client.query.filter_by(name=name).first():
@@ -1702,20 +1753,8 @@ def create_client():
         if custom_prompt:
             custom_prompt = custom_prompt.profile
 
-        # randomly select from 1 to 5 topics without replacement and save as interests
-        fake = faker.Faker()
-
-        interests = list(
-            set(
-                fake.random_elements(
-                    elements=set(topics),
-                    length=fake.random_int(
-                        min=1,
-                        max=5,
-                    ),
-                )
-            )
-        )
+        # Allocate topics based on specified percentages
+        interests = allocate_topics_by_percentage(topics, topic_percentages)
 
         ints = [interests, len(interests)]
 
