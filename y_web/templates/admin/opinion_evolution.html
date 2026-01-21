@@ -840,7 +840,10 @@
             // Find the x-coordinate for the current day
             const currentDay = data.filter_day;
             const labels = groupTrendsChartInstance.data.labels;
-            const dayIndex = labels.indexOf(currentDay.toString());
+            
+            // Since labels are simulation days [0, 1, 2, ...], currentDay is the index
+            // Labels are floats but currentDay should match (e.g., day 2 is at index with value 2.0)
+            const dayIndex = labels.findIndex(label => Math.floor(label) === Math.floor(currentDay));
             
             if (dayIndex !== -1) {
                 // Calculate the pixel position for this day
@@ -852,7 +855,9 @@
                 
                 // Redraw the chart to show the new line position
                 groupTrendsChartInstance.update('none');  // Update without animation
-                console.log('Group trends marker updated to day', currentDay); // Debug log
+                console.log('Group trends marker updated to day', currentDay, 'index', dayIndex, 'x', xPixel); // Debug log
+            } else {
+                console.log('Could not find day', currentDay, 'in labels', labels.slice(0, 5), '...'); // Debug log
             }
         }
         
