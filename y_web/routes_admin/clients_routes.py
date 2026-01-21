@@ -71,21 +71,23 @@ DISTRIBUTION_SCALE_FACTOR = 10.0  # Scale factor for gamma/lognormal distributio
 def allocate_topics_by_percentage(topics, topic_percentages):
     """
     Allocate topics to an agent based on specified interest percentages.
-    
+
     Args:
         topics: List of topic names
         topic_percentages: Dict mapping topic names to percentage (0-100)
-    
+
     Returns:
         List of topics the agent is interested in
     """
     agent_topics = []
     for topic in topics:
-        percentage = topic_percentages.get(topic, 100.0)  # Default to 100% if not specified
+        percentage = topic_percentages.get(
+            topic, 100.0
+        )  # Default to 100% if not specified
         # Randomly decide if agent is interested based on percentage
         if random.random() <= percentage / 100.0:
             agent_topics.append(topic)
-    
+
     # Ensure at least one topic if any topics have non-zero percentage
     if not agent_topics and any(topic_percentages.get(t, 100.0) > 0 for t in topics):
         # Pick one topic probabilistically based on percentages
@@ -93,7 +95,7 @@ def allocate_topics_by_percentage(topics, topic_percentages):
         if valid_topics:
             weights = [topic_percentages.get(t, 100.0) for t in valid_topics]
             agent_topics = [random.choices(valid_topics, weights=weights)[0]]
-    
+
     return agent_topics if agent_topics else []
 
 
@@ -319,7 +321,9 @@ def clients(idexp):
     # Get experiment topics
     topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
     topics_ids = [t.topic_id for t in topics]
-    topics_objs = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics_objs = (
+        db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    )
     topics_list = [{"id": t.id, "name": t.name} for t in topics_objs]
 
     # Check if LLM agents are enabled for this experiment
@@ -601,7 +605,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     )
     discussion_topics = [t.name for t in topics_objs]
     topics = discussion_topics  # Use topic names (strings) for JSON serialization
-    
+
     # Get topic interest percentages from form
     topic_percentages = {}
     for topic_obj in topics_objs:
@@ -1331,9 +1335,11 @@ def create_client():
     topics = Exp_Topic.query.filter_by(exp_id=exp_id).all()
     topics_ids = [t.topic_id for t in topics]
     # get the topics names from the Topic_list table
-    topics_objs = db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    topics_objs = (
+        db.session.query(Topic_List).filter(Topic_List.id.in_(topics_ids)).all()
+    )
     topics = [t.name for t in topics_objs]
-    
+
     # Get topic interest percentages from form
     topic_percentages = {}
     for topic_obj in topics_objs:
