@@ -6168,15 +6168,16 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     if not rounds_up_to_time:
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
 
-    # Create list of all timestamps (normalized positions)
+    # Create list of all timestamps (absolute hours from start)
     all_timestamps_absolute = [r.day * 24 + r.hour for r in rounds_up_to_time]
-    normalized_positions = list(range(1, len(all_timestamps_absolute) + 1))
+    # Convert to simulation days for x-axis display
+    simulation_days = [abs_ts / 24.0 for abs_ts in all_timestamps_absolute]
 
     # Create timestamp mapping for tooltip context
     timestamp_mapping = {}
     for idx, r in enumerate(rounds_up_to_time):
-        position = idx + 1
-        timestamp_mapping[position] = {
+        sim_day = (r.day * 24 + r.hour) / 24.0
+        timestamp_mapping[sim_day] = {
             "day": r.day,
             "hour": r.hour,
             "absolute": r.day * 24 + r.hour,
@@ -6198,7 +6199,7 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
 
     if not all_opinions:
         return {
-            "timestamps": normalized_positions,
+            "timestamps": simulation_days,
             "timestamp_mapping": timestamp_mapping,
             "groups": [],
         }
@@ -6257,7 +6258,7 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
         groups_data.append({"name": group.name, "data": group_trends[group.name]})
 
     return {
-        "timestamps": normalized_positions,
+        "timestamps": simulation_days,
         "timestamp_mapping": timestamp_mapping,
         "groups": groups_data,
     }
@@ -6417,7 +6418,7 @@ def generate_agent_timeseries_data(
     topic_id_str = str(filter_topic_id) if filter_topic_id is not None else None
     sampled_agent_ids = get_or_sample_agents(expid, topic_id_str, sample_percentage, all_agent_ids)
 
-    # Generate sorted list of all unique timestamps (day*24+hour)
+    # Generate sorted list of all unique timestamps (day*24+hour = total hours)
     all_timestamps_absolute = sorted(
         set(
             timestamp
@@ -6426,16 +6427,16 @@ def generate_agent_timeseries_data(
         )
     )
 
-    # Create normalized positions: 1, 2, 3, ... for x-axis
+    # Convert to simulation days for x-axis display: day = total_hours / 24
+    simulation_days = [abs_ts / 24.0 for abs_ts in all_timestamps_absolute]
     # Also create mapping for tooltip display
-    normalized_positions = list(range(1, len(all_timestamps_absolute) + 1))
-    timestamp_mapping = {}  # Maps position to (day, hour) for tooltips
+    timestamp_mapping = {}  # Maps simulation day to (day, hour) for tooltips
 
     for idx, abs_ts in enumerate(all_timestamps_absolute):
-        position = idx + 1
+        sim_day = abs_ts / 24.0
         day = abs_ts // 24
         hour = abs_ts % 24
-        timestamp_mapping[position] = {"day": day, "hour": hour, "absolute": abs_ts}
+        timestamp_mapping[sim_day] = {"day": day, "hour": hour, "absolute": abs_ts}
 
     # Get opinion groups for color coding
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6495,8 +6496,8 @@ def generate_agent_timeseries_data(
         )
 
     return {
-        "timestamps": normalized_positions,  # Normalized positions: 1, 2, 3, ...
-        "timestamp_mapping": timestamp_mapping,  # Maps position to actual day/hour
+        "timestamps": simulation_days,  # Simulation days: hours / 24
+        "timestamp_mapping": timestamp_mapping,  # Maps simulation day to actual day/hour
         "agents": agents_timeseries,
         "sample_percentage": sample_percentage,
     }
