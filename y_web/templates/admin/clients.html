@@ -33,7 +33,7 @@
                         <h3 class="title is-5 is-thin">New Client</h3>
                         <div class="box-content">
                             <form action="/admin/create_client" enctype="multipart/form-data"
-                                  method="POST" onsubmit="enableDisabledInputsBeforeSubmit(); showLoading('Creating client...');">
+                                  method="POST" onsubmit="showLoading('Creating client...');">
                                 <div class="box-lines">
                                     <input type="hidden" name="id_exp" value="{{ experiment.idexp }}">
 
@@ -1319,36 +1319,7 @@ let llmModelsFetched = false;
 let llmModelSelected = false;
 
 // Enable disabled inputs before form submission so their values are included
-function enableDisabledInputsBeforeSubmit() {
-    // Re-enable archetype and transition inputs that were disabled
-    const explorerInput = document.getElementById('archetype_explorer');
-    const transValExpl = document.getElementById('trans_val_expl');
-    const transBroadExpl = document.getElementById('trans_broad_expl');
-    const transExplVal = document.getElementById('trans_expl_val');
-    const transExplBroad = document.getElementById('trans_expl_broad');
-    const transExplExpl = document.getElementById('trans_expl_expl');
-    
-    if (explorerInput && explorerInput.disabled) {
-        explorerInput.disabled = false;
-    }
-    if (transValExpl && transValExpl.disabled) {
-        transValExpl.disabled = false;
-    }
-    if (transBroadExpl && transBroadExpl.disabled) {
-        transBroadExpl.disabled = false;
-    }
-    if (transExplVal && transExplVal.disabled) {
-        transExplVal.disabled = false;
-    }
-    if (transExplBroad && transExplBroad.disabled) {
-        transExplBroad.disabled = false;
-    }
-    if (transExplExpl && transExplExpl.disabled) {
-        transExplExpl.disabled = false;
-    }
-    
-    return true; // Allow form submission to proceed
-}
+
 
 // Check if form should be enabled
 function updateFormButtonState() {
@@ -1612,165 +1583,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial state
     updateNetworkInputStates();
     
-    // Handle Explorer archetype based on follow probabilities
-    function updateExplorerArchetype() {
-        const dailyFollow = document.querySelector('input[name="probability_of_daily_follow"]');
-        const secondaryFollow = document.querySelector('input[name="probability_of_secondary_follow"]');
-        const explorerBox = document.getElementById('archetype-explorer-box');
-        const explorerInput = document.getElementById('archetype_explorer');
-        const validatorInput = document.getElementById('archetype_validator');
-        const broadcasterInput = document.getElementById('archetype_broadcaster');
-        
-        // Get transition probability inputs
-        const transValExpl = document.getElementById('trans_val_expl');
-        const transBroadExpl = document.getElementById('trans_broad_expl');
-        const transExplVal = document.getElementById('trans_expl_val');
-        const transExplBroad = document.getElementById('trans_expl_broad');
-        const transExplExpl = document.getElementById('trans_expl_expl');
-        const transValVal = document.getElementById('trans_val_val');
-        const transValBroad = document.getElementById('trans_val_broad');
-        const transBroadVal = document.getElementById('trans_broad_val');
-        const transBroadBroad = document.getElementById('trans_broad_broad');
-        
-        if (!dailyFollow || !secondaryFollow || !explorerBox || !explorerInput) return;
-        
-        const dailyFollowValue = parseFloat(dailyFollow.value) || 0;
-        const secondaryFollowValue = parseFloat(secondaryFollow.value) || 0;
-        
-        // Check if both probabilities are zero
-        if (dailyFollowValue === 0 && secondaryFollowValue === 0) {
-            // Disable Explorer
-            explorerBox.classList.add('disabled');
-            explorerInput.disabled = true;
-            explorerInput.readOnly = true;
-            
-            // Move Explorer's percentage to Validator
-            const explorerValue = parseFloat(explorerInput.value) || 0;
-            if (explorerValue > 0) {
-                const currentValidator = parseFloat(validatorInput.value) || 0;
-                validatorInput.value = (currentValidator + explorerValue).toFixed(1);
-            }
-            explorerInput.value = '0';
-            
-            // Redistribute transition probabilities
-            // Set all Explorer-related transitions to 0
-            transValExpl.value = '0';
-            transValExpl.disabled = true;
-            transValExpl.readOnly = true;
-            
-            transBroadExpl.value = '0';
-            transBroadExpl.disabled = true;
-            transBroadExpl.readOnly = true;
-            
-            transExplVal.value = '0';
-            transExplVal.disabled = true;
-            transExplVal.readOnly = true;
-            
-            transExplBroad.value = '0';
-            transExplBroad.disabled = true;
-            transExplBroad.readOnly = true;
-            
-            transExplExpl.value = '0';
-            transExplExpl.disabled = true;
-            transExplExpl.readOnly = true;
-            
-            // Redistribute Validator->Explorer to Validator->Broadcaster
-            // Original: val->val=85.3, val->broad=8.1, val->expl=6.6
-            // New: redistribute 6.6 proportionally between val->val and val->broad
-            const valToVal = parseFloat(transValVal.value) || 85.3;
-            const valToBroad = parseFloat(transValBroad.value) || 8.1;
-            const valToExpl = 6.6; // redistributing this
-            const total = valToVal + valToBroad;
-            if (total > 0) {
-                transValVal.value = (valToVal + valToExpl * (valToVal / total)).toFixed(1);
-                transValBroad.value = (valToBroad + valToExpl * (valToBroad / total)).toFixed(1);
-            } else {
-                // Fallback: split equally
-                transValVal.value = (valToVal + valToExpl / 2).toFixed(1);
-                transValBroad.value = (valToBroad + valToExpl / 2).toFixed(1);
-            }
-            
-            // Redistribute Broadcaster->Explorer to Broadcaster->Validator
-            // Original: broad->val=19.5, broad->broad=72.9, broad->expl=7.5
-            const broadToVal = parseFloat(transBroadVal.value) || 19.5;
-            const broadToBroad = parseFloat(transBroadBroad.value) || 72.9;
-            const broadToExpl = 7.5; // redistributing this
-            const broadTotal = broadToVal + broadToBroad;
-            if (broadTotal > 0) {
-                transBroadVal.value = (broadToVal + broadToExpl * (broadToVal / broadTotal)).toFixed(1);
-                transBroadBroad.value = (broadToBroad + broadToExpl * (broadToBroad / broadTotal)).toFixed(1);
-            } else {
-                // Fallback: split equally
-                transBroadVal.value = (broadToVal + broadToExpl / 2).toFixed(1);
-                transBroadBroad.value = (broadToBroad + broadToExpl / 2).toFixed(1);
-            }
-            
-        } else {
-            // Enable Explorer
-            explorerBox.classList.remove('disabled');
-            explorerInput.disabled = false;
-            explorerInput.readOnly = false;
-            
-            // Restore default values if currently 0
-            if (parseFloat(explorerInput.value) === 0) {
-                // Restore defaults
-                const currentValidator = parseFloat(validatorInput.value) || 80;
-                const explorerDefault = 28;
-                
-                // If validator was increased to 80 (52+28), restore original values
-                if (currentValidator >= 80) {
-                    validatorInput.value = '52';
-                    explorerInput.value = '28';
-                } else {
-                    explorerInput.value = '28';
-                }
-            }
-            
-            // Re-enable transition probability inputs
-            transValExpl.disabled = false;
-            transValExpl.readOnly = false;
-            transValExpl.value = '6.6';
-            
-            transBroadExpl.disabled = false;
-            transBroadExpl.readOnly = false;
-            transBroadExpl.value = '7.5';
-            
-            transExplVal.disabled = false;
-            transExplVal.readOnly = false;
-            transExplVal.value = '36.4';
-            
-            transExplBroad.disabled = false;
-            transExplBroad.readOnly = false;
-            transExplBroad.value = '14.6';
-            
-            transExplExpl.disabled = false;
-            transExplExpl.readOnly = false;
-            transExplExpl.value = '49.0';
-            
-            // Restore original transition values
-            transValVal.value = '85.3';
-            transValBroad.value = '8.1';
-            transBroadVal.value = '19.5';
-            transBroadBroad.value = '72.9';
-        }
-    }
-    
-    // Set up listeners for probability fields
-    const dailyFollowInput = document.querySelector('input[name="probability_of_daily_follow"]');
-    const secondaryFollowInput = document.querySelector('input[name="probability_of_secondary_follow"]');
-    
-    if (dailyFollowInput) {
-        dailyFollowInput.addEventListener('change', updateExplorerArchetype);
-        dailyFollowInput.addEventListener('input', updateExplorerArchetype);
-    }
-    if (secondaryFollowInput) {
-        secondaryFollowInput.addEventListener('change', updateExplorerArchetype);
-        secondaryFollowInput.addEventListener('input', updateExplorerArchetype);
-    }
-    
-    // Initial check on page load
-    updateExplorerArchetype();
-    
+
     // Handle archetype toggle
     const archetypeToggle = document.getElementById('enable_archetypes');
     const archetypeDetails = document.getElementById('archetype-details');
