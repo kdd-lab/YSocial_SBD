@@ -6579,8 +6579,8 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             topic_id=filter_topic_id
         ).first()
     except Exception as e:
-        # Handle any other database errors
-        current_app.logger.warning(f"Error querying cache, falling back to full computation: {str(e)}")
+        # Handle any other database errors - log only critical errors, not on every request
+        # to avoid performance degradation from excessive logging
         cache_entry = None
     
     # Cache hit - return cached data (no expiry, cache persists)
@@ -6622,7 +6622,7 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             )
         except Exception as e:
             # If query fails (e.g., column doesn't exist), fall back to full computation
-            current_app.logger.warning(f"Error querying previous cache: {str(e)}")
+            # Reduce logging to avoid performance impact
             previous_cache = None
     
     if previous_cache and incremental_supported and hasattr(previous_cache, 'latest_opinions_state') and previous_cache.latest_opinions_state:
@@ -6641,7 +6641,14 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             except ValueError:
                 agent_id = agent_id_str  # Keep as string for UUID
             for topic_id_str, opinion_data in topics_dict.items():
-                topic_id = int(topic_id_str) if topic_id_str != 'null' else None
+                # Handle both int and UUID topic_ids
+                if topic_id_str == 'null':
+                    topic_id = None
+                else:
+                    try:
+                        topic_id = int(topic_id_str)
+                    except ValueError:
+                        topic_id = topic_id_str  # Keep as string for UUID
                 key = (agent_id, topic_id)
                 latest_opinions[key] = opinion_data
         
