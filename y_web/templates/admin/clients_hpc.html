@@ -33,7 +33,7 @@
                         <h3 class="title is-5 is-thin">New HPC Client</h3>
                         <div class="box-content">
                             <form action="/admin/create_client" enctype="multipart/form-data"
-                                  method="POST" onsubmit="showLoading('Creating HPC client...');">
+                                  method="POST" onsubmit="enableDisabledInputsBeforeSubmit(); showLoading('Creating HPC client...');">
                                 <div class="box-lines">
                                     <input type="hidden" name="id_exp" value="{{ experiment.idexp }}">
                                     <input type="hidden" name="is_hpc" value="true">
@@ -1561,6 +1561,38 @@
 // Track if models have been fetched and validated
 let llmModelsFetched = false;
 let llmModelSelected = false;
+
+// Enable disabled inputs before form submission so their values are included
+function enableDisabledInputsBeforeSubmit() {
+    // Re-enable archetype and transition inputs that were disabled
+    const explorerInput = document.getElementById('archetype_explorer');
+    const transValExpl = document.getElementById('trans_val_expl');
+    const transBroadExpl = document.getElementById('trans_broad_expl');
+    const transExplVal = document.getElementById('trans_expl_val');
+    const transExplBroad = document.getElementById('trans_expl_broad');
+    const transExplExpl = document.getElementById('trans_expl_expl');
+    
+    if (explorerInput && explorerInput.disabled) {
+        explorerInput.disabled = false;
+    }
+    if (transValExpl && transValExpl.disabled) {
+        transValExpl.disabled = false;
+    }
+    if (transBroadExpl && transBroadExpl.disabled) {
+        transBroadExpl.disabled = false;
+    }
+    if (transExplVal && transExplVal.disabled) {
+        transExplVal.disabled = false;
+    }
+    if (transExplBroad && transExplBroad.disabled) {
+        transExplBroad.disabled = false;
+    }
+    if (transExplExpl && transExplExpl.disabled) {
+        transExplExpl.disabled = false;
+    }
+    
+    return true; // Allow form submission to proceed
+}
 
 // Check if form should be enabled based on backend selection
 function updateFormButtonStateForBackend(backend) {
