@@ -7122,11 +7122,20 @@ def opinion_evolution_data(expid):
         # Get filter parameters from request
         filter_day = request.args.get("day", type=int, default=1)
         filter_hour = request.args.get("hour", type=int, default=1)
-        filter_topic_id = request.args.get("topic_id", type=int, default=None)
-
-        # Handle empty string as None
-        if filter_topic_id == "" or filter_topic_id == "null":
+        
+        # Get topic_id as string to support both integers and UUIDs (HPC experiments)
+        filter_topic_id_str = request.args.get("topic_id", type=str, default=None)
+        
+        # Handle empty string or 'null' as None
+        if filter_topic_id_str in ("", "null", None):
             filter_topic_id = None
+        else:
+            # Try to convert to int if it's a numeric string (standard experiments)
+            # Otherwise keep as string (UUID for HPC experiments)
+            try:
+                filter_topic_id = int(filter_topic_id_str)
+            except (ValueError, TypeError):
+                filter_topic_id = filter_topic_id_str
 
         # Use caching for statistics computation
         stats = get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id)
