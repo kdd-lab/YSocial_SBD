@@ -6575,11 +6575,26 @@ def opinion_evolution(expid):
                 if len(id_str) > 0 and id_str != "0":
                     social_interactions += 1
 
-        # Count unique agents that have an opinion on the selected topic up to current timestamp
-        # Extract agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
-        unique_agents = len(
-            set(key[0] for key in latest_opinions.keys())
-        )  # key[0] is agent_id
+        # Count unique agents - agents who formed opinions WITHOUT social interaction
+        # (reverse logic of social_interactions: count when id_interacted_with is invalid)
+        unique_agents = 0
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
+            # Count as unique agent when interaction is invalid: null, zero, or empty string
+            if id_interacted_with is None or id_interacted_with == 0:
+                unique_agents += 1
+            else:
+                # Convert to string and check if empty
+                id_str = str(id_interacted_with).strip()
+                if len(id_str) == 0 or id_str == "0":
+                    unique_agents += 1
 
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
