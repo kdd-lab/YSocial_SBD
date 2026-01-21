@@ -6558,18 +6558,28 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         }
     """
     from sqlalchemy import and_, or_
+    from sqlalchemy.orm import defer
     from y_web.models import Agent_Opinion, Rounds
     
+    # Check if incremental caching is supported (column exists)
+    incremental_supported = hasattr(OpinionEvolutionCache, 'latest_opinions_state')
+    
     # Try to get exact cache match
+    # If latest_opinions_state column doesn't exist, defer it from the query
     try:
-        cache_entry = OpinionEvolutionCache.query.filter_by(
+        query = OpinionEvolutionCache.query
+        if not incremental_supported:
+            # Defer the missing column to avoid SELECT errors
+            query = query.options(defer('latest_opinions_state'))
+        
+        cache_entry = query.filter_by(
             exp_id=expid,
             day=filter_day,
             hour=filter_hour,
             topic_id=filter_topic_id
         ).first()
     except Exception as e:
-        # Handle case where latest_opinions_state column doesn't exist yet
+        # Handle any other database errors
         current_app.logger.warning(f"Error querying cache, falling back to full computation: {str(e)}")
         cache_entry = None
     
@@ -6587,9 +6597,6 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     # Cache miss - try incremental computation
     # Find the most recent cached entry before the requested time
     current_time_value = filter_day * 24 + filter_hour
-    
-    # Check if incremental caching is supported (column exists)
-    incremental_supported = hasattr(OpinionEvolutionCache, 'latest_opinions_state')
     
     previous_cache = None
     if incremental_supported:
