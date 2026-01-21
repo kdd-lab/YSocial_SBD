@@ -871,7 +871,7 @@
     // Time slider handler
     const timeSlider = document.getElementById('time-slider');
     let sliderTimeout = null;
-    let currentTopicId = {{ filter_topic_id if filter_topic_id else 'null' }};
+    let currentTopicId = {{ filter_topic_id|tojson if filter_topic_id else 'null' }};
     let isPlaying = false;
     let playInterval = null;
     const maxTimeValue = {{ max_day * 24 + max_hour }};
