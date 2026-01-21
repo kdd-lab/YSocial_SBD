@@ -6561,12 +6561,17 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     from y_web.models import Agent_Opinion, Rounds
     
     # Try to get exact cache match
-    cache_entry = OpinionEvolutionCache.query.filter_by(
-        exp_id=expid,
-        day=filter_day,
-        hour=filter_hour,
-        topic_id=filter_topic_id
-    ).first()
+    try:
+        cache_entry = OpinionEvolutionCache.query.filter_by(
+            exp_id=expid,
+            day=filter_day,
+            hour=filter_hour,
+            topic_id=filter_topic_id
+        ).first()
+    except Exception as e:
+        # Handle case where latest_opinions_state column doesn't exist yet
+        current_app.logger.warning(f"Error querying cache, falling back to full computation: {str(e)}")
+        cache_entry = None
     
     # Cache hit - return cached data (no expiry, cache persists)
     if cache_entry:
@@ -6583,27 +6588,37 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     # Find the most recent cached entry before the requested time
     current_time_value = filter_day * 24 + filter_hour
     
-    previous_cache = (
-        OpinionEvolutionCache.query
-        .filter(
-            OpinionEvolutionCache.exp_id == expid,
-            OpinionEvolutionCache.topic_id == filter_topic_id,
-            or_(
-                OpinionEvolutionCache.day < filter_day,
-                and_(
-                    OpinionEvolutionCache.day == filter_day,
-                    OpinionEvolutionCache.hour < filter_hour
-                )
-            )
-        )
-        .order_by(
-            OpinionEvolutionCache.day.desc(),
-            OpinionEvolutionCache.hour.desc()
-        )
-        .first()
-    )
+    # Check if incremental caching is supported (column exists)
+    incremental_supported = hasattr(OpinionEvolutionCache, 'latest_opinions_state')
     
-    if previous_cache and previous_cache.latest_opinions_state:
+    previous_cache = None
+    if incremental_supported:
+        try:
+            previous_cache = (
+                OpinionEvolutionCache.query
+                .filter(
+                    OpinionEvolutionCache.exp_id == expid,
+                    OpinionEvolutionCache.topic_id == filter_topic_id,
+                    or_(
+                        OpinionEvolutionCache.day < filter_day,
+                        and_(
+                            OpinionEvolutionCache.day == filter_day,
+                            OpinionEvolutionCache.hour < filter_hour
+                        )
+                    )
+                )
+                .order_by(
+                    OpinionEvolutionCache.day.desc(),
+                    OpinionEvolutionCache.hour.desc()
+                )
+                .first()
+            )
+        except Exception as e:
+            # If query fails (e.g., column doesn't exist), fall back to full computation
+            current_app.logger.warning(f"Error querying previous cache: {str(e)}")
+            previous_cache = None
+    
+    if previous_cache and incremental_supported and hasattr(previous_cache, 'latest_opinions_state') and previous_cache.latest_opinions_state:
         # Incremental computation from previous cache
         prev_day = previous_cache.day
         prev_hour = previous_cache.hour
@@ -6788,35 +6803,42 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     }
     
     # Prepare latest_opinions state for storage (for next incremental update)
-    # Convert to JSON-serializable format
-    latest_opinions_for_storage = {}
-    for (agent_id, topic_id), data in latest_opinions.items():
-        agent_key = str(agent_id)
-        topic_key = str(topic_id) if topic_id is not None else 'null'
-        
-        if agent_key not in latest_opinions_for_storage:
-            latest_opinions_for_storage[agent_key] = {}
-        
-        latest_opinions_for_storage[agent_key][topic_key] = {
-            "opinion": data["opinion"],
-            "day": data["day"],
-            "hour": data["hour"],
-        }
+    # Only store if incremental caching is supported
+    latest_opinions_for_storage = None
+    if incremental_supported:
+        latest_opinions_for_storage = {}
+        for (agent_id, topic_id), data in latest_opinions.items():
+            agent_key = str(agent_id)
+            topic_key = str(topic_id) if topic_id is not None else 'null'
+            
+            if agent_key not in latest_opinions_for_storage:
+                latest_opinions_for_storage[agent_key] = {}
+            
+            latest_opinions_for_storage[agent_key][topic_key] = {
+                "opinion": data["opinion"],
+                "day": data["day"],
+                "hour": data["hour"],
+            }
     
     # Store in cache (no expiry - cache persists indefinitely)
     try:
         # Create new cache entry
-        cache_entry = OpinionEvolutionCache(
-            exp_id=expid,
-            day=filter_day,
-            hour=filter_hour,
-            topic_id=filter_topic_id,
-            total_opinions=result['total_opinions'],
-            social_interactions=result['social_interactions'],
-            unique_agents=result['unique_agents'],
-            binned_data=json.dumps(result['binned_data']),
-            latest_opinions_state=json.dumps(latest_opinions_for_storage),
-        )
+        cache_data = {
+            'exp_id': expid,
+            'day': filter_day,
+            'hour': filter_hour,
+            'topic_id': filter_topic_id,
+            'total_opinions': result['total_opinions'],
+            'social_interactions': result['social_interactions'],
+            'unique_agents': result['unique_agents'],
+            'binned_data': json.dumps(result['binned_data']),
+        }
+        
+        # Add latest_opinions_state only if column exists
+        if incremental_supported and latest_opinions_for_storage is not None:
+            cache_data['latest_opinions_state'] = json.dumps(latest_opinions_for_storage)
+        
+        cache_entry = OpinionEvolutionCache(**cache_data)
         db.session.add(cache_entry)
         db.session.commit()
     except Exception as e:
