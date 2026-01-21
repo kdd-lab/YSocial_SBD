@@ -6158,8 +6158,9 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     all_rounds_check = db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
     
     if not all_rounds_check:
+        current_app.logger.warning(f"No rounds found for exp {expid} up to day {filter_day}")
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
-    
+     
     # Get rounds at day boundaries (hour==0) for x-axis display points
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
@@ -6171,9 +6172,12 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
         .all()
     )
     
+    current_app.logger.info(f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid}")
+    
     # If no hour==0 rounds exist (e.g., simulation only has other hours),
     # fall back to selecting one round per day
     if not rounds_up_to_time:
+        current_app.logger.warning(f"No hour==0 rounds found for exp {expid}, using fallback")
         # Group by day and take the first round from each day
         from sqlalchemy import func
         subquery = (
@@ -6198,8 +6202,10 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
             .order_by(Rounds.day, Rounds.hour)
             .all()
         )
+        current_app.logger.info(f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}")
     
     if not rounds_up_to_time:
+        current_app.logger.error(f"No rounds found at all for exp {expid} - returning empty data")
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
 
     # Create list of timestamps (simulation days, since hour==0)
@@ -6431,6 +6437,7 @@ def generate_agent_timeseries_data(
     all_rounds_check = db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
     
     if not all_rounds_check:
+        current_app.logger.warning(f"No rounds found for exp {expid} in generate_agent_timeseries_data")
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
     
     # Get rounds at day boundaries (hour==0) for x-axis display points
@@ -6444,9 +6451,12 @@ def generate_agent_timeseries_data(
         .all()
     )
     
+    current_app.logger.info(f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid} in generate_agent_timeseries_data")
+    
     # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
     # fall back to selecting one round per day
     if not rounds_up_to_time:
+        current_app.logger.warning(f"No hour==0 rounds, using fallback in generate_agent_timeseries_data for exp {expid}")
         # Group by day and take the first round from each day
         from sqlalchemy import func
         subquery = (
@@ -6471,8 +6481,10 @@ def generate_agent_timeseries_data(
             .order_by(Rounds.day, Rounds.hour)
             .all()
         )
+        current_app.logger.info(f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}")
     
     if not rounds_up_to_time:
+        current_app.logger.error(f"No rounds found at all in generate_agent_timeseries_data for exp {expid}")
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
 
     # Create mapping of round_id to day (since hour is always 0)
