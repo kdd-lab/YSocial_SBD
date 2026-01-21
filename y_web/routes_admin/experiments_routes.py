@@ -6776,23 +6776,7 @@ def opinion_evolution_data(expid):
         opinion_data = [data["opinion"] for data in latest_opinions.values()]
 
         # Count social interactions from ALL opinions up to this time (not just latest)
-        # This gives cumulative count of all interactions that happened up to selected time
-        social_interactions = 0
-        for (
-            agent_id,
-            topic_id,
-            tid,
-            opinion,
-            id_interacted_with,
-            day,
-            hour,
-        ) in all_opinions:
-            # Check if interaction is valid: not null, not zero, and if string, not empty
-            if id_interacted_with is not None and id_interacted_with != 0:
-                # Convert to string and check if non-empty
-                id_str = str(id_interacted_with).strip()
-                if len(id_str) > 0 and id_str != "0":
-                    social_interactions += 1
+        social_interactions = count_social_interactions(all_opinions)
 
         # Count unique agents that have an opinion on the selected topic up to current timestamp
         # Extract unique agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
