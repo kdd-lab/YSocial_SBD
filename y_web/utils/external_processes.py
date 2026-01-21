@@ -222,11 +222,15 @@ def stop_all_exps():
             db.session.rollback()
 
             # Try again with a fresh query
-            db.session.query(Exps).update({Exps.running: 0, Exps.server_pid: None, Exps.exp_status: "stopped"})
+            db.session.query(Exps).update(
+                {Exps.running: 0, Exps.server_pid: None, Exps.exp_status: "stopped"}
+            )
             db.session.query(Client).update({Client.status: 0, Client.pid: None})
             db.session.commit()
 
-            print("Successfully cleared PIDs and set status to 'stopped' on retry after error")
+            print(
+                "Successfully cleared PIDs and set status to 'stopped' on retry after error"
+            )
         except Exception as e2:
             print(f"Failed to clear PIDs even on retry: {e2}")
 
