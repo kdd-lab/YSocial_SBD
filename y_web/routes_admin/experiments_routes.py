@@ -7159,7 +7159,9 @@ def opinion_evolution_data(expid):
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
         
         # Check if we should skip generating group trends data (for performance during animation)
-        skip_trends = request.args.get("skip_trends", type=bool, default=False)
+        # Parse as string since type=bool doesn't work correctly in Flask (bool("false") == True)
+        skip_trends_str = request.args.get("skip_trends", type=str, default="false")
+        skip_trends = skip_trends_str.lower() in ("true", "1", "yes")
 
         # Generate group trends data (opinion group volumes over time) - unless skipped
         if not skip_trends:
