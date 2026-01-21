@@ -9,6 +9,7 @@ assignment, and experiment lifecycle control.
 import json
 import os
 import pathlib
+import random
 import re
 import shutil
 import socket
@@ -57,6 +58,7 @@ from y_web.models import (
     Ollama_Pull,
     OpinionDistribution,
     OpinionEvolutionCache,
+    OpinionEvolutionSampledAgents,
     OpinionGroup,
     Page,
     Page_Population,
@@ -6261,6 +6263,68 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     }
 
 
+def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
+    """
+    Get or create a stable sample of agents for visualization.
+    
+    This function ensures that the same set of agents is used across all
+    animation frames for stability and performance.
+    
+    Args:
+        expid: Experiment ID
+        topic_id: Topic ID (None for all topics)
+        sample_percentage: Percentage of agents to sample
+        all_agent_ids: List of all available agent IDs
+    
+    Returns:
+        List of sampled agent IDs
+    """
+    import random
+    from datetime import timedelta
+    
+    # Try to get existing sample
+    sample_entry = OpinionEvolutionSampledAgents.query.filter_by(
+        exp_id=expid,
+        topic_id=topic_id,
+        sample_percentage=sample_percentage
+    ).first()
+    
+    # If sample exists and is recent (< 1 hour), use it
+    if sample_entry and (datetime.now() - sample_entry.created_at) < timedelta(hours=1):
+        return json.loads(sample_entry.sampled_agent_ids)
+    
+    # Sample agents deterministically using experiment ID as seed for reproducibility
+    # This ensures the same sample is generated if we need to recreate it
+    random.seed(expid * 1000 + (topic_id or 0) * 10 + sample_percentage)
+    num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
+    sampled_agent_ids = random.sample(
+        all_agent_ids, min(num_agents_to_sample, len(all_agent_ids))
+    )
+    
+    # Store in database
+    if sample_entry:
+        # Update existing entry
+        sample_entry.sampled_agent_ids = json.dumps(sampled_agent_ids)
+        sample_entry.created_at = datetime.now()
+    else:
+        # Create new entry
+        sample_entry = OpinionEvolutionSampledAgents(
+            exp_id=expid,
+            topic_id=topic_id,
+            sample_percentage=sample_percentage,
+            sampled_agent_ids=json.dumps(sampled_agent_ids),
+        )
+        db.session.add(sample_entry)
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error storing sampled agents: {str(e)}")
+    
+    return sampled_agent_ids
+
+
 def generate_agent_timeseries_data(
     expid, filter_day, filter_hour, filter_topic_id, sample_percentage=50
 ):
@@ -6277,8 +6341,6 @@ def generate_agent_timeseries_data(
     Returns:
         dict: Time series data with timestamps, sampled agents, and their opinions
     """
-    import random
-
     from sqlalchemy import and_, or_
 
     from y_web.models import Agent_Opinion, Rounds
@@ -6342,12 +6404,9 @@ def generate_agent_timeseries_data(
             if agent_id not in agent_first_opinion:
                 agent_first_opinion[agent_id] = opinion
 
-    # Sample agents based on percentage
+    # Sample agents based on percentage - use stable sampling
     all_agent_ids = list(agent_data.keys())
-    num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
-    sampled_agent_ids = random.sample(
-        all_agent_ids, min(num_agents_to_sample, len(all_agent_ids))
-    )
+    sampled_agent_ids = get_or_sample_agents(expid, filter_topic_id, sample_percentage, all_agent_ids)
 
     # Generate sorted list of all unique timestamps (day*24+hour)
     all_timestamps_absolute = sorted(

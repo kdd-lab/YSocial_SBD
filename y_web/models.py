@@ -1198,3 +1198,31 @@ class OpinionEvolutionCache(db.Model):
     __table_args__ = (
         db.Index('idx_cache_lookup', 'exp_id', 'day', 'hour', 'topic_id'),
     )
+
+
+class OpinionEvolutionSampledAgents(db.Model):
+    """
+    Stores sampled agent IDs for opinion evolution visualization.
+    
+    To maintain stable and efficient visualizations, agents are sampled once
+    per (experiment, topic, sample_percentage) combination and reused across
+    all animation frames, rather than re-sampling on each frame.
+    """
+    
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_evolution_sampled_agents"
+    id = db.Column(db.Integer, primary_key=True)
+    exp_id = db.Column(db.Integer, db.ForeignKey("exps.idexp"), nullable=False, index=True)
+    topic_id = db.Column(db.Integer, nullable=True, index=True)  # NULL for all topics
+    sample_percentage = db.Column(db.Integer, nullable=False, index=True)
+    
+    # JSON array of sampled agent IDs
+    sampled_agent_ids = db.Column(db.Text, nullable=False)
+    
+    # Timestamp for cache invalidation
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+    
+    # Composite unique index to ensure one sample set per combination
+    __table_args__ = (
+        db.Index('idx_sampled_agents_lookup', 'exp_id', 'topic_id', 'sample_percentage'),
+    )
