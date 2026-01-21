@@ -55,6 +55,7 @@ from y_web.models import (
     Nationalities,
     Ollama_Pull,
     OpinionDistribution,
+    OpinionEvolutionCache,
     OpinionGroup,
     Page,
     Page_Population,
@@ -6462,6 +6463,162 @@ def count_social_interactions(all_opinions):
     return social_interactions
 
 
+def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id):
+    """
+    Get opinion statistics from cache or compute and cache them.
+    
+    This function implements a caching layer to avoid re-querying and re-processing
+    opinion data for animation frames that have been previously computed.
+    
+    Args:
+        expid: Experiment ID
+        filter_day: Day filter
+        filter_hour: Hour filter
+        filter_topic_id: Topic filter (None for all topics)
+    
+    Returns:
+        Dict with statistics: {
+            'total_opinions': int,
+            'social_interactions': int,
+            'unique_agents': int,
+            'binned_data': dict
+        }
+    """
+    import json
+    from datetime import datetime, timedelta
+    
+    # Try to get from cache
+    cache_entry = OpinionEvolutionCache.query.filter_by(
+        exp_id=expid,
+        day=filter_day,
+        hour=filter_hour,
+        topic_id=filter_topic_id
+    ).first()
+    
+    # Cache hit - return cached data if less than 5 minutes old
+    if cache_entry and (datetime.now() - cache_entry.created_at) < timedelta(minutes=5):
+        return {
+            'total_opinions': cache_entry.total_opinions,
+            'social_interactions': cache_entry.social_interactions,
+            'unique_agents': cache_entry.unique_agents,
+            'binned_data': json.loads(cache_entry.binned_data)
+        }
+    
+    # Cache miss or stale - compute statistics
+    from sqlalchemy import and_, or_
+    from y_web.models import Agent_Opinion, Rounds
+    
+    # Find all rounds up to the specified day/hour
+    rounds_up_to_time = (
+        db.session.query(Rounds.id)
+        .filter(
+            or_(
+                Rounds.day < filter_day,
+                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+            )
+        )
+        .subquery()
+    )
+    
+    # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
+    base_query = (
+        db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Agent_Opinion.id_interacted_with,
+            Rounds.day,
+            Rounds.hour,
+        )
+        .join(Rounds, Agent_Opinion.tid == Rounds.id)
+        .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+    )
+    
+    # Apply topic filter if specified
+    if filter_topic_id is not None:
+        base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+    
+    # Get all opinions up to the selected time
+    all_opinions = base_query.all()
+    
+    # Keep only the latest opinion per (agent_id, topic_id) pair
+    latest_opinions = {}
+    for (
+        agent_id,
+        topic_id,
+        tid,
+        opinion,
+        id_interacted_with,
+        day,
+        hour,
+    ) in all_opinions:
+        key = (agent_id, topic_id)
+        if key not in latest_opinions or (day, hour) > (
+            latest_opinions[key]["day"],
+            latest_opinions[key]["hour"],
+        ):
+            latest_opinions[key] = {
+                "tid": tid,
+                "opinion": opinion,
+                "id_interacted_with": id_interacted_with,
+                "day": day,
+                "hour": hour,
+            }
+    
+    # Extract opinion values for binning
+    opinion_data = [data["opinion"] for data in latest_opinions.values()]
+    
+    # Count social interactions and unique agents
+    social_interactions = count_social_interactions(all_opinions)
+    unique_agents = len(set(key[0] for key in latest_opinions.keys()))
+    
+    # Get opinion groups and bin the data
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+    binned_data = {group.name: 0 for group in opinion_groups}
+    
+    for opinion_value in opinion_data:
+        for group in opinion_groups:
+            if group.lower_bound <= opinion_value <= group.upper_bound:
+                binned_data[group.name] += 1
+                break
+    
+    # Store in cache
+    if cache_entry:
+        # Update existing cache entry
+        cache_entry.total_opinions = len(opinion_data)
+        cache_entry.social_interactions = social_interactions
+        cache_entry.unique_agents = unique_agents
+        cache_entry.binned_data = json.dumps(binned_data)
+        cache_entry.created_at = datetime.now()
+    else:
+        # Create new cache entry
+        cache_entry = OpinionEvolutionCache(
+            exp_id=expid,
+            day=filter_day,
+            hour=filter_hour,
+            topic_id=filter_topic_id,
+            total_opinions=len(opinion_data),
+            social_interactions=social_interactions,
+            unique_agents=unique_agents,
+            binned_data=json.dumps(binned_data),
+        )
+        db.session.add(cache_entry)
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error caching opinion stats: {str(e)}")
+    
+    return {
+        'total_opinions': len(opinion_data),
+        'social_interactions': social_interactions,
+        'unique_agents': unique_agents,
+        'binned_data': binned_data
+    }
+
+
 @experiments.route("/admin/opinion_evolution/<int:expid>")
 @login_required
 def opinion_evolution(expid):
@@ -6712,94 +6869,15 @@ def opinion_evolution_data(expid):
         if filter_topic_id == "" or filter_topic_id == "null":
             filter_topic_id = None
 
-        # Find all rounds up to the specified day/hour
-        # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
-        rounds_up_to_time = (
-            db.session.query(Rounds.id)
-            .filter(
-                or_(
-                    Rounds.day < filter_day,
-                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
-                )
-            )
-            .subquery()
-        )
-
-        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
-        base_query = (
-            db.session.query(
-                Agent_Opinion.agent_id,
-                Agent_Opinion.topic_id,
-                Agent_Opinion.tid,
-                Agent_Opinion.opinion,
-                Agent_Opinion.id_interacted_with,
-                Rounds.day,
-                Rounds.hour,
-            )
-            .join(Rounds, Agent_Opinion.tid == Rounds.id)
-            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
-        )
-
-        # Apply topic filter if specified
-        if filter_topic_id is not None:
-            base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-
-        # Get all opinions up to the selected time
-        all_opinions = base_query.all()
-
-        # Keep only the latest opinion per (agent_id, topic_id) pair
-        # Latest means highest (day, hour) combination
-        latest_opinions = {}
-        for (
-            agent_id,
-            topic_id,
-            tid,
-            opinion,
-            id_interacted_with,
-            day,
-            hour,
-        ) in all_opinions:
-            key = (agent_id, topic_id)
-            if key not in latest_opinions or (day, hour) > (
-                latest_opinions[key]["day"],
-                latest_opinions[key]["hour"],
-            ):
-                latest_opinions[key] = {
-                    "tid": tid,
-                    "opinion": opinion,
-                    "id_interacted_with": id_interacted_with,
-                    "day": day,
-                    "hour": hour,
-                }
-
-        # Extract opinion values for binning
-        opinion_data = [data["opinion"] for data in latest_opinions.values()]
-
-        # Count social interactions from ALL opinions up to this time (not just latest)
-        social_interactions = count_social_interactions(all_opinions)
-
-        # Count unique agents that have an opinion on the selected topic up to current timestamp
-        # Extract unique agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
-        unique_agents = len(
-            set(key[0] for key in latest_opinions.keys())
-        )  # key[0] is agent_id
+        # Use caching for statistics computation
+        stats = get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id)
 
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
 
-        # Bin the opinions according to opinion_groups
-        binned_data = {group.name: 0 for group in opinion_groups}
-
-        for opinion_value in opinion_data:
-            # Find which bin this opinion belongs to
-            for group in opinion_groups:
-                if group.lower_bound <= opinion_value <= group.upper_bound:
-                    binned_data[group.name] += 1
-                    break
-
         # Prepare data for chart
         chart_labels = [group.name for group in opinion_groups]
-        chart_values = [binned_data[group.name] for group in opinion_groups]
+        chart_values = [stats['binned_data'].get(group.name, 0) for group in opinion_groups]
 
         # Get sample percentage from request
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
@@ -6818,9 +6896,9 @@ def opinion_evolution_data(expid):
             {
                 "chart_labels": chart_labels,
                 "chart_values": chart_values,
-                "total_opinions": len(opinion_data),
-                "social_interactions": social_interactions,
-                "unique_agents": unique_agents,
+                "total_opinions": stats['total_opinions'],
+                "social_interactions": stats['social_interactions'],
+                "unique_agents": stats['unique_agents'],
                 "filter_day": filter_day,
                 "filter_hour": filter_hour,
                 "group_trends_data": group_trends_data,
