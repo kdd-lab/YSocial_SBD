@@ -15,6 +15,7 @@ import socket
 import time
 import uuid
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 from flask import (
     Blueprint,
@@ -91,6 +92,9 @@ from y_web.utils.miscellanea import (
 from y_web.utils.path_utils import get_resource_path
 
 experiments = Blueprint("experiments", __name__)
+
+# Configuration constants
+OPINION_CACHE_EXPIRY_MINUTES = 5  # Cache expiry time for opinion evolution statistics
 
 
 def get_experiment_uid_from_db_name(db_name):
@@ -6484,8 +6488,8 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             'binned_data': dict
         }
     """
-    import json
-    from datetime import datetime, timedelta
+    from sqlalchemy import and_, or_
+    from y_web.models import Agent_Opinion, Rounds
     
     # Try to get from cache
     cache_entry = OpinionEvolutionCache.query.filter_by(
@@ -6495,8 +6499,8 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         topic_id=filter_topic_id
     ).first()
     
-    # Cache hit - return cached data if less than 5 minutes old
-    if cache_entry and (datetime.now() - cache_entry.created_at) < timedelta(minutes=5):
+    # Cache hit - return cached data if fresh enough
+    if cache_entry and (datetime.now() - cache_entry.created_at) < timedelta(minutes=OPINION_CACHE_EXPIRY_MINUTES):
         return {
             'total_opinions': cache_entry.total_opinions,
             'social_interactions': cache_entry.social_interactions,
@@ -6505,9 +6509,6 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         }
     
     # Cache miss or stale - compute statistics
-    from sqlalchemy import and_, or_
-    from y_web.models import Agent_Opinion, Rounds
-    
     # Find all rounds up to the specified day/hour
     rounds_up_to_time = (
         db.session.query(Rounds.id)
