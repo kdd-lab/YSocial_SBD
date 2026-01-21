@@ -612,6 +612,29 @@
         }));
     }
     
+    // Custom plugin for vertical line marker
+    const verticalLinePlugin = {
+        id: 'verticalLineMarker',
+        afterDraw: (chart) => {
+            if (chart.config.options.plugins.verticalLine && chart.config.options.plugins.verticalLine.x !== undefined) {
+                const ctx = chart.ctx;
+                const x = chart.config.options.plugins.verticalLine.x;
+                const yScale = chart.scales.y;
+                
+                // Draw vertical line
+                ctx.save();
+                ctx.beginPath();
+                ctx.strokeStyle = chart.config.options.plugins.verticalLine.color || 'rgba(255, 0, 0, 0.8)';
+                ctx.lineWidth = chart.config.options.plugins.verticalLine.width || 2;
+                ctx.setLineDash([5, 5]);
+                ctx.moveTo(x, yScale.top);
+                ctx.lineTo(x, yScale.bottom);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+    };
+    
     const groupTrendsConfig = {
         type: 'line',
         data: {
@@ -629,6 +652,11 @@
                 intersect: false
             },
             plugins: {
+                verticalLine: {
+                    x: null,  // Will be set dynamically
+                    color: 'rgba(255, 99, 71, 0.9)',
+                    width: 3
+                },
                 legend: {
                     display: true,
                     position: 'bottom',
@@ -689,7 +717,8 @@
                     }
                 }
             }
-        }
+        },
+        plugins: [verticalLinePlugin]
     };
     
     groupTrendsChartInstance = new Chart(groupTrendsCtx, groupTrendsConfig);
@@ -806,16 +835,25 @@
             console.error('chartInstance is null'); // Debug log
         }
         
-        // Update group trends chart
-        if (groupTrendsChartInstance && data.group_trends_data) {
-            // Store the new group trends data for reference
-            currentGroupTrendsData = data.group_trends_data;
+        // Update group trends chart - only move the vertical marker (chart data loaded once at page load)
+        if (groupTrendsChartInstance) {
+            // Find the x-coordinate for the current day
+            const currentDay = data.filter_day;
+            const labels = groupTrendsChartInstance.data.labels;
+            const dayIndex = labels.indexOf(currentDay.toString());
             
-            groupTrendsChartInstance.data.labels = data.group_trends_data.timestamps;
-            groupTrendsChartInstance.data.datasets = createGroupTrendsDatasets(data.group_trends_data);
-            
-            groupTrendsChartInstance.update('none');  // Update without animation
-            console.log('Group trends chart updated'); // Debug log
+            if (dayIndex !== -1) {
+                // Calculate the pixel position for this day
+                const xScale = groupTrendsChartInstance.scales.x;
+                const xPixel = xScale.getPixelForValue(dayIndex);
+                
+                // Update the vertical line position
+                groupTrendsChartInstance.options.plugins.verticalLine.x = xPixel;
+                
+                // Redraw the chart to show the new line position
+                groupTrendsChartInstance.update('none');  // Update without animation
+                console.log('Group trends marker updated to day', currentDay); // Debug log
+            }
         }
         
         // Update time series chart
@@ -841,7 +879,7 @@
     // Function to fetch updated data
     let loadingTimeout = null;
     
-    function fetchOpinionData(day, hour, topicId) {
+    function fetchOpinionData(day, hour, topicId, skipTrends = true) {
         // Only show loading overlay if request takes longer than 200ms
         loadingTimeout = setTimeout(() => {
             document.getElementById('loading-overlay').classList.add('active');
@@ -851,6 +889,10 @@
         // Only append topic_id if it's not empty string and not null/undefined
         if (topicId && topicId !== '') {
             url += `&topic_id=${topicId}`;
+        }
+        // Skip trends data during animation for better performance
+        if (skipTrends) {
+            url += `&skip_trends=true`;
         }
         
         console.log('Fetching data:', url); // Debug log
@@ -1024,12 +1066,12 @@
             // Get topic ID
             currentTopicId = this.dataset.topicId;
             
-            // Fetch data with new topic filter
+            // Fetch data with new topic filter (reload trends chart for new topic)
             const totalHours = parseInt(timeSlider.value);
             const day = Math.floor(totalHours / 24);
             const hour = totalHours % 24;
             
-            fetchOpinionData(day, hour, currentTopicId);
+            fetchOpinionData(day, hour, currentTopicId, false);  // false = reload trends chart
         });
     });
     

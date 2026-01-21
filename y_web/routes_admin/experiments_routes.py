@@ -7100,11 +7100,17 @@ def opinion_evolution_data(expid):
 
         # Get sample percentage from request
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
+        
+        # Check if we should skip generating group trends data (for performance during animation)
+        skip_trends = request.args.get("skip_trends", type=bool, default=False)
 
-        # Generate group trends data (opinion group volumes over time)
-        group_trends_data = generate_group_trends_data(
-            expid, filter_day, filter_hour, filter_topic_id
-        )
+        # Generate group trends data (opinion group volumes over time) - unless skipped
+        if not skip_trends:
+            group_trends_data = generate_group_trends_data(
+                expid, filter_day, filter_hour, filter_topic_id
+            )
+        else:
+            group_trends_data = None
 
         # Generate agent time series data
         timeseries_data = generate_agent_timeseries_data(
