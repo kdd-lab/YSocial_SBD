@@ -6150,9 +6150,6 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     )
 
     if not all_rounds_check:
-        current_app.logger.warning(
-            f"No rounds found for exp {expid} up to day {filter_day}"
-        )
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
 
     # Get rounds at day boundaries (hour==0) for x-axis display points
@@ -6166,16 +6163,9 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
         .all()
     )
 
-    current_app.logger.info(
-        f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid}"
-    )
-
     # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
     # fall back to selecting one round per day (this is expected for HPC experiments)
     if not rounds_up_to_time:
-        current_app.logger.info(
-            f"No hour==0 rounds found for exp {expid}, using fallback to first hour per day"
-        )
         # Group by day and take the first round from each day
         from sqlalchemy import func
 
