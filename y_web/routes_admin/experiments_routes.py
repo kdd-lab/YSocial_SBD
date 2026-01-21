@@ -6152,18 +6152,53 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     # Get opinion groups from dashboard database for binning
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
 
-    # Find all rounds up to the specified day/hour
-    # Filter to only include hour==0 (day boundaries) for cleaner x-axis
+    # Find all rounds up to the specified day/hour for x-axis display
+    # We'll filter to hour==0 (day boundaries) for cleaner x-axis labels
+    # But first check if ANY rounds exist
+    all_rounds_check = db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
+    
+    if not all_rounds_check:
+        return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
+    
+    # Get rounds at day boundaries (hour==0) for x-axis display points
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
         .filter(
-            Rounds.hour == 0,  # Only day boundaries
+            Rounds.hour == 0,  # Only day boundaries for display
             Rounds.day <= filter_day,  # Up to current day
         )
         .order_by(Rounds.day, Rounds.hour)
         .all()
     )
-
+    
+    # If no hour==0 rounds exist (e.g., simulation only has other hours),
+    # fall back to selecting one round per day
+    if not rounds_up_to_time:
+        # Group by day and take the first round from each day
+        from sqlalchemy import func
+        subquery = (
+            db.session.query(
+                Rounds.day,
+                func.min(Rounds.hour).label('min_hour')
+            )
+            .filter(Rounds.day <= filter_day)
+            .group_by(Rounds.day)
+            .subquery()
+        )
+        
+        rounds_up_to_time = (
+            db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+            .join(
+                subquery,
+                and_(
+                    Rounds.day == subquery.c.day,
+                    Rounds.hour == subquery.c.min_hour
+                )
+            )
+            .order_by(Rounds.day, Rounds.hour)
+            .all()
+        )
+    
     if not rounds_up_to_time:
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
 
@@ -6390,18 +6425,53 @@ def generate_agent_timeseries_data(
 
     from y_web.models import Agent_Opinion, Rounds
 
-    # Find all rounds up to the specified day/hour
-    # Filter to only include hour==0 (day boundaries) for cleaner x-axis
+    # Find all rounds up to the specified day/hour for x-axis display
+    # We'll filter to hour==0 (day boundaries) for cleaner x-axis labels
+    # But first check if ANY rounds exist
+    all_rounds_check = db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
+    
+    if not all_rounds_check:
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+    
+    # Get rounds at day boundaries (hour==0) for x-axis display points
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
         .filter(
-            Rounds.hour == 0,  # Only day boundaries
+            Rounds.hour == 0,  # Only day boundaries for display
             Rounds.day <= filter_day,  # Up to current day
         )
         .order_by(Rounds.day, Rounds.hour)
         .all()
     )
-
+    
+    # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
+    # fall back to selecting one round per day
+    if not rounds_up_to_time:
+        # Group by day and take the first round from each day
+        from sqlalchemy import func
+        subquery = (
+            db.session.query(
+                Rounds.day,
+                func.min(Rounds.hour).label('min_hour')
+            )
+            .filter(Rounds.day <= filter_day)
+            .group_by(Rounds.day)
+            .subquery()
+        )
+        
+        rounds_up_to_time = (
+            db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+            .join(
+                subquery,
+                and_(
+                    Rounds.day == subquery.c.day,
+                    Rounds.hour == subquery.c.min_hour
+                )
+            )
+            .order_by(Rounds.day, Rounds.hour)
+            .all()
+        )
+    
     if not rounds_up_to_time:
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
 
