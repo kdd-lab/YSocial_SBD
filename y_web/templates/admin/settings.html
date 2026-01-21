@@ -1326,6 +1326,13 @@
                                             <input type="hidden" id="tags-hidden" name="tags">
                                             <input type="text" id="input-tag" placeholder="Enter topic name" style="width: 100%;"/>
                                         </div>
+                                        
+                                        <!-- Numeric input for number of topics when LLM agents are disabled -->
+                                        <div id="topic-count-input" style="display: none; margin-top: 8px;">
+                                            <label for="topic-count" style="font-size: 0.9rem; color: #374151; display: block; margin-bottom: 4px;">Number of topics:</label>
+                                            <input type="number" id="topic-count" min="1" value="10" style="width: 100px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px;"/>
+                                            <button type="button" id="generate-topics-btn" style="margin-left: 8px; padding: 4px 12px; background: #039be5; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate</button>
+                                        </div>
 
                                         <script>
                                             const tags = document.getElementById('tags');
@@ -1594,6 +1601,8 @@
 
                             // Handle LLM agents toggle
                             llmAgentsToggle.addEventListener('change', function() {
+                                const topicCountInput = document.getElementById('topic-count-input');
+                                
                                 if (!this.checked) {
                                     // Disable all annotation toggles
                                     toxicityToggle.checked = false;
@@ -1604,21 +1613,19 @@
                                     emotionToggle.disabled = true;
                                     perspectiveApiField.style.display = 'none';
 
-                                    // Clear and disable topics input, set to 10 default topics
+                                    // Clear topics and show numeric input for topic count
                                     tagList.length = 0;
                                     while (tags.firstChild) {
                                         tags.removeChild(tags.firstChild);
                                     }
-                                    const defaultTopics = ['Topic1', 'Topic2', 'Topic3', 'Topic4', 'Topic5', 'Topic6', 'Topic7', 'Topic8', 'Topic9', 'Topic10'];
-                                    defaultTopics.forEach(function(topicName) {
-                                        tagList.push(topicName);
-                                        const tag = document.createElement('li');
-                                        tag.innerHTML = `${topicName} <button class="delete-button" disabled style="cursor: not-allowed; opacity: 0.5;">X</button>`;
-                                        tags.appendChild(tag);
-                                    });
-                                    hiddenInput.value = defaultTopics.join(',');
-                                    inputTag.disabled = true;
-                                    inputTag.placeholder = 'Topics disabled when LLM agents are off';
+                                    
+                                    // Generate initial topics with default count
+                                    const topicCount = parseInt(document.getElementById('topic-count').value) || 10;
+                                    generateTopics(topicCount);
+                                    
+                                    // Hide tag input, show topic count input
+                                    inputTag.style.display = 'none';
+                                    topicCountInput.style.display = 'block';
                                     updateButtonState();
                                 } else {
                                     // Re-enable all annotation toggles
@@ -1634,9 +1641,39 @@
                                         tags.removeChild(tags.firstChild);
                                     }
                                     hiddenInput.value = '';
+                                    inputTag.style.display = 'block';
                                     inputTag.disabled = false;
                                     inputTag.placeholder = 'Enter topic name';
+                                    topicCountInput.style.display = 'none';
                                     updateButtonState();
+                                }
+                            });
+                            
+                            // Function to generate topics
+                            function generateTopics(count) {
+                                // Clear existing topics
+                                tagList.length = 0;
+                                while (tags.firstChild) {
+                                    tags.removeChild(tags.firstChild);
+                                }
+                                
+                                // Generate new topics
+                                for (let i = 1; i <= count; i++) {
+                                    const topicName = `Topic${i}`;
+                                    tagList.push(topicName);
+                                    const tag = document.createElement('li');
+                                    tag.innerHTML = `${topicName} <button class="delete-button" disabled style="cursor: not-allowed; opacity: 0.5;">X</button>`;
+                                    tags.appendChild(tag);
+                                }
+                                hiddenInput.value = tagList.join(',');
+                                updateButtonState();
+                            }
+                            
+                            // Handle generate topics button click
+                            document.getElementById('generate-topics-btn').addEventListener('click', function() {
+                                const topicCount = parseInt(document.getElementById('topic-count').value);
+                                if (topicCount && topicCount >= 1) {
+                                    generateTopics(topicCount);
                                 }
                             });
 
