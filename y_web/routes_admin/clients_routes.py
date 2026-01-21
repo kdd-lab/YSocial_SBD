@@ -1133,7 +1133,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 g = nx.stochastic_block_model(block_sizes, probs)
             elif network_model == "LFR":
                 # LFR benchmark with community structure
-                min_community = max(10, n // 5)  # At least 10 or n/5
+                # Calculate min_community: at least 5 nodes, at most n/3 to allow multiple communities
+                min_community = min(max(5, n // 10), n // 3)
                 g = nx.LFR_benchmark_graph(
                     n=n,
                     tau1=tau1,
@@ -2045,7 +2046,8 @@ def create_client():
                 g = nx.stochastic_block_model(block_sizes, probs)
             elif network_model == "LFR":
                 # LFR benchmark with community structure
-                min_community = max(10, n // 5)  # At least 10 or n/5
+                # Calculate min_community: at least 5 nodes, at most n/3 to allow multiple communities
+                min_community = min(max(5, n // 10), n // 3)
                 g = nx.LFR_benchmark_graph(
                     n=n,
                     tau1=tau1,
@@ -2356,7 +2358,8 @@ def set_network(uid):
         g = nx.stochastic_block_model(block_sizes, probs)
     elif network == "LFR":
         # LFR benchmark with community structure
-        min_community = max(10, n // 5)  # At least 10 or n/5
+        # Calculate min_community: at least 5 nodes, at most n/3 to allow multiple communities
+        min_community = min(max(5, n // 10), n // 3)
         g = nx.LFR_benchmark_graph(
             n=n,
             tau1=tau1,

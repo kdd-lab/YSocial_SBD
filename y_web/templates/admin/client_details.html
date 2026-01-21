@@ -737,20 +737,47 @@
                             </div>
                         </form>
                     </div>
-                            <script>
+                    <script>
                         document.getElementById('options').addEventListener('change', function () {
                             const selectedValue = this.value;
 
                             // Hide all field groups
                             document.getElementById('option1-field').style.display = 'none';
                             document.getElementById('option2-field').style.display = 'none';
+                            document.getElementById('option3-field').style.display = 'none';
+                            document.getElementById('option3-field2').style.display = 'none';
+                            document.getElementById('option4-field').style.display = 'none';
+                            document.getElementById('option4-field2').style.display = 'none';
+                            document.getElementById('option6-field').style.display = 'none';
+                            document.getElementById('option6-field2').style.display = 'none';
+                            document.getElementById('option6-field3').style.display = 'none';
+                            document.getElementById('option7-field').style.display = 'none';
+                            document.getElementById('option7-field2').style.display = 'none';
+                            document.getElementById('option7-field3').style.display = 'none';
+                            document.getElementById('option7-field4').style.display = 'none';
 
                             // Show the selected field group
                             if (selectedValue === 'ER') {
                                 document.getElementById('option1-field').style.display = 'inline-block';
                             } else if (selectedValue === 'BA') {
                                 document.getElementById('option2-field').style.display = 'inline-block';
+                            } else if (selectedValue === 'WS') {
+                                document.getElementById('option3-field').style.display = 'inline-block';
+                                document.getElementById('option3-field2').style.display = 'inline-block';
+                            } else if (selectedValue === 'PLC') {
+                                document.getElementById('option4-field').style.display = 'inline-block';
+                                document.getElementById('option4-field2').style.display = 'inline-block';
+                            } else if (selectedValue === 'SBM') {
+                                document.getElementById('option6-field').style.display = 'inline-block';
+                                document.getElementById('option6-field2').style.display = 'inline-block';
+                                document.getElementById('option6-field3').style.display = 'inline-block';
+                            } else if (selectedValue === 'LFR') {
+                                document.getElementById('option7-field').style.display = 'inline-block';
+                                document.getElementById('option7-field2').style.display = 'inline-block';
+                                document.getElementById('option7-field3').style.display = 'inline-block';
+                                document.getElementById('option7-field4').style.display = 'inline-block';
                             }
+                            // C (Complete graph) has no parameters (option5)
                         });
                     </script>
                 </div>
