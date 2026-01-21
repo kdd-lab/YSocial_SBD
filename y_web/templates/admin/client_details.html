@@ -421,23 +421,95 @@
                                             <div class="select">
                                                 <select name="network_model" id="options">
                                                     <option value=""></option>
-                                                    <option id="option1" value="ER">Random Network</option>
-                                                    <option id="option2" value="BA">Scale Free</option>
+                                                    <option id="option1" value="ER">Random Network (Erdős-Rényi)</option>
+                                                    <option id="option2" value="BA">Scale Free (Barabási-Albert)</option>
+                                                    <option id="option3" value="WS">Small World (Watts-Strogatz)</option>
+                                                    <option id="option4" value="PLC">Powerlaw Cluster</option>
+                                                    <option id="option5" value="C">Complete Graph</option>
+                                                    <option id="option6" value="SBM">Stochastic Block Model</option>
+                                                    <option id="option7" value="LFR">LFR Benchmark (Community Structure)</option>
                                                 </select>
                                             </div>
                                         </span>
                                     </div>
 
                                     <div class="box-line hidden" id="option1-field" style="display: none">
-                                        <span class="left">Rewiring probability</span>
+                                        <span class="left">Edge probability (p)</span>
                                         <span class="right">
                                             <input type="text" name="p" class="input" value="0.1">
                                         </span>
                                     </div>
                                     <div class="box-line hidden" id="option2-field"  style="display: none">
-                                        <span class="left">Connections per new node</span>
+                                        <span class="left">Edges per node (m)</span>
                                         <span class="right">
                                             <input type="text" name="m" class="input" value="2">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option3-field"  style="display: none">
+                                        <span class="left">Nearest neighbors (k)</span>
+                                        <span class="right">
+                                            <input type="text" name="k" class="input" value="4">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option3-field2"  style="display: none">
+                                        <span class="left">Rewiring probability (p)</span>
+                                        <span class="right">
+                                            <input type="text" name="ws_p" class="input" value="0.3">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option4-field"  style="display: none">
+                                        <span class="left">Edges per node (m)</span>
+                                        <span class="right">
+                                            <input type="text" name="plc_m" class="input" value="2">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option4-field2"  style="display: none">
+                                        <span class="left">Triangle probability (p)</span>
+                                        <span class="right">
+                                            <input type="text" name="plc_p" class="input" value="0.5">
+                                        </span>
+                                    </div>
+                                    <!-- option5 (Complete Graph) has no parameters -->
+                                    <div class="box-line hidden" id="option6-field"  style="display: none">
+                                        <span class="left">Number of blocks</span>
+                                        <span class="right">
+                                            <input type="text" name="blocks" class="input" value="3">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option6-field2"  style="display: none">
+                                        <span class="left">Intra-block probability</span>
+                                        <span class="right">
+                                            <input type="text" name="p_in" class="input" value="0.3">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option6-field3"  style="display: none">
+                                        <span class="left">Inter-block probability</span>
+                                        <span class="right">
+                                            <input type="text" name="p_out" class="input" value="0.05">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option7-field"  style="display: none">
+                                        <span class="left">Degree exponent (tau1)</span>
+                                        <span class="right">
+                                            <input type="text" name="tau1" class="input" value="2.5">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option7-field2"  style="display: none">
+                                        <span class="left">Community size exponent (tau2)</span>
+                                        <span class="right">
+                                            <input type="text" name="tau2" class="input" value="1.5">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option7-field3"  style="display: none">
+                                        <span class="left">Mixing parameter (mu)</span>
+                                        <span class="right">
+                                            <input type="text" name="mu" class="input" value="0.1">
+                                        </span>
+                                    </div>
+                                    <div class="box-line hidden" id="option7-field4"  style="display: none">
+                                        <span class="left">Average degree</span>
+                                        <span class="right">
+                                            <input type="text" name="avg_degree" class="input" value="5">
                                         </span>
                                     </div>
                                 </div>

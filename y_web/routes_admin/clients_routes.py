@@ -1100,16 +1100,15 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             p = float(network_p) if network_p else 0.1
             k = int(form_data.get("network_k")) if form_data.get("network_k") else 4
             ws_p = float(form_data.get("network_ws_p")) if form_data.get("network_ws_p") else 0.3
-            nws_k = int(form_data.get("network_nws_k")) if form_data.get("network_nws_k") else 4
-            nws_p = float(form_data.get("network_nws_p")) if form_data.get("network_nws_p") else 0.3
             plc_m = int(form_data.get("network_plc_m")) if form_data.get("network_plc_m") else 2
             plc_p = float(form_data.get("network_plc_p")) if form_data.get("network_plc_p") else 0.5
-            d = int(form_data.get("network_d")) if form_data.get("network_d") else 3
             blocks = int(form_data.get("network_blocks")) if form_data.get("network_blocks") else 3
             p_in = float(form_data.get("network_p_in")) if form_data.get("network_p_in") else 0.3
             p_out = float(form_data.get("network_p_out")) if form_data.get("network_p_out") else 0.05
-            cliques = int(form_data.get("network_cliques")) if form_data.get("network_cliques") else 5
-            clique_size = int(form_data.get("network_clique_size")) if form_data.get("network_clique_size") else 5
+            tau1 = float(form_data.get("network_tau1")) if form_data.get("network_tau1") else 2.5
+            tau2 = float(form_data.get("network_tau2")) if form_data.get("network_tau2") else 1.5
+            mu = float(form_data.get("network_mu")) if form_data.get("network_mu") else 0.1
+            avg_degree = int(form_data.get("network_avg_degree")) if form_data.get("network_avg_degree") else 5
 
             n = len(all_node_ids)
             
@@ -1120,12 +1119,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 g = nx.erdos_renyi_graph(n, p=p)
             elif network_model == "WS":
                 g = nx.watts_strogatz_graph(n, k=k, p=ws_p)
-            elif network_model == "NWS":
-                g = nx.newman_watts_strogatz_graph(n, k=nws_k, p=nws_p)
             elif network_model == "PLC":
                 g = nx.powerlaw_cluster_graph(n, m=plc_m, p=plc_p)
-            elif network_model == "RR":
-                g = nx.random_regular_graph(d, n)
             elif network_model == "C":
                 g = nx.complete_graph(n)
             elif network_model == "SBM":
@@ -1136,8 +1131,17 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 # Create probability matrix
                 probs = [[p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)]
                 g = nx.stochastic_block_model(block_sizes, probs)
-            elif network_model == "CCG":
-                g = nx.connected_caveman_graph(cliques, clique_size)
+            elif network_model == "LFR":
+                # LFR benchmark with community structure
+                min_community = max(10, n // 5)  # At least 10 or n/5
+                g = nx.LFR_benchmark_graph(
+                    n=n,
+                    tau1=tau1,
+                    tau2=tau2,
+                    mu=mu,
+                    average_degree=avg_degree,
+                    min_community=min_community
+                )
             else:
                 g = None
 
@@ -2008,16 +2012,15 @@ def create_client():
             p = float(network_p) if network_p else 0.1
             k = int(request.form.get("network_k")) if request.form.get("network_k") else 4
             ws_p = float(request.form.get("network_ws_p")) if request.form.get("network_ws_p") else 0.3
-            nws_k = int(request.form.get("network_nws_k")) if request.form.get("network_nws_k") else 4
-            nws_p = float(request.form.get("network_nws_p")) if request.form.get("network_nws_p") else 0.3
             plc_m = int(request.form.get("network_plc_m")) if request.form.get("network_plc_m") else 2
             plc_p = float(request.form.get("network_plc_p")) if request.form.get("network_plc_p") else 0.5
-            d = int(request.form.get("network_d")) if request.form.get("network_d") else 3
             blocks = int(request.form.get("network_blocks")) if request.form.get("network_blocks") else 3
             p_in = float(request.form.get("network_p_in")) if request.form.get("network_p_in") else 0.3
             p_out = float(request.form.get("network_p_out")) if request.form.get("network_p_out") else 0.05
-            cliques = int(request.form.get("network_cliques")) if request.form.get("network_cliques") else 5
-            clique_size = int(request.form.get("network_clique_size")) if request.form.get("network_clique_size") else 5
+            tau1 = float(request.form.get("network_tau1")) if request.form.get("network_tau1") else 2.5
+            tau2 = float(request.form.get("network_tau2")) if request.form.get("network_tau2") else 1.5
+            mu = float(request.form.get("network_mu")) if request.form.get("network_mu") else 0.1
+            avg_degree = int(request.form.get("network_avg_degree")) if request.form.get("network_avg_degree") else 5
 
             n = len(agent_ids)
             
@@ -2028,12 +2031,8 @@ def create_client():
                 g = nx.erdos_renyi_graph(n, p=p)
             elif network_model == "WS":
                 g = nx.watts_strogatz_graph(n, k=k, p=ws_p)
-            elif network_model == "NWS":
-                g = nx.newman_watts_strogatz_graph(n, k=nws_k, p=nws_p)
             elif network_model == "PLC":
                 g = nx.powerlaw_cluster_graph(n, m=plc_m, p=plc_p)
-            elif network_model == "RR":
-                g = nx.random_regular_graph(d, n)
             elif network_model == "C":
                 g = nx.complete_graph(n)
             elif network_model == "SBM":
@@ -2044,8 +2043,17 @@ def create_client():
                 # Create probability matrix
                 probs = [[p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)]
                 g = nx.stochastic_block_model(block_sizes, probs)
-            elif network_model == "CCG":
-                g = nx.connected_caveman_graph(cliques, clique_size)
+            elif network_model == "LFR":
+                # LFR benchmark with community structure
+                min_community = max(10, n // 5)  # At least 10 or n/5
+                g = nx.LFR_benchmark_graph(
+                    n=n,
+                    tau1=tau1,
+                    tau2=tau2,
+                    mu=mu,
+                    average_degree=avg_degree,
+                    min_community=min_community
+                )
             else:
                 g = None
 
@@ -2315,16 +2323,15 @@ def set_network(uid):
     p = float(request.form.get("p")) if request.form.get("p") else 0.1
     k = int(request.form.get("k")) if request.form.get("k") else 4
     ws_p = float(request.form.get("ws_p")) if request.form.get("ws_p") else 0.3
-    nws_k = int(request.form.get("nws_k")) if request.form.get("nws_k") else 4
-    nws_p = float(request.form.get("nws_p")) if request.form.get("nws_p") else 0.3
     plc_m = int(request.form.get("plc_m")) if request.form.get("plc_m") else 2
     plc_p = float(request.form.get("plc_p")) if request.form.get("plc_p") else 0.5
-    d = int(request.form.get("d")) if request.form.get("d") else 3
     blocks = int(request.form.get("blocks")) if request.form.get("blocks") else 3
     p_in = float(request.form.get("p_in")) if request.form.get("p_in") else 0.3
     p_out = float(request.form.get("p_out")) if request.form.get("p_out") else 0.05
-    cliques = int(request.form.get("cliques")) if request.form.get("cliques") else 5
-    clique_size = int(request.form.get("clique_size")) if request.form.get("clique_size") else 5
+    tau1 = float(request.form.get("tau1")) if request.form.get("tau1") else 2.5
+    tau2 = float(request.form.get("tau2")) if request.form.get("tau2") else 1.5
+    mu = float(request.form.get("mu")) if request.form.get("mu") else 0.1
+    avg_degree = int(request.form.get("avg_degree")) if request.form.get("avg_degree") else 5
 
     n = len(agent_ids)
     
@@ -2335,12 +2342,8 @@ def set_network(uid):
         g = nx.erdos_renyi_graph(n, p=p)
     elif network == "WS":
         g = nx.watts_strogatz_graph(n, k=k, p=ws_p)
-    elif network == "NWS":
-        g = nx.newman_watts_strogatz_graph(n, k=nws_k, p=nws_p)
     elif network == "PLC":
         g = nx.powerlaw_cluster_graph(n, m=plc_m, p=plc_p)
-    elif network == "RR":
-        g = nx.random_regular_graph(d, n)
     elif network == "C":
         g = nx.complete_graph(n)
     elif network == "SBM":
@@ -2351,10 +2354,20 @@ def set_network(uid):
         # Create probability matrix
         probs = [[p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)]
         g = nx.stochastic_block_model(block_sizes, probs)
-    elif network == "CCG":
-        g = nx.connected_caveman_graph(cliques, clique_size)
+    elif network == "LFR":
+        # LFR benchmark with community structure
+        min_community = max(10, n // 5)  # At least 10 or n/5
+        g = nx.LFR_benchmark_graph(
+            n=n,
+            tau1=tau1,
+            tau2=tau2,
+            mu=mu,
+            average_degree=avg_degree,
+            min_community=min_community
+        )
     else:
-        g = None
+        # Default to ER for backward compatibility if unrecognized model
+        g = nx.erdos_renyi_graph(n, p=p)
 
     # get the client experiment
     exp = Exps.query.filter_by(idexp=client.id_exp).first()

@@ -690,12 +690,10 @@
                                                                 <option value="ER">Random Network (Erdős-Rényi)</option>
                                                                 <option value="BA">Scale Free (Barabási-Albert)</option>
                                                                 <option value="WS">Small World (Watts-Strogatz)</option>
-                                                                <option value="NWS">Small World (Newman-Watts-Strogatz)</option>
                                                                 <option value="PLC">Powerlaw Cluster</option>
-                                                                <option value="RR">Random Regular</option>
                                                                 <option value="C">Complete Graph</option>
                                                                 <option value="SBM">Stochastic Block Model</option>
-                                                                <option value="CCG">Connected Caveman</option>
+                                                                <option value="LFR">LFR Benchmark (Community Structure)</option>
                                                             </select>
                                                         </div>
                                                     </span>
@@ -725,18 +723,6 @@
                                                         <input type="number" name="network_ws_p" class="input" value="0.3" min="0" max="1" step="0.01">
                                                     </span>
                                                 </div>
-                                                <div class="box-line" id="nws_param_field" style="display: none;">
-                                                    <span class="left">Nearest neighbors (k)</span>
-                                                    <span class="right">
-                                                        <input type="number" name="network_nws_k" class="input" value="4" min="2">
-                                                    </span>
-                                                </div>
-                                                <div class="box-line" id="nws_param_field2" style="display: none;">
-                                                    <span class="left">Edge addition probability (p)</span>
-                                                    <span class="right">
-                                                        <input type="number" name="network_nws_p" class="input" value="0.3" min="0" max="1" step="0.01">
-                                                    </span>
-                                                </div>
                                                 <div class="box-line" id="plc_param_field" style="display: none;">
                                                     <span class="left">Edges per node (m)</span>
                                                     <span class="right">
@@ -747,12 +733,6 @@
                                                     <span class="left">Triangle probability (p)</span>
                                                     <span class="right">
                                                         <input type="number" name="network_plc_p" class="input" value="0.5" min="0" max="1" step="0.01">
-                                                    </span>
-                                                </div>
-                                                <div class="box-line" id="rr_param_field" style="display: none;">
-                                                    <span class="left">Degree (d)</span>
-                                                    <span class="right">
-                                                        <input type="number" name="network_d" class="input" value="3" min="1">
                                                     </span>
                                                 </div>
                                                 <div class="box-line" id="sbm_param_field" style="display: none;">
@@ -773,16 +753,28 @@
                                                         <input type="number" name="network_p_out" class="input" value="0.05" min="0" max="1" step="0.01">
                                                     </span>
                                                 </div>
-                                                <div class="box-line" id="ccg_param_field" style="display: none;">
-                                                    <span class="left">Number of cliques</span>
+                                                <div class="box-line" id="lfr_param_field" style="display: none;">
+                                                    <span class="left">Degree exponent (tau1)</span>
                                                     <span class="right">
-                                                        <input type="number" name="network_cliques" class="input" value="5" min="2">
+                                                        <input type="number" name="network_tau1" class="input" value="2.5" min="1" step="0.1">
                                                     </span>
                                                 </div>
-                                                <div class="box-line" id="ccg_param_field2" style="display: none;">
-                                                    <span class="left">Clique size</span>
+                                                <div class="box-line" id="lfr_param_field2" style="display: none;">
+                                                    <span class="left">Community size exponent (tau2)</span>
                                                     <span class="right">
-                                                        <input type="number" name="network_clique_size" class="input" value="5" min="2">
+                                                        <input type="number" name="network_tau2" class="input" value="1.5" min="1" step="0.1">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="lfr_param_field3" style="display: none;">
+                                                    <span class="left">Mixing parameter (mu)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_mu" class="input" value="0.1" min="0" max="1" step="0.05">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="lfr_param_field4" style="display: none;">
+                                                    <span class="left">Average degree</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_avg_degree" class="input" value="5" min="2">
                                                     </span>
                                                 </div>
                                             </div>
@@ -1567,16 +1559,15 @@ function updateNetworkInputStates() {
     const baParamField = document.getElementById('ba_param_field');
     const wsParamField = document.getElementById('ws_param_field');
     const wsParamField2 = document.getElementById('ws_param_field2');
-    const nwsParamField = document.getElementById('nws_param_field');
-    const nwsParamField2 = document.getElementById('nws_param_field2');
     const plcParamField = document.getElementById('plc_param_field');
     const plcParamField2 = document.getElementById('plc_param_field2');
-    const rrParamField = document.getElementById('rr_param_field');
     const sbmParamField = document.getElementById('sbm_param_field');
     const sbmParamField2 = document.getElementById('sbm_param_field2');
     const sbmParamField3 = document.getElementById('sbm_param_field3');
-    const ccgParamField = document.getElementById('ccg_param_field');
-    const ccgParamField2 = document.getElementById('ccg_param_field2');
+    const lfrParamField = document.getElementById('lfr_param_field');
+    const lfrParamField2 = document.getElementById('lfr_param_field2');
+    const lfrParamField3 = document.getElementById('lfr_param_field3');
+    const lfrParamField4 = document.getElementById('lfr_param_field4');
     
     if (!networkModelSelect || !networkFileInput) return;
     
@@ -1608,16 +1599,15 @@ function updateNetworkInputStates() {
     if (baParamField) baParamField.style.display = 'none';
     if (wsParamField) wsParamField.style.display = 'none';
     if (wsParamField2) wsParamField2.style.display = 'none';
-    if (nwsParamField) nwsParamField.style.display = 'none';
-    if (nwsParamField2) nwsParamField2.style.display = 'none';
     if (plcParamField) plcParamField.style.display = 'none';
     if (plcParamField2) plcParamField2.style.display = 'none';
-    if (rrParamField) rrParamField.style.display = 'none';
     if (sbmParamField) sbmParamField.style.display = 'none';
     if (sbmParamField2) sbmParamField2.style.display = 'none';
     if (sbmParamField3) sbmParamField3.style.display = 'none';
-    if (ccgParamField) ccgParamField.style.display = 'none';
-    if (ccgParamField2) ccgParamField2.style.display = 'none';
+    if (lfrParamField) lfrParamField.style.display = 'none';
+    if (lfrParamField2) lfrParamField2.style.display = 'none';
+    if (lfrParamField3) lfrParamField3.style.display = 'none';
+    if (lfrParamField4) lfrParamField4.style.display = 'none';
     
     if (networkModelSelect.value === 'ER' && erParamField) {
         erParamField.style.display = 'block';
@@ -1626,21 +1616,18 @@ function updateNetworkInputStates() {
     } else if (networkModelSelect.value === 'WS') {
         if (wsParamField) wsParamField.style.display = 'block';
         if (wsParamField2) wsParamField2.style.display = 'block';
-    } else if (networkModelSelect.value === 'NWS') {
-        if (nwsParamField) nwsParamField.style.display = 'block';
-        if (nwsParamField2) nwsParamField2.style.display = 'block';
     } else if (networkModelSelect.value === 'PLC') {
         if (plcParamField) plcParamField.style.display = 'block';
         if (plcParamField2) plcParamField2.style.display = 'block';
-    } else if (networkModelSelect.value === 'RR' && rrParamField) {
-        rrParamField.style.display = 'block';
     } else if (networkModelSelect.value === 'SBM') {
         if (sbmParamField) sbmParamField.style.display = 'block';
         if (sbmParamField2) sbmParamField2.style.display = 'block';
         if (sbmParamField3) sbmParamField3.style.display = 'block';
-    } else if (networkModelSelect.value === 'CCG') {
-        if (ccgParamField) ccgParamField.style.display = 'block';
-        if (ccgParamField2) ccgParamField2.style.display = 'block';
+    } else if (networkModelSelect.value === 'LFR') {
+        if (lfrParamField) lfrParamField.style.display = 'block';
+        if (lfrParamField2) lfrParamField2.style.display = 'block';
+        if (lfrParamField3) lfrParamField3.style.display = 'block';
+        if (lfrParamField4) lfrParamField4.style.display = 'block';
     }
     // C (Complete graph) has no parameters
 }
