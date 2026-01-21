@@ -683,7 +683,15 @@
                         text: 'Simulation Days'
                     },
                     ticks: {
-                        maxTicksLimit: 10
+                        maxTicksLimit: 10,
+                        callback: function(value, index, ticks) {
+                            // Only show integer day values
+                            const numValue = parseFloat(value);
+                            if (Math.abs(numValue - Math.round(numValue)) < 0.01) {
+                                return Math.round(numValue);
+                            }
+                            return null;  // Don't display non-integer values
+                        }
                     }
                 }
             }
@@ -760,7 +768,15 @@
                         text: 'Simulation Days'
                     },
                     ticks: {
-                        maxTicksLimit: 10
+                        maxTicksLimit: 10,
+                        callback: function(value, index, ticks) {
+                            // Only show integer day values
+                            const numValue = parseFloat(value);
+                            if (Math.abs(numValue - Math.round(numValue)) < 0.01) {
+                                return Math.round(numValue);
+                            }
+                            return null;  // Don't display non-integer values
+                        }
                     }
                 }
             }
