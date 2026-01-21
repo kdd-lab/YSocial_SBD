@@ -6568,13 +6568,16 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     ).first()
     
     # Cache hit - return cached data if fresh enough
+    # Extract data BEFORE any session changes to avoid ObjectDeletedError
     if cache_entry and (datetime.now() - cache_entry.created_at) < timedelta(minutes=OPINION_CACHE_EXPIRY_MINUTES):
-        return {
+        # Extract all needed data from cache_entry while session is still valid
+        cached_result = {
             'total_opinions': cache_entry.total_opinions,
             'social_interactions': cache_entry.social_interactions,
             'unique_agents': cache_entry.unique_agents,
             'binned_data': json.loads(cache_entry.binned_data)
         }
+        return cached_result
     
     # Cache miss or stale - compute statistics
     # Find all rounds up to the specified day/hour
@@ -6652,40 +6655,43 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                 binned_data[group.name] += 1
                 break
     
-    # Store in cache
-    if cache_entry:
-        # Update existing cache entry
-        cache_entry.total_opinions = len(opinion_data)
-        cache_entry.social_interactions = social_interactions
-        cache_entry.unique_agents = unique_agents
-        cache_entry.binned_data = json.dumps(binned_data)
-        cache_entry.created_at = datetime.now()
-    else:
-        # Create new cache entry
-        cache_entry = OpinionEvolutionCache(
-            exp_id=expid,
-            day=filter_day,
-            hour=filter_hour,
-            topic_id=filter_topic_id,
-            total_opinions=len(opinion_data),
-            social_interactions=social_interactions,
-            unique_agents=unique_agents,
-            binned_data=json.dumps(binned_data),
-        )
-        db.session.add(cache_entry)
-    
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error caching opinion stats: {str(e)}")
-    
-    return {
+    # Prepare result before any database modifications
+    result = {
         'total_opinions': len(opinion_data),
         'social_interactions': social_interactions,
         'unique_agents': unique_agents,
         'binned_data': binned_data
     }
+    
+    # Store in cache (use a separate session/transaction to avoid conflicts)
+    try:
+        if cache_entry:
+            # Update existing cache entry
+            cache_entry.total_opinions = result['total_opinions']
+            cache_entry.social_interactions = result['social_interactions']
+            cache_entry.unique_agents = result['unique_agents']
+            cache_entry.binned_data = json.dumps(result['binned_data'])
+            cache_entry.created_at = datetime.now()
+        else:
+            # Create new cache entry
+            cache_entry = OpinionEvolutionCache(
+                exp_id=expid,
+                day=filter_day,
+                hour=filter_hour,
+                topic_id=filter_topic_id,
+                total_opinions=result['total_opinions'],
+                social_interactions=result['social_interactions'],
+                unique_agents=result['unique_agents'],
+                binned_data=json.dumps(result['binned_data']),
+            )
+            db.session.add(cache_entry)
+        
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error caching opinion stats: {str(e)}")
+    
+    return result
 
 
 @experiments.route("/admin/opinion_evolution/<int:expid>")
@@ -6734,7 +6740,9 @@ def opinion_evolution(expid):
         from y_web.models import Agent_Opinion, Interests, Rounds
 
         # Get available topics from experiment database
-        topics = db.session.query(Interests).all()
+        topics_query = db.session.query(Interests).all()
+        # Convert to dictionaries immediately to avoid ObjectDeletedError when session closes
+        topics = [{'iid': t.iid, 'interest': t.interest} for t in topics_query]
 
         # Get max day and hour from Rounds table (start at day 1 hour 1 as per requirements)
         max_round = (
@@ -6749,7 +6757,7 @@ def opinion_evolution(expid):
         filter_day = request.args.get("day", type=int, default=max_day)
         filter_hour = request.args.get("hour", type=int, default=max_hour)
         # Default to first topic on initial page load (to match UI which shows first topic as active)
-        default_topic_id = topics[0].iid if topics else None
+        default_topic_id = topics[0]['iid'] if topics else None
         filter_topic_id = request.args.get("topic_id", type=int, default=default_topic_id)
 
         # Find all rounds up to the specified day/hour
