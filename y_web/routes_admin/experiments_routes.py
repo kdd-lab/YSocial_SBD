@@ -6635,7 +6635,11 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         stored_state = json.loads(previous_cache.latest_opinions_state)
         # Convert stored state back to the format we need
         for agent_id_str, topics_dict in stored_state.items():
-            agent_id = int(agent_id_str)  # JSON keys are strings
+            # Handle both integer agent_ids (standard) and UUID strings (HPC)
+            try:
+                agent_id = int(agent_id_str)
+            except ValueError:
+                agent_id = agent_id_str  # Keep as string for UUID
             for topic_id_str, opinion_data in topics_dict.items():
                 topic_id = int(topic_id_str) if topic_id_str != 'null' else None
                 key = (agent_id, topic_id)
