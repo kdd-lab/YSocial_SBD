@@ -14,10 +14,10 @@ import sys
 def migrate_sqlite(dashboard_db_path):
     """
     Add opinion evolution cache tables to SQLite dashboard database.
-    
+
     Args:
         dashboard_db_path: Path to the dashboard.db SQLite database
-    
+
     Returns:
         bool: True if migration succeeded, False otherwise
     """
@@ -51,7 +51,7 @@ def migrate_sqlite(dashboard_db_path):
                     FOREIGN KEY (exp_id) REFERENCES exps(idexp) ON DELETE CASCADE
                 )
             """)
-            
+
             # Create indexes
             cursor.execute("""
                 CREATE INDEX idx_cache_lookup ON opinion_evolution_cache(exp_id, day, hour, topic_id)
@@ -62,12 +62,14 @@ def migrate_sqlite(dashboard_db_path):
             print("✓ opinion_evolution_cache table created")
         else:
             print("opinion_evolution_cache table already exists")
-            
+
             # Check if latest_opinions_state column exists, add if missing
             cursor.execute("PRAGMA table_info(opinion_evolution_cache)")
             columns = [column[1] for column in cursor.fetchall()]
-            if 'latest_opinions_state' not in columns:
-                print("Adding latest_opinions_state column to opinion_evolution_cache...")
+            if "latest_opinions_state" not in columns:
+                print(
+                    "Adding latest_opinions_state column to opinion_evolution_cache..."
+                )
                 cursor.execute("""
                     ALTER TABLE opinion_evolution_cache 
                     ADD COLUMN latest_opinions_state TEXT
@@ -91,7 +93,7 @@ def migrate_sqlite(dashboard_db_path):
                     FOREIGN KEY (exp_id) REFERENCES exps(idexp) ON DELETE CASCADE
                 )
             """)
-            
+
             # Create indexes
             cursor.execute("""
                 CREATE INDEX idx_sampled_agents_lookup ON opinion_evolution_sampled_agents(exp_id, topic_id, sample_percentage)
@@ -116,23 +118,21 @@ def migrate_sqlite(dashboard_db_path):
 def migrate_postgresql(user, password, host, port, dbname):
     """
     Add opinion evolution cache tables to PostgreSQL dashboard database.
-    
+
     Args:
         user: PostgreSQL username
         password: PostgreSQL password
         host: PostgreSQL host
         port: PostgreSQL port
         dbname: Database name
-    
+
     Returns:
         bool: True if migration succeeded, False otherwise
     """
     try:
         from sqlalchemy import create_engine, text
 
-        engine = create_engine(
-            f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
-        )
+        engine = create_engine(f"postgresql://{user}:{password}@{host}:{port}/{dbname}")
 
         with engine.connect() as conn:
             # Migration 1: Add opinion_evolution_cache table
@@ -160,7 +160,7 @@ def migrate_postgresql(user, password, host, port, dbname):
                         CONSTRAINT fk_opinion_cache_exp FOREIGN KEY (exp_id) REFERENCES exps(idexp) ON DELETE CASCADE
                     )
                 """))
-                
+
                 # Create indexes
                 conn.execute(text("""
                     CREATE INDEX idx_cache_lookup ON opinion_evolution_cache(exp_id, day, hour, topic_id)
@@ -172,7 +172,7 @@ def migrate_postgresql(user, password, host, port, dbname):
                 print("✓ opinion_evolution_cache table created")
             else:
                 print("opinion_evolution_cache table already exists")
-                
+
                 # Check if latest_opinions_state column exists, add if missing
                 result = conn.execute(
                     text(
@@ -182,7 +182,9 @@ def migrate_postgresql(user, password, host, port, dbname):
                     )
                 )
                 if not result.scalar():
-                    print("Adding latest_opinions_state column to opinion_evolution_cache...")
+                    print(
+                        "Adding latest_opinions_state column to opinion_evolution_cache..."
+                    )
                     conn.execute(text("""
                         ALTER TABLE opinion_evolution_cache 
                         ADD COLUMN latest_opinions_state TEXT
@@ -210,7 +212,7 @@ def migrate_postgresql(user, password, host, port, dbname):
                         CONSTRAINT fk_sampled_agents_exp FOREIGN KEY (exp_id) REFERENCES exps(idexp) ON DELETE CASCADE
                     )
                 """))
-                
+
                 # Create indexes
                 conn.execute(text("""
                     CREATE INDEX idx_sampled_agents_lookup ON opinion_evolution_sampled_agents(exp_id, topic_id, sample_percentage)
@@ -235,6 +237,7 @@ def migrate_postgresql(user, password, host, port, dbname):
 if __name__ == "__main__":
     # For testing SQLite migration
     import sys
+
     if len(sys.argv) > 1:
         migrate_sqlite(sys.argv[1])
     else:

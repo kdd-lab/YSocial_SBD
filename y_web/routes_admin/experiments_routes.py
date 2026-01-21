@@ -6145,12 +6145,16 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     # Find all rounds up to the specified day/hour for x-axis display
     # We'll filter to hour==0 (day boundaries) for cleaner x-axis labels
     # But first check if ANY rounds exist
-    all_rounds_check = db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
-    
+    all_rounds_check = (
+        db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
+    )
+
     if not all_rounds_check:
-        current_app.logger.warning(f"No rounds found for exp {expid} up to day {filter_day}")
+        current_app.logger.warning(
+            f"No rounds found for exp {expid} up to day {filter_day}"
+        )
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
-     
+
     # Get rounds at day boundaries (hour==0) for x-axis display points
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
@@ -6161,41 +6165,44 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
         .order_by(Rounds.day, Rounds.hour)
         .all()
     )
-    
-    current_app.logger.info(f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid}")
-    
+
+    current_app.logger.info(
+        f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid}"
+    )
+
     # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
     # fall back to selecting one round per day (this is expected for HPC experiments)
     if not rounds_up_to_time:
-        current_app.logger.info(f"No hour==0 rounds found for exp {expid}, using fallback to first hour per day")
+        current_app.logger.info(
+            f"No hour==0 rounds found for exp {expid}, using fallback to first hour per day"
+        )
         # Group by day and take the first round from each day
         from sqlalchemy import func
+
         subquery = (
-            db.session.query(
-                Rounds.day,
-                func.min(Rounds.hour).label('min_hour')
-            )
+            db.session.query(Rounds.day, func.min(Rounds.hour).label("min_hour"))
             .filter(Rounds.day <= filter_day)
             .group_by(Rounds.day)
             .subquery()
         )
-        
+
         rounds_up_to_time = (
             db.session.query(Rounds.id, Rounds.day, Rounds.hour)
             .join(
                 subquery,
-                and_(
-                    Rounds.day == subquery.c.day,
-                    Rounds.hour == subquery.c.min_hour
-                )
+                and_(Rounds.day == subquery.c.day, Rounds.hour == subquery.c.min_hour),
             )
             .order_by(Rounds.day, Rounds.hour)
             .all()
         )
-        current_app.logger.info(f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}")
-    
+        current_app.logger.info(
+            f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}"
+        )
+
     if not rounds_up_to_time:
-        current_app.logger.error(f"No rounds found at all for exp {expid} - returning empty data")
+        current_app.logger.error(
+            f"No rounds found at all for exp {expid} - returning empty data"
+        )
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
 
     # Create list of timestamps (simulation days, since hour==0)
@@ -6215,34 +6222,40 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     # We need all opinions to correctly identify the latest opinion per agent at each timestamp
     max_day = filter_day
     max_hour = 23  # Get all opinions up to end of the last day
-    
+
     # Get all rounds up to the max time
-    all_rounds_query = db.session.query(Rounds.id, Rounds.day, Rounds.hour).filter(
-        or_(
-            Rounds.day < max_day,
-            and_(Rounds.day == max_day, Rounds.hour <= max_hour),
+    all_rounds_query = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            or_(
+                Rounds.day < max_day,
+                and_(Rounds.day == max_day, Rounds.hour <= max_hour),
+            )
         )
-    ).order_by(Rounds.day, Rounds.hour)
-    
+        .order_by(Rounds.day, Rounds.hour)
+    )
+
     all_rounds_list = all_rounds_query.all()
-    
+
     if not all_rounds_list:
         return {
             "timestamps": simulation_days,
             "timestamp_mapping": timestamp_mapping,
             "groups": [],
         }
-    
+
     # Query all opinions with timestamp info for these rounds
-    base_query = db.session.query(
-        Agent_Opinion.agent_id,
-        Agent_Opinion.topic_id,
-        Agent_Opinion.tid,
-        Agent_Opinion.opinion,
-        Rounds.day,
-        Rounds.hour,
-    ).join(Rounds, Agent_Opinion.tid == Rounds.id).filter(
-        Agent_Opinion.tid.in_([r.id for r in all_rounds_list])
+    base_query = (
+        db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Rounds.day,
+            Rounds.hour,
+        )
+        .join(Rounds, Agent_Opinion.tid == Rounds.id)
+        .filter(Agent_Opinion.tid.in_([r.id for r in all_rounds_list]))
     )
 
     # Apply topic filter if specified
@@ -6261,34 +6274,38 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     # Organize opinions by (day, hour) for incremental processing
     opinions_by_time = defaultdict(list)
     for agent_id, topic_id, tid, opinion, opinion_day, opinion_hour in all_opinions:
-        opinions_by_time[(opinion_day, opinion_hour)].append((agent_id, topic_id, opinion))
-    
+        opinions_by_time[(opinion_day, opinion_hour)].append(
+            (agent_id, topic_id, opinion)
+        )
+
     # Sort time keys chronologically
     sorted_times = sorted(opinions_by_time.keys())
-    
+
     # For each timestamp we want to display, calculate group percentages
     # using incremental updates for efficiency
     group_trends = {group.name: [] for group in opinion_groups}
     latest_at_time = {}  # Running dictionary: (agent_id, topic_id) -> opinion
     current_time_index = 0  # Track which times we've processed
-    
+
     for round_obj in rounds_up_to_time:
         target_day = round_obj.day
         target_hour = round_obj.hour
-        
+
         # Process all opinions up to the target time (incrementally)
         while current_time_index < len(sorted_times):
             time_day, time_hour = sorted_times[current_time_index]
-            
+
             # Stop if this time is beyond our target
-            if time_day > target_day or (time_day == target_day and time_hour > target_hour):
+            if time_day > target_day or (
+                time_day == target_day and time_hour > target_hour
+            ):
                 break
-            
+
             # Update latest_at_time with opinions from this time
             for agent_id, topic_id, opinion in opinions_by_time[(time_day, time_hour)]:
                 key = (agent_id, topic_id)
                 latest_at_time[key] = opinion
-            
+
             current_time_index += 1
 
         # Bin the opinions at this timestamp
@@ -6335,30 +6352,28 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
 def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
     """
     Get or create a stable sample of agents for visualization.
-    
+
     This function ensures that the same set of agents is used across all
     animation frames for stability and performance.
-    
+
     Args:
         expid: Experiment ID
         topic_id: Topic ID as string (None for all topics, supports int or UUID)
         sample_percentage: Percentage of agents to sample
         all_agent_ids: List of all available agent IDs
-    
+
     Returns:
         List of sampled agent IDs
     """
     # Try to get existing sample
     sample_entry = OpinionEvolutionSampledAgents.query.filter_by(
-        exp_id=expid,
-        topic_id=topic_id,
-        sample_percentage=sample_percentage
+        exp_id=expid, topic_id=topic_id, sample_percentage=sample_percentage
     ).first()
-    
+
     # If sample exists and is recent (< 1 hour), use it
     if sample_entry and (datetime.now() - sample_entry.created_at) < timedelta(hours=1):
         return json.loads(sample_entry.sampled_agent_ids)
-    
+
     # Sample agents deterministically using experiment ID as seed for reproducibility
     # This ensures the same sample is generated if we need to recreate it
     # Handle topic_id which can be None, integer string, or UUID string
@@ -6368,13 +6383,13 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
         # topic_id is a string (either int converted to string or UUID)
         # Use hash for consistent seeding
         topic_seed = abs(hash(topic_id)) % 1000000
-    
+
     random.seed(expid * 1000 + topic_seed + sample_percentage)
     num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
     sampled_agent_ids = random.sample(
         all_agent_ids, min(num_agents_to_sample, len(all_agent_ids))
     )
-    
+
     # Store in database
     if sample_entry:
         # Update existing entry
@@ -6389,7 +6404,7 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
             sampled_agent_ids=json.dumps(sampled_agent_ids),
         )
         db.session.add(sample_entry)
-    
+
     try:
         db.session.commit()
     except Exception as e:
@@ -6397,7 +6412,7 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
         current_app.logger.error(f"Error storing sampled agents: {str(e)}")
         # Continue with the sampled agents even if storage fails
         # This ensures the visualization still works
-    
+
     return sampled_agent_ids
 
 
@@ -6424,12 +6439,16 @@ def generate_agent_timeseries_data(
     # Find all rounds up to the specified day/hour for x-axis display
     # We'll filter to hour==0 (day boundaries) for cleaner x-axis labels
     # But first check if ANY rounds exist
-    all_rounds_check = db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
-    
+    all_rounds_check = (
+        db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
+    )
+
     if not all_rounds_check:
-        current_app.logger.warning(f"No rounds found for exp {expid} in generate_agent_timeseries_data")
+        current_app.logger.warning(
+            f"No rounds found for exp {expid} in generate_agent_timeseries_data"
+        )
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
-    
+
     # Get rounds at day boundaries (hour==0) for x-axis display points
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
@@ -6440,41 +6459,44 @@ def generate_agent_timeseries_data(
         .order_by(Rounds.day, Rounds.hour)
         .all()
     )
-    
-    current_app.logger.info(f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid} in generate_agent_timeseries_data")
-    
+
+    current_app.logger.info(
+        f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid} in generate_agent_timeseries_data"
+    )
+
     # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
     # fall back to selecting one round per day (this is expected for HPC experiments)
     if not rounds_up_to_time:
-        current_app.logger.info(f"No hour==0 rounds for exp {expid}, using fallback to first hour per day")
+        current_app.logger.info(
+            f"No hour==0 rounds for exp {expid}, using fallback to first hour per day"
+        )
         # Group by day and take the first round from each day
         from sqlalchemy import func
+
         subquery = (
-            db.session.query(
-                Rounds.day,
-                func.min(Rounds.hour).label('min_hour')
-            )
+            db.session.query(Rounds.day, func.min(Rounds.hour).label("min_hour"))
             .filter(Rounds.day <= filter_day)
             .group_by(Rounds.day)
             .subquery()
         )
-        
+
         rounds_up_to_time = (
             db.session.query(Rounds.id, Rounds.day, Rounds.hour)
             .join(
                 subquery,
-                and_(
-                    Rounds.day == subquery.c.day,
-                    Rounds.hour == subquery.c.min_hour
-                )
+                and_(Rounds.day == subquery.c.day, Rounds.hour == subquery.c.min_hour),
             )
             .order_by(Rounds.day, Rounds.hour)
             .all()
         )
-        current_app.logger.info(f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}")
-    
+        current_app.logger.info(
+            f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}"
+        )
+
     if not rounds_up_to_time:
-        current_app.logger.error(f"No rounds found at all in generate_agent_timeseries_data for exp {expid}")
+        current_app.logger.error(
+            f"No rounds found at all in generate_agent_timeseries_data for exp {expid}"
+        )
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
 
     # Create mapping of round_id to day (since hour is always 0)
@@ -6523,7 +6545,9 @@ def generate_agent_timeseries_data(
     # Convert topic_id to string for consistency (supports both int and UUID)
     all_agent_ids = list(agent_data.keys())
     topic_id_str = str(filter_topic_id) if filter_topic_id is not None else None
-    sampled_agent_ids = get_or_sample_agents(expid, topic_id_str, sample_percentage, all_agent_ids)
+    sampled_agent_ids = get_or_sample_agents(
+        expid, topic_id_str, sample_percentage, all_agent_ids
+    )
 
     # Generate sorted list of all unique days
     simulation_days = sorted(
@@ -6608,17 +6632,17 @@ def generate_agent_timeseries_data(
 def count_social_interactions(all_opinions):
     """
     Count social interactions from opinion data.
-    
+
     Social interactions: Count opinions where id_interacted_with is valid (has a value).
-    
+
     Args:
         all_opinions: List of tuples (agent_id, topic_id, tid, opinion, id_interacted_with, day, hour)
-    
+
     Returns:
         Number of social interactions
     """
     social_interactions = 0
-    
+
     for (
         agent_id,
         topic_id,
@@ -6634,24 +6658,24 @@ def count_social_interactions(all_opinions):
             id_str = str(id_interacted_with).strip()
             if len(id_str) > 0 and id_str != "0":
                 social_interactions += 1
-    
+
     return social_interactions
 
 
 def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id):
     """
     Get opinion statistics from cache or compute them incrementally.
-    
+
     This function implements incremental caching: if a previous time point is cached,
     it queries only new opinions since that time and updates the cached state.
     Otherwise, it computes from scratch.
-    
+
     Args:
         expid: Experiment ID
         filter_day: Day filter
         filter_hour: Hour filter
         filter_topic_id: Topic filter (None for all topics)
-    
+
     Returns:
         Dict with statistics: {
             'total_opinions': int,
@@ -6662,64 +6686,60 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     """
     from sqlalchemy import and_, or_
     from sqlalchemy.orm import defer
+
     from y_web.models import Agent_Opinion, Rounds
-    
+
     # Check if incremental caching is supported (column exists)
-    incremental_supported = hasattr(OpinionEvolutionCache, 'latest_opinions_state')
-    
+    incremental_supported = hasattr(OpinionEvolutionCache, "latest_opinions_state")
+
     # Try to get exact cache match
     # If latest_opinions_state column doesn't exist, defer it from the query
     try:
         query = OpinionEvolutionCache.query
         if not incremental_supported:
             # Defer the missing column to avoid SELECT errors
-            query = query.options(defer('latest_opinions_state'))
-        
+            query = query.options(defer("latest_opinions_state"))
+
         cache_entry = query.filter_by(
-            exp_id=expid,
-            day=filter_day,
-            hour=filter_hour,
-            topic_id=filter_topic_id
+            exp_id=expid, day=filter_day, hour=filter_hour, topic_id=filter_topic_id
         ).first()
     except Exception as e:
         # Handle any other database errors - log only critical errors, not on every request
         # to avoid performance degradation from excessive logging
         cache_entry = None
-    
+
     # Cache hit - return cached data (no expiry, cache persists)
     if cache_entry:
         # Extract all needed data from cache_entry while session is still valid
         cached_result = {
-            'total_opinions': cache_entry.total_opinions,
-            'social_interactions': cache_entry.social_interactions,
-            'unique_agents': cache_entry.unique_agents,
-            'binned_data': json.loads(cache_entry.binned_data)
+            "total_opinions": cache_entry.total_opinions,
+            "social_interactions": cache_entry.social_interactions,
+            "unique_agents": cache_entry.unique_agents,
+            "binned_data": json.loads(cache_entry.binned_data),
         }
         return cached_result
-    
+
     # Cache miss - try incremental computation
     # Find the most recent cached entry before the requested time
     current_time_value = filter_day * 24 + filter_hour
-    
+
     previous_cache = None
     if incremental_supported:
         try:
             previous_cache = (
-                OpinionEvolutionCache.query
-                .filter(
+                OpinionEvolutionCache.query.filter(
                     OpinionEvolutionCache.exp_id == expid,
                     OpinionEvolutionCache.topic_id == filter_topic_id,
                     or_(
                         OpinionEvolutionCache.day < filter_day,
                         and_(
                             OpinionEvolutionCache.day == filter_day,
-                            OpinionEvolutionCache.hour < filter_hour
-                        )
-                    )
+                            OpinionEvolutionCache.hour < filter_hour,
+                        ),
+                    ),
                 )
                 .order_by(
-                    OpinionEvolutionCache.day.desc(),
-                    OpinionEvolutionCache.hour.desc()
+                    OpinionEvolutionCache.day.desc(), OpinionEvolutionCache.hour.desc()
                 )
                 .first()
             )
@@ -6727,12 +6747,17 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             # If query fails (e.g., column doesn't exist), fall back to full computation
             # Reduce logging to avoid performance impact
             previous_cache = None
-    
-    if previous_cache and incremental_supported and hasattr(previous_cache, 'latest_opinions_state') and previous_cache.latest_opinions_state:
+
+    if (
+        previous_cache
+        and incremental_supported
+        and hasattr(previous_cache, "latest_opinions_state")
+        and previous_cache.latest_opinions_state
+    ):
         # Incremental computation from previous cache
         prev_day = previous_cache.day
         prev_hour = previous_cache.hour
-        
+
         # Load previous state
         latest_opinions = {}
         stored_state = json.loads(previous_cache.latest_opinions_state)
@@ -6745,7 +6770,7 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                 agent_id = agent_id_str  # Keep as string for UUID
             for topic_id_str, opinion_data in topics_dict.items():
                 # Handle both int and UUID topic_ids
-                if topic_id_str == 'null':
+                if topic_id_str == "null":
                     topic_id = None
                 else:
                     try:
@@ -6754,10 +6779,10 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                         topic_id = topic_id_str  # Keep as string for UUID
                 key = (agent_id, topic_id)
                 latest_opinions[key] = opinion_data
-        
+
         # Start with previous social interactions count
         social_interactions = previous_cache.social_interactions
-        
+
         # Query only new opinions since previous cache time
         rounds_in_range = (
             db.session.query(Rounds.id, Rounds.day, Rounds.hour)
@@ -6765,52 +6790,69 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                 or_(
                     and_(Rounds.day == prev_day, Rounds.hour > prev_hour),
                     and_(Rounds.day > prev_day, Rounds.day < filter_day),
-                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
                 )
             )
             .all()
         )
-        
+
         if rounds_in_range:
             round_time_map = {r.id: (r.day, r.hour) for r in rounds_in_range}
             round_ids = [r.id for r in rounds_in_range]
-            
+
             # Query new opinions
-            new_opinions_query = (
-                db.session.query(
-                    Agent_Opinion.agent_id,
-                    Agent_Opinion.topic_id,
-                    Agent_Opinion.tid,
-                    Agent_Opinion.opinion,
-                    Agent_Opinion.id_interacted_with,
-                )
-                .filter(Agent_Opinion.tid.in_(round_ids))
-            )
-            
+            new_opinions_query = db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+            ).filter(Agent_Opinion.tid.in_(round_ids))
+
             if filter_topic_id is not None:
-                new_opinions_query = new_opinions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-            
+                new_opinions_query = new_opinions_query.filter(
+                    Agent_Opinion.topic_id == filter_topic_id
+                )
+
             new_opinions = new_opinions_query.all()
-            
+
             # Create list format for count_social_interactions
             new_opinions_with_rounds = [
-                (agent_id, topic_id, tid, opinion, id_interacted_with, round_time_map[tid][0], round_time_map[tid][1])
+                (
+                    agent_id,
+                    topic_id,
+                    tid,
+                    opinion,
+                    id_interacted_with,
+                    round_time_map[tid][0],
+                    round_time_map[tid][1],
+                )
                 for agent_id, topic_id, tid, opinion, id_interacted_with in new_opinions
                 if tid in round_time_map
             ]
-            
+
             # Incrementally add new social interactions
-            new_social_interactions = count_social_interactions(new_opinions_with_rounds)
+            new_social_interactions = count_social_interactions(
+                new_opinions_with_rounds
+            )
             social_interactions += new_social_interactions
-            
+
             # Update latest_opinions with new data
-            for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in new_opinions_with_rounds:
+            for (
+                agent_id,
+                topic_id,
+                tid,
+                opinion,
+                id_interacted_with,
+                day,
+                hour,
+            ) in new_opinions_with_rounds:
                 key = (agent_id, topic_id)
-                
+
                 # Update if this is newer than what we have
                 if key not in latest_opinions or (day, hour) > (
                     latest_opinions[key]["day"],
-                    latest_opinions[key]["hour"]
+                    latest_opinions[key]["hour"],
                 ):
                     latest_opinions[key] = {
                         "tid": tid,
@@ -6819,7 +6861,7 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                         "day": day,
                         "hour": hour,
                     }
-        
+
     else:
         # No previous cache - compute from scratch
         rounds_up_to_time = (
@@ -6832,7 +6874,7 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             )
             .subquery()
         )
-        
+
         base_query = (
             db.session.query(
                 Agent_Opinion.agent_id,
@@ -6846,12 +6888,12 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             .join(Rounds, Agent_Opinion.tid == Rounds.id)
             .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
         )
-        
+
         if filter_topic_id is not None:
             base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-        
+
         all_opinions = base_query.all()
-        
+
         # Keep only the latest opinion per (agent_id, topic_id) pair
         latest_opinions = {}
         for (
@@ -6875,33 +6917,33 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                     "day": day,
                     "hour": hour,
                 }
-        
+
         social_interactions = count_social_interactions(all_opinions)
-    
+
     # Extract opinion values for binning
     opinion_data = [data["opinion"] for data in latest_opinions.values()]
-    
+
     # Count unique agents
     unique_agents = len(set(key[0] for key in latest_opinions.keys()))
-    
+
     # Get opinion groups and bin the data
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
     binned_data = {group.name: 0 for group in opinion_groups}
-    
+
     for opinion_value in opinion_data:
         for group in opinion_groups:
             if group.lower_bound <= opinion_value <= group.upper_bound:
                 binned_data[group.name] += 1
                 break
-    
+
     # Prepare result before any database modifications
     result = {
-        'total_opinions': len(opinion_data),
-        'social_interactions': social_interactions,
-        'unique_agents': unique_agents,
-        'binned_data': binned_data
+        "total_opinions": len(opinion_data),
+        "social_interactions": social_interactions,
+        "unique_agents": unique_agents,
+        "binned_data": binned_data,
     }
-    
+
     # Prepare latest_opinions state for storage (for next incremental update)
     # Only store if incremental caching is supported
     latest_opinions_for_storage = None
@@ -6909,42 +6951,44 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         latest_opinions_for_storage = {}
         for (agent_id, topic_id), data in latest_opinions.items():
             agent_key = str(agent_id)
-            topic_key = str(topic_id) if topic_id is not None else 'null'
-            
+            topic_key = str(topic_id) if topic_id is not None else "null"
+
             if agent_key not in latest_opinions_for_storage:
                 latest_opinions_for_storage[agent_key] = {}
-            
+
             latest_opinions_for_storage[agent_key][topic_key] = {
                 "opinion": data["opinion"],
                 "day": data["day"],
                 "hour": data["hour"],
             }
-    
+
     # Store in cache (no expiry - cache persists indefinitely)
     try:
         # Create new cache entry
         cache_data = {
-            'exp_id': expid,
-            'day': filter_day,
-            'hour': filter_hour,
-            'topic_id': filter_topic_id,
-            'total_opinions': result['total_opinions'],
-            'social_interactions': result['social_interactions'],
-            'unique_agents': result['unique_agents'],
-            'binned_data': json.dumps(result['binned_data']),
+            "exp_id": expid,
+            "day": filter_day,
+            "hour": filter_hour,
+            "topic_id": filter_topic_id,
+            "total_opinions": result["total_opinions"],
+            "social_interactions": result["social_interactions"],
+            "unique_agents": result["unique_agents"],
+            "binned_data": json.dumps(result["binned_data"]),
         }
-        
+
         # Add latest_opinions_state only if column exists
         if incremental_supported and latest_opinions_for_storage is not None:
-            cache_data['latest_opinions_state'] = json.dumps(latest_opinions_for_storage)
-        
+            cache_data["latest_opinions_state"] = json.dumps(
+                latest_opinions_for_storage
+            )
+
         cache_entry = OpinionEvolutionCache(**cache_data)
         db.session.add(cache_entry)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error caching opinion stats: {str(e)}")
-    
+
     return result
 
 
@@ -6996,7 +7040,7 @@ def opinion_evolution(expid):
         # Get available topics from experiment database
         topics_query = db.session.query(Interests).all()
         # Convert to dictionaries immediately to avoid ObjectDeletedError when session closes
-        topics = [{'iid': t.iid, 'interest': t.interest} for t in topics_query]
+        topics = [{"iid": t.iid, "interest": t.interest} for t in topics_query]
 
         # Get max day and hour from Rounds table (start at day 1 hour 1 as per requirements)
         max_round = (
@@ -7011,9 +7055,12 @@ def opinion_evolution(expid):
         filter_day = request.args.get("day", type=int, default=max_day)
         filter_hour = request.args.get("hour", type=int, default=max_hour)
         # Default to first topic on initial page load (to match UI which shows first topic as active)
-        default_topic_id = topics[0]['iid'] if topics else None
+        default_topic_id = topics[0]["iid"] if topics else None
         # Parse topic_id as string to support both integer and UUID topic_ids (HPC experiments)
-        filter_topic_id_str = request.args.get("topic_id", default=str(default_topic_id) if default_topic_id is not None else None)
+        filter_topic_id_str = request.args.get(
+            "topic_id",
+            default=str(default_topic_id) if default_topic_id is not None else None,
+        )
         if filter_topic_id_str:
             try:
                 filter_topic_id = int(filter_topic_id_str)
@@ -7202,10 +7249,10 @@ def opinion_evolution_data(expid):
         # Get filter parameters from request
         filter_day = request.args.get("day", type=int, default=1)
         filter_hour = request.args.get("hour", type=int, default=1)
-        
+
         # Get topic_id as string to support both integers and UUIDs (HPC experiments)
         filter_topic_id_str = request.args.get("topic_id", type=str, default=None)
-        
+
         # Handle empty string or 'null' as None
         if filter_topic_id_str in ("", "null", None):
             filter_topic_id = None
@@ -7218,18 +7265,22 @@ def opinion_evolution_data(expid):
                 filter_topic_id = filter_topic_id_str
 
         # Use caching for statistics computation
-        stats = get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id)
+        stats = get_or_compute_opinion_stats(
+            expid, filter_day, filter_hour, filter_topic_id
+        )
 
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
 
         # Prepare data for chart
         chart_labels = [group.name for group in opinion_groups]
-        chart_values = [stats['binned_data'].get(group.name, 0) for group in opinion_groups]
+        chart_values = [
+            stats["binned_data"].get(group.name, 0) for group in opinion_groups
+        ]
 
         # Get sample percentage from request
         sample_percentage = request.args.get("sample_percentage", type=int, default=50)
-        
+
         # Check if we should skip generating group trends data (for performance during animation)
         # Parse as string since type=bool doesn't work correctly in Flask (bool("false") == True)
         skip_trends_str = request.args.get("skip_trends", type=str, default="false")
@@ -7252,9 +7303,9 @@ def opinion_evolution_data(expid):
             {
                 "chart_labels": chart_labels,
                 "chart_values": chart_values,
-                "total_opinions": stats['total_opinions'],
-                "social_interactions": stats['social_interactions'],
-                "unique_agents": stats['unique_agents'],
+                "total_opinions": stats["total_opinions"],
+                "social_interactions": stats["social_interactions"],
+                "unique_agents": stats["unique_agents"],
                 "filter_day": filter_day,
                 "filter_hour": filter_hour,
                 "group_trends_data": group_trends_data,
