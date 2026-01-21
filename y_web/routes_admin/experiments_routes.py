@@ -6153,13 +6153,12 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
 
     # Find all rounds up to the specified day/hour
+    # Filter to only include hour==0 (day boundaries) for cleaner x-axis
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
         .filter(
-            or_(
-                Rounds.day < filter_day,
-                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
-            )
+            Rounds.hour == 0,  # Only day boundaries
+            Rounds.day <= filter_day,  # Up to current day
         )
         .order_by(Rounds.day, Rounds.hour)
         .all()
@@ -6168,15 +6167,13 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     if not rounds_up_to_time:
         return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
 
-    # Create list of all timestamps (absolute hours from start)
-    all_timestamps_absolute = [r.day * 24 + r.hour for r in rounds_up_to_time]
-    # Convert to simulation days for x-axis display
-    simulation_days = [abs_ts / 24.0 for abs_ts in all_timestamps_absolute]
+    # Create list of timestamps (simulation days, since hour==0)
+    simulation_days = [float(r.day) for r in rounds_up_to_time]
 
     # Create timestamp mapping for tooltip context
     timestamp_mapping = {}
-    for idx, r in enumerate(rounds_up_to_time):
-        sim_day = (r.day * 24 + r.hour) / 24.0
+    for r in rounds_up_to_time:
+        sim_day = float(r.day)
         timestamp_mapping[sim_day] = {
             "day": r.day,
             "hour": r.hour,
@@ -6354,13 +6351,12 @@ def generate_agent_timeseries_data(
     from y_web.models import Agent_Opinion, Rounds
 
     # Find all rounds up to the specified day/hour
+    # Filter to only include hour==0 (day boundaries) for cleaner x-axis
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
         .filter(
-            or_(
-                Rounds.day < filter_day,
-                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
-            )
+            Rounds.hour == 0,  # Only day boundaries
+            Rounds.day <= filter_day,  # Up to current day
         )
         .order_by(Rounds.day, Rounds.hour)
         .all()
@@ -6369,8 +6365,8 @@ def generate_agent_timeseries_data(
     if not rounds_up_to_time:
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
 
-    # Create mapping of round_id to (day, hour) for time calculation
-    round_time_map = {r.id: (r.day, r.hour) for r in rounds_up_to_time}
+    # Create mapping of round_id to day (since hour is always 0)
+    round_time_map = {r.id: r.day for r in rounds_up_to_time}
     round_ids = [r.id for r in rounds_up_to_time]
 
     # Query all opinions up to this time
@@ -6397,16 +6393,15 @@ def generate_agent_timeseries_data(
 
     for agent_id, topic_id, tid, opinion in all_opinions:
         if tid in round_time_map:
-            day, hour = round_time_map[tid]
-            timestamp = day * 24 + hour
+            day = round_time_map[tid]  # day number (since hour is always 0)
 
-            # Store opinion at this timestamp
+            # Store opinion at this day
             if agent_id not in agent_data:
                 agent_data[agent_id] = {}
 
-            # Keep only the latest opinion at each timestamp (in case multiple opinions per round)
-            if timestamp not in agent_data[agent_id]:
-                agent_data[agent_id][timestamp] = opinion
+            # Keep only the latest opinion at each day
+            if day not in agent_data[agent_id]:
+                agent_data[agent_id][day] = opinion
 
             # Track first observed opinion for color coding
             if agent_id not in agent_first_opinion:
@@ -6418,25 +6413,20 @@ def generate_agent_timeseries_data(
     topic_id_str = str(filter_topic_id) if filter_topic_id is not None else None
     sampled_agent_ids = get_or_sample_agents(expid, topic_id_str, sample_percentage, all_agent_ids)
 
-    # Generate sorted list of all unique timestamps (day*24+hour = total hours)
-    all_timestamps_absolute = sorted(
+    # Generate sorted list of all unique days
+    simulation_days = sorted(
         set(
-            timestamp
+            day
             for agent_opinions in agent_data.values()
-            for timestamp in agent_opinions.keys()
+            for day in agent_opinions.keys()
         )
     )
 
-    # Convert to simulation days for x-axis display: day = total_hours / 24
-    simulation_days = [abs_ts / 24.0 for abs_ts in all_timestamps_absolute]
-    # Also create mapping for tooltip display
-    timestamp_mapping = {}  # Maps simulation day to (day, hour) for tooltips
+    # Create mapping for tooltip display
+    timestamp_mapping = {}  # Maps day to (day, hour=0) for tooltips
 
-    for idx, abs_ts in enumerate(all_timestamps_absolute):
-        sim_day = abs_ts / 24.0
-        day = abs_ts // 24
-        hour = abs_ts % 24
-        timestamp_mapping[sim_day] = {"day": day, "hour": hour, "absolute": abs_ts}
+    for day in simulation_days:
+        timestamp_mapping[float(day)] = {"day": day, "hour": 0, "absolute": day * 24}
 
     # Get opinion groups for color coding
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6459,9 +6449,9 @@ def generate_agent_timeseries_data(
         filled_data = []
         last_opinion = None
 
-        for abs_timestamp in all_timestamps_absolute:
-            if abs_timestamp in agent_opinions:
-                last_opinion = agent_opinions[abs_timestamp]
+        for day in simulation_days:
+            if day in agent_opinions:
+                last_opinion = agent_opinions[day]
 
             if last_opinion is not None:
                 filled_data.append(last_opinion)
@@ -6496,8 +6486,8 @@ def generate_agent_timeseries_data(
         )
 
     return {
-        "timestamps": simulation_days,  # Simulation days: hours / 24
-        "timestamp_mapping": timestamp_mapping,  # Maps simulation day to actual day/hour
+        "timestamps": simulation_days,  # Simulation days (integers: 0, 1, 2, ...)
+        "timestamp_mapping": timestamp_mapping,  # Maps day to actual day/hour
         "agents": agents_timeseries,
         "sample_percentage": sample_percentage,
     }
