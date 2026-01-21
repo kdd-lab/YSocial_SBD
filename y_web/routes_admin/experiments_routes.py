@@ -6187,7 +6187,6 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
     
     # Get all rounds up to the max time
     all_rounds_query = db.session.query(Rounds.id, Rounds.day, Rounds.hour).filter(
-        Rounds.exp_id == exp_id,  # Filter by experiment
         or_(
             Rounds.day < max_day,
             and_(Rounds.day == max_day, Rounds.hour <= max_hour),
@@ -6396,7 +6395,6 @@ def generate_agent_timeseries_data(
     rounds_up_to_time = (
         db.session.query(Rounds.id, Rounds.day, Rounds.hour)
         .filter(
-            Rounds.exp_id == expid,  # Filter by experiment
             Rounds.hour == 0,  # Only day boundaries
             Rounds.day <= filter_day,  # Up to current day
         )
