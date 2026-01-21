@@ -6537,10 +6537,11 @@ def count_social_interactions(all_opinions):
 
 def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id):
     """
-    Get opinion statistics from cache or compute and cache them.
+    Get opinion statistics from cache or compute them incrementally.
     
-    This function implements a caching layer to avoid re-querying and re-processing
-    opinion data for animation frames that have been previously computed.
+    This function implements incremental caching: if a previous time point is cached,
+    it queries only new opinions since that time and updates the cached state.
+    Otherwise, it computes from scratch.
     
     Args:
         expid: Experiment ID
@@ -6559,7 +6560,7 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
     from sqlalchemy import and_, or_
     from y_web.models import Agent_Opinion, Rounds
     
-    # Try to get from cache
+    # Try to get exact cache match
     cache_entry = OpinionEvolutionCache.query.filter_by(
         exp_id=expid,
         day=filter_day,
@@ -6567,9 +6568,8 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         topic_id=filter_topic_id
     ).first()
     
-    # Cache hit - return cached data if fresh enough
-    # Extract data BEFORE any session changes to avoid ObjectDeletedError
-    if cache_entry and (datetime.now() - cache_entry.created_at) < timedelta(minutes=OPINION_CACHE_EXPIRY_MINUTES):
+    # Cache hit - return cached data (no expiry, cache persists)
+    if cache_entry:
         # Extract all needed data from cache_entry while session is still valid
         cached_result = {
             'total_opinions': cache_entry.total_opinions,
@@ -6579,70 +6579,194 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         }
         return cached_result
     
-    # Cache miss or stale - compute statistics
-    # Find all rounds up to the specified day/hour
-    rounds_up_to_time = (
-        db.session.query(Rounds.id)
+    # Cache miss - try incremental computation
+    # Find the most recent cached entry before the requested time
+    current_time_value = filter_day * 24 + filter_hour
+    
+    previous_cache = (
+        OpinionEvolutionCache.query
         .filter(
+            OpinionEvolutionCache.exp_id == expid,
+            OpinionEvolutionCache.topic_id == filter_topic_id,
             or_(
-                Rounds.day < filter_day,
-                and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                OpinionEvolutionCache.day < filter_day,
+                and_(
+                    OpinionEvolutionCache.day == filter_day,
+                    OpinionEvolutionCache.hour < filter_hour
+                )
             )
         )
-        .subquery()
-    )
-    
-    # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
-    base_query = (
-        db.session.query(
-            Agent_Opinion.agent_id,
-            Agent_Opinion.topic_id,
-            Agent_Opinion.tid,
-            Agent_Opinion.opinion,
-            Agent_Opinion.id_interacted_with,
-            Rounds.day,
-            Rounds.hour,
+        .order_by(
+            OpinionEvolutionCache.day.desc(),
+            OpinionEvolutionCache.hour.desc()
         )
-        .join(Rounds, Agent_Opinion.tid == Rounds.id)
-        .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        .first()
     )
     
-    # Apply topic filter if specified
-    if filter_topic_id is not None:
-        base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-    
-    # Get all opinions up to the selected time
-    all_opinions = base_query.all()
-    
-    # Keep only the latest opinion per (agent_id, topic_id) pair
-    latest_opinions = {}
-    for (
-        agent_id,
-        topic_id,
-        tid,
-        opinion,
-        id_interacted_with,
-        day,
-        hour,
-    ) in all_opinions:
-        key = (agent_id, topic_id)
-        if key not in latest_opinions or (day, hour) > (
-            latest_opinions[key]["day"],
-            latest_opinions[key]["hour"],
-        ):
-            latest_opinions[key] = {
-                "tid": tid,
-                "opinion": opinion,
-                "id_interacted_with": id_interacted_with,
-                "day": day,
-                "hour": hour,
-            }
+    if previous_cache and previous_cache.latest_opinions_state:
+        # Incremental computation from previous cache
+        prev_day = previous_cache.day
+        prev_hour = previous_cache.hour
+        
+        # Load previous state
+        latest_opinions = {}
+        stored_state = json.loads(previous_cache.latest_opinions_state)
+        # Convert stored state back to the format we need
+        for agent_id_str, topics_dict in stored_state.items():
+            agent_id = int(agent_id_str)  # JSON keys are strings
+            for topic_id_str, opinion_data in topics_dict.items():
+                topic_id = int(topic_id_str) if topic_id_str != 'null' else None
+                key = (agent_id, topic_id)
+                latest_opinions[key] = opinion_data
+        
+        # Query only new opinions since previous cache time
+        rounds_in_range = (
+            db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+            .filter(
+                or_(
+                    and_(Rounds.day == prev_day, Rounds.hour > prev_hour),
+                    and_(Rounds.day > prev_day, Rounds.day < filter_day),
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour)
+                )
+            )
+            .all()
+        )
+        
+        if rounds_in_range:
+            round_time_map = {r.id: (r.day, r.hour) for r in rounds_in_range}
+            round_ids = [r.id for r in rounds_in_range]
+            
+            # Query new opinions
+            new_opinions_query = (
+                db.session.query(
+                    Agent_Opinion.agent_id,
+                    Agent_Opinion.topic_id,
+                    Agent_Opinion.tid,
+                    Agent_Opinion.opinion,
+                    Agent_Opinion.id_interacted_with,
+                )
+                .filter(Agent_Opinion.tid.in_(round_ids))
+            )
+            
+            if filter_topic_id is not None:
+                new_opinions_query = new_opinions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+            
+            new_opinions = new_opinions_query.all()
+            
+            # Update latest_opinions with new data
+            for agent_id, topic_id, tid, opinion, id_interacted_with in new_opinions:
+                if tid in round_time_map:
+                    day, hour = round_time_map[tid]
+                    key = (agent_id, topic_id)
+                    
+                    # Update if this is newer than what we have
+                    if key not in latest_opinions or (day, hour) > (
+                        latest_opinions[key]["day"],
+                        latest_opinions[key]["hour"]
+                    ):
+                        latest_opinions[key] = {
+                            "tid": tid,
+                            "opinion": opinion,
+                            "id_interacted_with": id_interacted_with,
+                            "day": day,
+                            "hour": hour,
+                        }
+        
+        # Query all opinions for social interactions count (need full range)
+        # This is still needed because social interactions is cumulative
+        rounds_up_to_time = (
+            db.session.query(Rounds.id)
+            .filter(
+                or_(
+                    Rounds.day < filter_day,
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
+            )
+            .subquery()
+        )
+        
+        all_opinions_query = (
+            db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+                Rounds.day,
+                Rounds.hour,
+            )
+            .join(Rounds, Agent_Opinion.tid == Rounds.id)
+            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        )
+        
+        if filter_topic_id is not None:
+            all_opinions_query = all_opinions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+        
+        all_opinions = all_opinions_query.all()
+        social_interactions = count_social_interactions(all_opinions)
+        
+    else:
+        # No previous cache - compute from scratch
+        rounds_up_to_time = (
+            db.session.query(Rounds.id)
+            .filter(
+                or_(
+                    Rounds.day < filter_day,
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
+            )
+            .subquery()
+        )
+        
+        base_query = (
+            db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+                Rounds.day,
+                Rounds.hour,
+            )
+            .join(Rounds, Agent_Opinion.tid == Rounds.id)
+            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        )
+        
+        if filter_topic_id is not None:
+            base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+        
+        all_opinions = base_query.all()
+        
+        # Keep only the latest opinion per (agent_id, topic_id) pair
+        latest_opinions = {}
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
+            key = (agent_id, topic_id)
+            if key not in latest_opinions or (day, hour) > (
+                latest_opinions[key]["day"],
+                latest_opinions[key]["hour"],
+            ):
+                latest_opinions[key] = {
+                    "tid": tid,
+                    "opinion": opinion,
+                    "id_interacted_with": id_interacted_with,
+                    "day": day,
+                    "hour": hour,
+                }
+        
+        social_interactions = count_social_interactions(all_opinions)
     
     # Extract opinion values for binning
     opinion_data = [data["opinion"] for data in latest_opinions.values()]
     
-    # Count social interactions and unique agents
-    social_interactions = count_social_interactions(all_opinions)
+    # Count unique agents
     unique_agents = len(set(key[0] for key in latest_opinions.keys()))
     
     # Get opinion groups and bin the data
@@ -6663,29 +6787,37 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
         'binned_data': binned_data
     }
     
-    # Store in cache (use a separate session/transaction to avoid conflicts)
-    try:
-        if cache_entry:
-            # Update existing cache entry
-            cache_entry.total_opinions = result['total_opinions']
-            cache_entry.social_interactions = result['social_interactions']
-            cache_entry.unique_agents = result['unique_agents']
-            cache_entry.binned_data = json.dumps(result['binned_data'])
-            cache_entry.created_at = datetime.now()
-        else:
-            # Create new cache entry
-            cache_entry = OpinionEvolutionCache(
-                exp_id=expid,
-                day=filter_day,
-                hour=filter_hour,
-                topic_id=filter_topic_id,
-                total_opinions=result['total_opinions'],
-                social_interactions=result['social_interactions'],
-                unique_agents=result['unique_agents'],
-                binned_data=json.dumps(result['binned_data']),
-            )
-            db.session.add(cache_entry)
+    # Prepare latest_opinions state for storage (for next incremental update)
+    # Convert to JSON-serializable format
+    latest_opinions_for_storage = {}
+    for (agent_id, topic_id), data in latest_opinions.items():
+        agent_key = str(agent_id)
+        topic_key = str(topic_id) if topic_id is not None else 'null'
         
+        if agent_key not in latest_opinions_for_storage:
+            latest_opinions_for_storage[agent_key] = {}
+        
+        latest_opinions_for_storage[agent_key][topic_key] = {
+            "opinion": data["opinion"],
+            "day": data["day"],
+            "hour": data["hour"],
+        }
+    
+    # Store in cache (no expiry - cache persists indefinitely)
+    try:
+        # Create new cache entry
+        cache_entry = OpinionEvolutionCache(
+            exp_id=expid,
+            day=filter_day,
+            hour=filter_hour,
+            topic_id=filter_topic_id,
+            total_opinions=result['total_opinions'],
+            social_interactions=result['social_interactions'],
+            unique_agents=result['unique_agents'],
+            binned_data=json.dumps(result['binned_data']),
+            latest_opinions_state=json.dumps(latest_opinions_for_storage),
+        )
+        db.session.add(cache_entry)
         db.session.commit()
     except Exception as e:
         db.session.rollback()

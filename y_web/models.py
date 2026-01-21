@@ -1173,6 +1173,9 @@ class OpinionEvolutionCache(db.Model):
     
     Stores pre-computed statistics for each (experiment, day, hour, topic) combination
     to avoid re-querying and re-processing large datasets during animation playback.
+    
+    Supports incremental computation: stores latest_opinions state to allow updating
+    from a previous cached state rather than recomputing from scratch.
     """
     
     __bind_key__ = "db_admin"
@@ -1190,6 +1193,10 @@ class OpinionEvolutionCache(db.Model):
     
     # Binned opinion data (JSON string: {group_name: count})
     binned_data = db.Column(db.Text, nullable=False)
+    
+    # Latest opinions state for incremental computation
+    # JSON string: {agent_id: {topic_id: {"opinion": float, "day": int, "hour": int}}}
+    latest_opinions_state = db.Column(db.Text, nullable=True)
     
     # Timestamp for cache invalidation
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
