@@ -6641,6 +6641,9 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
                 key = (agent_id, topic_id)
                 latest_opinions[key] = opinion_data
         
+        # Start with previous social interactions count
+        social_interactions = previous_cache.social_interactions
+        
         # Query only new opinions since previous cache time
         rounds_in_range = (
             db.session.query(Rounds.id, Rounds.day, Rounds.hour)
@@ -6675,57 +6678,33 @@ def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id
             
             new_opinions = new_opinions_query.all()
             
+            # Create list format for count_social_interactions
+            new_opinions_with_rounds = [
+                (agent_id, topic_id, tid, opinion, id_interacted_with, round_time_map[tid][0], round_time_map[tid][1])
+                for agent_id, topic_id, tid, opinion, id_interacted_with in new_opinions
+                if tid in round_time_map
+            ]
+            
+            # Incrementally add new social interactions
+            new_social_interactions = count_social_interactions(new_opinions_with_rounds)
+            social_interactions += new_social_interactions
+            
             # Update latest_opinions with new data
-            for agent_id, topic_id, tid, opinion, id_interacted_with in new_opinions:
-                if tid in round_time_map:
-                    day, hour = round_time_map[tid]
-                    key = (agent_id, topic_id)
-                    
-                    # Update if this is newer than what we have
-                    if key not in latest_opinions or (day, hour) > (
-                        latest_opinions[key]["day"],
-                        latest_opinions[key]["hour"]
-                    ):
-                        latest_opinions[key] = {
-                            "tid": tid,
-                            "opinion": opinion,
-                            "id_interacted_with": id_interacted_with,
-                            "day": day,
-                            "hour": hour,
-                        }
-        
-        # Query all opinions for social interactions count (need full range)
-        # This is still needed because social interactions is cumulative
-        rounds_up_to_time = (
-            db.session.query(Rounds.id)
-            .filter(
-                or_(
-                    Rounds.day < filter_day,
-                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
-                )
-            )
-            .subquery()
-        )
-        
-        all_opinions_query = (
-            db.session.query(
-                Agent_Opinion.agent_id,
-                Agent_Opinion.topic_id,
-                Agent_Opinion.tid,
-                Agent_Opinion.opinion,
-                Agent_Opinion.id_interacted_with,
-                Rounds.day,
-                Rounds.hour,
-            )
-            .join(Rounds, Agent_Opinion.tid == Rounds.id)
-            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
-        )
-        
-        if filter_topic_id is not None:
-            all_opinions_query = all_opinions_query.filter(Agent_Opinion.topic_id == filter_topic_id)
-        
-        all_opinions = all_opinions_query.all()
-        social_interactions = count_social_interactions(all_opinions)
+            for agent_id, topic_id, tid, opinion, id_interacted_with, day, hour in new_opinions_with_rounds:
+                key = (agent_id, topic_id)
+                
+                # Update if this is newer than what we have
+                if key not in latest_opinions or (day, hour) > (
+                    latest_opinions[key]["day"],
+                    latest_opinions[key]["hour"]
+                ):
+                    latest_opinions[key] = {
+                        "tid": tid,
+                        "opinion": opinion,
+                        "id_interacted_with": id_interacted_with,
+                        "day": day,
+                        "hour": hour,
+                    }
         
     else:
         # No previous cache - compute from scratch
