@@ -6279,9 +6279,6 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
     Returns:
         List of sampled agent IDs
     """
-    import random
-    from datetime import timedelta
-    
     # Try to get existing sample
     sample_entry = OpinionEvolutionSampledAgents.query.filter_by(
         exp_id=expid,
@@ -6321,6 +6318,8 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error storing sampled agents: {str(e)}")
+        # Continue with the sampled agents even if storage fails
+        # This ensures the visualization still works
     
     return sampled_agent_ids
 
