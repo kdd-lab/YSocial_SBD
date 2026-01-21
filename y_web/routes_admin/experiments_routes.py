@@ -6429,6 +6429,39 @@ def generate_agent_timeseries_data(
     }
 
 
+def count_social_interactions(all_opinions):
+    """
+    Count social interactions from opinion data.
+    
+    Social interactions: Count opinions where id_interacted_with is valid (has a value).
+    
+    Args:
+        all_opinions: List of tuples (agent_id, topic_id, tid, opinion, id_interacted_with, day, hour)
+    
+    Returns:
+        Number of social interactions
+    """
+    social_interactions = 0
+    
+    for (
+        agent_id,
+        topic_id,
+        tid,
+        opinion,
+        id_interacted_with,
+        day,
+        hour,
+    ) in all_opinions:
+        # Check if interaction is valid: not null, not zero, and if string, not empty
+        if id_interacted_with is not None and id_interacted_with != 0:
+            # Convert to string and check if non-empty
+            id_str = str(id_interacted_with).strip()
+            if len(id_str) > 0 and id_str != "0":
+                social_interactions += 1
+    
+    return social_interactions
+
+
 @experiments.route("/admin/opinion_evolution/<int:expid>")
 @login_required
 def opinion_evolution(expid):
@@ -6557,44 +6590,13 @@ def opinion_evolution(expid):
         opinion_data = [data["opinion"] for data in latest_opinions.values()]
 
         # Count social interactions from ALL opinions up to this time (not just latest)
-        # This gives cumulative count of all interactions that happened up to selected time
-        social_interactions = 0
-        for (
-            agent_id,
-            topic_id,
-            tid,
-            opinion,
-            id_interacted_with,
-            day,
-            hour,
-        ) in all_opinions:
-            # Check if interaction is valid: not null, not zero, and if string, not empty
-            if id_interacted_with is not None and id_interacted_with != 0:
-                # Convert to string and check if non-empty
-                id_str = str(id_interacted_with).strip()
-                if len(id_str) > 0 and id_str != "0":
-                    social_interactions += 1
+        social_interactions = count_social_interactions(all_opinions)
 
-        # Count unique agents - agents who formed opinions WITHOUT social interaction
-        # (reverse logic of social_interactions: count when id_interacted_with is invalid)
-        unique_agents = 0
-        for (
-            agent_id,
-            topic_id,
-            tid,
-            opinion,
-            id_interacted_with,
-            day,
-            hour,
-        ) in all_opinions:
-            # Count as unique agent when interaction is invalid: null, zero, or empty string
-            if id_interacted_with is None or id_interacted_with == 0:
-                unique_agents += 1
-            else:
-                # Convert to string and check if empty
-                id_str = str(id_interacted_with).strip()
-                if len(id_str) == 0 or id_str == "0":
-                    unique_agents += 1
+        # Count unique agents that have an opinion on the selected topic up to current timestamp
+        # Extract unique agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
+        unique_agents = len(
+            set(key[0] for key in latest_opinions.keys())
+        )  # key[0] is agent_id
 
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
@@ -6792,26 +6794,11 @@ def opinion_evolution_data(expid):
                 if len(id_str) > 0 and id_str != "0":
                     social_interactions += 1
 
-        # Count unique agents - agents who formed opinions WITHOUT social interaction
-        # (reverse logic of social_interactions: count when id_interacted_with is invalid)
-        unique_agents = 0
-        for (
-            agent_id,
-            topic_id,
-            tid,
-            opinion,
-            id_interacted_with,
-            day,
-            hour,
-        ) in all_opinions:
-            # Count as unique agent when interaction is invalid: null, zero, or empty string
-            if id_interacted_with is None or id_interacted_with == 0:
-                unique_agents += 1
-            else:
-                # Convert to string and check if empty
-                id_str = str(id_interacted_with).strip()
-                if len(id_str) == 0 or id_str == "0":
-                    unique_agents += 1
+        # Count unique agents that have an opinion on the selected topic up to current timestamp
+        # Extract unique agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
+        unique_agents = len(
+            set(key[0] for key in latest_opinions.keys())
+        )  # key[0] is agent_id
 
         # Get opinion groups from dashboard database for binning
         opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
