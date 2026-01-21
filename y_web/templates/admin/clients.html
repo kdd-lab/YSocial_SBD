@@ -687,23 +687,102 @@
                                                         <div class="select">
                                                             <select name="network_model" id="network_model_select">
                                                                 <option value="">None</option>
-                                                                <option value="ER">Random Network</option>
-                                                                <option value="BA">Scale Free</option>
+                                                                <option value="ER">Random Network (Erdős-Rényi)</option>
+                                                                <option value="BA">Scale Free (Barabási-Albert)</option>
+                                                                <option value="WS">Small World (Watts-Strogatz)</option>
+                                                                <option value="NWS">Small World (Newman-Watts-Strogatz)</option>
+                                                                <option value="PLC">Powerlaw Cluster</option>
+                                                                <option value="RR">Random Regular</option>
+                                                                <option value="C">Complete Graph</option>
+                                                                <option value="SBM">Stochastic Block Model</option>
+                                                                <option value="CCG">Connected Caveman</option>
                                                             </select>
                                                         </div>
                                                     </span>
                                                 </div>
 
                                                 <div class="box-line" id="er_param_field" style="display: none;">
-                                                    <span class="left">Rewiring probability</span>
+                                                    <span class="left">Edge probability (p)</span>
                                                     <span class="right">
                                                         <input type="number" name="network_p" class="input" value="0.1" min="0" max="1" step="0.00001">
                                                     </span>
                                                 </div>
                                                 <div class="box-line" id="ba_param_field" style="display: none;">
-                                                    <span class="left">Connections per new node</span>
+                                                    <span class="left">Edges per node (m)</span>
                                                     <span class="right">
-                                                        <input type="number" name="network_m" class="input" value="2">
+                                                        <input type="number" name="network_m" class="input" value="2" min="1">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="ws_param_field" style="display: none;">
+                                                    <span class="left">Nearest neighbors (k)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_k" class="input" value="4" min="2">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="ws_param_field2" style="display: none;">
+                                                    <span class="left">Rewiring probability (p)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_ws_p" class="input" value="0.3" min="0" max="1" step="0.01">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="nws_param_field" style="display: none;">
+                                                    <span class="left">Nearest neighbors (k)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_nws_k" class="input" value="4" min="2">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="nws_param_field2" style="display: none;">
+                                                    <span class="left">Edge addition probability (p)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_nws_p" class="input" value="0.3" min="0" max="1" step="0.01">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="plc_param_field" style="display: none;">
+                                                    <span class="left">Edges per node (m)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_plc_m" class="input" value="2" min="1">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="plc_param_field2" style="display: none;">
+                                                    <span class="left">Triangle probability (p)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_plc_p" class="input" value="0.5" min="0" max="1" step="0.01">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="rr_param_field" style="display: none;">
+                                                    <span class="left">Degree (d)</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_d" class="input" value="3" min="1">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="sbm_param_field" style="display: none;">
+                                                    <span class="left">Number of blocks</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_blocks" class="input" value="3" min="2">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="sbm_param_field2" style="display: none;">
+                                                    <span class="left">Intra-block edge probability</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_p_in" class="input" value="0.3" min="0" max="1" step="0.01">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="sbm_param_field3" style="display: none;">
+                                                    <span class="left">Inter-block edge probability</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_p_out" class="input" value="0.05" min="0" max="1" step="0.01">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="ccg_param_field" style="display: none;">
+                                                    <span class="left">Number of cliques</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_cliques" class="input" value="5" min="2">
+                                                    </span>
+                                                </div>
+                                                <div class="box-line" id="ccg_param_field2" style="display: none;">
+                                                    <span class="left">Clique size</span>
+                                                    <span class="right">
+                                                        <input type="number" name="network_clique_size" class="input" value="5" min="2">
                                                     </span>
                                                 </div>
                                             </div>
@@ -1486,6 +1565,18 @@ function updateNetworkInputStates() {
     const networkFileLabel = document.querySelector('.file-upload-label-network-create');
     const erParamField = document.getElementById('er_param_field');
     const baParamField = document.getElementById('ba_param_field');
+    const wsParamField = document.getElementById('ws_param_field');
+    const wsParamField2 = document.getElementById('ws_param_field2');
+    const nwsParamField = document.getElementById('nws_param_field');
+    const nwsParamField2 = document.getElementById('nws_param_field2');
+    const plcParamField = document.getElementById('plc_param_field');
+    const plcParamField2 = document.getElementById('plc_param_field2');
+    const rrParamField = document.getElementById('rr_param_field');
+    const sbmParamField = document.getElementById('sbm_param_field');
+    const sbmParamField2 = document.getElementById('sbm_param_field2');
+    const sbmParamField3 = document.getElementById('sbm_param_field3');
+    const ccgParamField = document.getElementById('ccg_param_field');
+    const ccgParamField2 = document.getElementById('ccg_param_field2');
     
     if (!networkModelSelect || !networkFileInput) return;
     
@@ -1515,12 +1606,43 @@ function updateNetworkInputStates() {
     // Show/hide parameter fields based on model selection
     if (erParamField) erParamField.style.display = 'none';
     if (baParamField) baParamField.style.display = 'none';
+    if (wsParamField) wsParamField.style.display = 'none';
+    if (wsParamField2) wsParamField2.style.display = 'none';
+    if (nwsParamField) nwsParamField.style.display = 'none';
+    if (nwsParamField2) nwsParamField2.style.display = 'none';
+    if (plcParamField) plcParamField.style.display = 'none';
+    if (plcParamField2) plcParamField2.style.display = 'none';
+    if (rrParamField) rrParamField.style.display = 'none';
+    if (sbmParamField) sbmParamField.style.display = 'none';
+    if (sbmParamField2) sbmParamField2.style.display = 'none';
+    if (sbmParamField3) sbmParamField3.style.display = 'none';
+    if (ccgParamField) ccgParamField.style.display = 'none';
+    if (ccgParamField2) ccgParamField2.style.display = 'none';
     
     if (networkModelSelect.value === 'ER' && erParamField) {
         erParamField.style.display = 'block';
     } else if (networkModelSelect.value === 'BA' && baParamField) {
         baParamField.style.display = 'block';
+    } else if (networkModelSelect.value === 'WS') {
+        if (wsParamField) wsParamField.style.display = 'block';
+        if (wsParamField2) wsParamField2.style.display = 'block';
+    } else if (networkModelSelect.value === 'NWS') {
+        if (nwsParamField) nwsParamField.style.display = 'block';
+        if (nwsParamField2) nwsParamField2.style.display = 'block';
+    } else if (networkModelSelect.value === 'PLC') {
+        if (plcParamField) plcParamField.style.display = 'block';
+        if (plcParamField2) plcParamField2.style.display = 'block';
+    } else if (networkModelSelect.value === 'RR' && rrParamField) {
+        rrParamField.style.display = 'block';
+    } else if (networkModelSelect.value === 'SBM') {
+        if (sbmParamField) sbmParamField.style.display = 'block';
+        if (sbmParamField2) sbmParamField2.style.display = 'block';
+        if (sbmParamField3) sbmParamField3.style.display = 'block';
+    } else if (networkModelSelect.value === 'CCG') {
+        if (ccgParamField) ccgParamField.style.display = 'block';
+        if (ccgParamField2) ccgParamField2.style.display = 'block';
     }
+    // C (Complete graph) has no parameters
 }
 
 // Display network file name when selected
