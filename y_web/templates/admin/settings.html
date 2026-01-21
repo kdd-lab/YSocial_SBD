@@ -1259,26 +1259,25 @@
 
                                     <div class="box-line">
                                         <span class="left">Simulator Type</span>
-                                        <span class="right" style="width: 70%; position: relative;">
-                                            <div style="display: flex; gap: 12px; align-items: flex-start;">
-                                                <div class="select" style="flex: 0 0 200px;">
-                                                    <select id="simulator_type_select" name="simulator_type" style="width: 100%">
-                                                        <option value="Standard" selected>Standard</option>
-                                                        <option value="HPC">HPC (Experimental)</option>
-                                                    </select>
-                                                </div>
-                                                <!-- HPC Info Box (shown as overlay when HPC is selected - doesn't alter layout) -->
-                                                <div id="hpc-info-inline" style="display: none; position: absolute; left: 0; right: 0; top: 100%; margin-top: 8px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 10px 12px; border-radius: 6px; font-size: 0.8em; line-height: 1.4; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 10;">
-                                                    <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                                        <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.2em; flex-shrink: 0; margin-top: 1px;"></i>
-                                                        <div>
-                                                            <strong style="color: #e65100; display: block; margin-bottom: 2px; font-size: 0.95em;">HPC Simulator</strong>
-                                                            <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="select" style="width: 200px;">
+                                                <select id="simulator_type_select" name="simulator_type" style="width: 100%">
+                                                    <option value="Standard" selected>Standard</option>
+                                                    <option value="HPC">HPC (Experimental)</option>
+                                                </select>
                                             </div>
                                         </span>
+                                    </div>
+
+                                    <!-- HPC Info Box (shown when HPC is selected) -->
+                                    <div id="hpc-info-inline" style="display: none; margin: 0 0 16px 0; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 10px 12px; border-radius: 6px; font-size: 0.8em; line-height: 1.4; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                        <div style="display: flex; align-items: flex-start; gap: 8px;">
+                                            <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.2em; flex-shrink: 0; margin-top: 1px;"></i>
+                                            <div>
+                                                <strong style="color: #e65100; display: block; margin-bottom: 2px; font-size: 0.95em;">HPC Simulator</strong>
+                                                <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="box-line">
