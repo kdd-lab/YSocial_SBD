@@ -2437,16 +2437,6 @@ def experiment_trends(exp_id):
                 "log_file_path": log_file,
                 "log_file_exists": os.path.exists(log_file),
             }
-            # Also log to console for server-side visibility
-            print(f"\n=== HPC Experiment {exp_id} Trends Debug ===")
-            print(f"Daily compute entries: {len(result_data['daily_compute'])}")
-            print(f"Daily compute keys: {list(result_data['daily_compute'].keys())}")
-            print(
-                f"Daily compute sample: {result_data['debug_info']['daily_compute_sample']}"
-            )
-            print(f"Hourly compute entries: {len(result_data['hourly_compute'])}")
-            print(f"Log file: {log_file} (exists: {os.path.exists(log_file)})")
-            print("==========================================\n")
 
         return jsonify(result_data)
 
