@@ -647,6 +647,10 @@
                                             border-color: #3b82f6;
                                             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
                                         }
+                                        .topic-percentage-label {
+                                            font-size: 0.8em;
+                                            color: #6b7280;
+                                        }
                                     </style>
 
                                     <div class="topic-interest-boxes">
@@ -654,7 +658,7 @@
                                         <div class="topic-interest-box">
                                             <h4>{{ topic.name }}</h4>
                                             <p>Interest percentage</p>
-                                            <input type="number" name="topic_interest_{{ topic.id }}" value="100" step="0.1" min="0" max="100"> <span style="font-size: 0.8em; color: #6b7280;">%</span>
+                                            <input type="number" name="topic_interest_{{ topic.id }}" value="100" step="0.1" min="0" max="100"> <span class="topic-percentage-label">%</span>
                                         </div>
                                         {% endfor %}
                                     </div>

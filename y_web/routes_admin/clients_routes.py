@@ -79,13 +79,11 @@ def allocate_topics_by_percentage(topics, topic_percentages):
     Returns:
         List of topics the agent is interested in
     """
-    import random
-    
     agent_topics = []
     for topic in topics:
         percentage = topic_percentages.get(topic, 100.0)  # Default to 100% if not specified
         # Randomly decide if agent is interested based on percentage
-        if random.random() * 100 <= percentage:
+        if random.random() <= percentage / 100.0:
             agent_topics.append(topic)
     
     # Ensure at least one topic if any topics have non-zero percentage
