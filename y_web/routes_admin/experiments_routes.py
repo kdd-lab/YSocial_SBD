@@ -6940,7 +6940,15 @@ def opinion_evolution(expid):
         filter_hour = request.args.get("hour", type=int, default=max_hour)
         # Default to first topic on initial page load (to match UI which shows first topic as active)
         default_topic_id = topics[0]['iid'] if topics else None
-        filter_topic_id = request.args.get("topic_id", type=int, default=default_topic_id)
+        # Parse topic_id as string to support both integer and UUID topic_ids (HPC experiments)
+        filter_topic_id_str = request.args.get("topic_id", default=str(default_topic_id) if default_topic_id is not None else None)
+        if filter_topic_id_str:
+            try:
+                filter_topic_id = int(filter_topic_id_str)
+            except ValueError:
+                filter_topic_id = filter_topic_id_str  # Keep as string for UUID
+        else:
+            filter_topic_id = default_topic_id
 
         # Find all rounds up to the specified day/hour
         # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
