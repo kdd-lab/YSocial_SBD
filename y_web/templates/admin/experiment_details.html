@@ -102,16 +102,6 @@
                             </div>
                             {% endif %}
 
-                            {% if experiment.annotations and 'opinions' in experiment.annotations %}
-                            <div class="box-line">
-                                <span class="left">Opinion Evolution</span>
-                                <span class="right">
-                                    <a class="link-tooltip" href="/admin/opinion_evolution/{{ experiment.idexp }}" title="View Opinion Evolution">
-                                        <i class="mdi mdi-chart-line" style="font-size: 24px;"></i></a>
-                                </span>
-                            </div>
-                            {% endif %}
-
                             <div class="box-line">
                                 <span class="left">Download Experiment</span>
                                 <span class="right"><a class="link-tooltip" href="/admin/download_experiment/{{ experiment.idexp }}" title="Download"><i
@@ -404,6 +394,25 @@
                         </div>
                     </div>
 
+                    {% if experiment.annotations and 'opinions' in experiment.annotations %}
+                    <!--Opinion Evolution Box-->
+                    <div class="dashboard-box is-compact" style="flex: 0 0 auto; display: flex; flex-direction: column; margin-top: 1.5rem;">
+                        <h3 class="title is-5 is-thin">Opinion Evolution</h3>
+                        <div class="box-content" style="flex: 1;">
+                            <p style="font-size: 0.9em; margin-bottom: 1em;">
+                                Visualize how agent opinions evolve over time across different topics.
+                            </p>
+                            <div style="text-align: center;">
+                                <a href="/admin/opinion_evolution/{{ experiment.idexp }}" 
+                                   class="button is-info is-fullwidth" 
+                                   style="display: flex; align-items: center; justify-content: center; gap: 0.5em;">
+                                    <i class="mdi mdi-chart-line"></i>
+                                    <span>View Opinion Evolution</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                 </div>
 

@@ -1165,3 +1165,79 @@ class OpinionDistribution(db.Model):
     name = db.Column(db.String(100), nullable=False)
     distribution_type = db.Column(db.String(50), nullable=False)
     parameters = db.Column(db.Text, nullable=False)  # JSON string
+
+
+class OpinionEvolutionCache(db.Model):
+    """
+    Cache table for opinion evolution statistics to optimize animation performance.
+
+    Stores pre-computed statistics for each (experiment, day, hour, topic) combination
+    to avoid re-querying and re-processing large datasets during animation playback.
+
+    Supports incremental computation: stores latest_opinions state to allow updating
+    from a previous cached state rather than recomputing from scratch.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_evolution_cache"
+    id = db.Column(db.Integer, primary_key=True)
+    exp_id = db.Column(
+        db.Integer, db.ForeignKey("exps.idexp"), nullable=False, index=True
+    )
+    day = db.Column(db.Integer, nullable=False, index=True)
+    hour = db.Column(db.Integer, nullable=False, index=True)
+    topic_id = db.Column(db.Integer, nullable=True, index=True)  # NULL for all topics
+
+    # Pre-computed statistics
+    total_opinions = db.Column(db.Integer, nullable=False)
+    social_interactions = db.Column(db.Integer, nullable=False)
+    unique_agents = db.Column(db.Integer, nullable=False)
+
+    # Binned opinion data (JSON string: {group_name: count})
+    binned_data = db.Column(db.Text, nullable=False)
+
+    # Latest opinions state for incremental computation
+    # JSON string: {agent_id: {topic_id: {"opinion": float, "day": int, "hour": int}}}
+    latest_opinions_state = db.Column(db.Text, nullable=True)
+
+    # Timestamp for cache invalidation
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    # Composite index for fast lookups
+    __table_args__ = (
+        db.Index("idx_cache_lookup", "exp_id", "day", "hour", "topic_id"),
+    )
+
+
+class OpinionEvolutionSampledAgents(db.Model):
+    """
+    Stores sampled agent IDs for opinion evolution visualization.
+
+    To maintain stable and efficient visualizations, agents are sampled once
+    per (experiment, topic, sample_percentage) combination and reused across
+    all animation frames, rather than re-sampling on each frame.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_evolution_sampled_agents"
+    id = db.Column(db.Integer, primary_key=True)
+    exp_id = db.Column(
+        db.Integer, db.ForeignKey("exps.idexp"), nullable=False, index=True
+    )
+    topic_id = db.Column(
+        db.String(50), nullable=True, index=True
+    )  # NULL for all topics, String to support UUID in HPC
+    sample_percentage = db.Column(db.Integer, nullable=False, index=True)
+
+    # JSON array of sampled agent IDs
+    sampled_agent_ids = db.Column(db.Text, nullable=False)
+
+    # Timestamp for cache invalidation
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    # Composite unique index to ensure one sample set per combination
+    __table_args__ = (
+        db.Index(
+            "idx_sampled_agents_lookup", "exp_id", "topic_id", "sample_percentage"
+        ),
+    )

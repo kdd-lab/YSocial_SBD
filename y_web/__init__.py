@@ -916,6 +916,34 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run agent archetype field migration: {e}")
 
+        # Run opinion evolution cache tables migration
+        try:
+            if db_type == "sqlite":
+                from y_web.migrations.add_opinion_evolution_cache import (
+                    migrate_sqlite as migrate_cache_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_cache_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_opinion_evolution_cache import (
+                    migrate_postgresql as migrate_cache_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_cache_postgresql(
+                        pg_user, pg_password, pg_host, pg_port, pg_database
+                    )
+        except Exception as e:
+            print(f"Failed to run opinion evolution cache migration: {e}")
+
         # Ensure all tables defined in models exist (including release_info)
         # This creates any missing tables that are defined in models.py
         try:

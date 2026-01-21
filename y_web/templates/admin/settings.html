@@ -1259,22 +1259,21 @@
 
                                     <div class="box-line">
                                         <span class="left">Simulator Type</span>
-                                        <span class="right" style="width: 70%;">
-                                            <div style="display: flex; gap: 12px; align-items: flex-start;">
-                                                <div class="select" style="flex: 0 0 200px;">
-                                                    <select id="simulator_type_select" name="simulator_type" style="width: 100%">
-                                                        <option value="Standard" selected>Standard</option>
-                                                        <option value="HPC">HPC (Experimental)</option>
-                                                    </select>
-                                                </div>
-                                                <!-- HPC Info Box (shown inline when HPC is selected) -->
-                                                <div id="hpc-info-inline" style="display: none; flex: 1; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 10px 12px; border-radius: 6px; font-size: 0.8em; line-height: 1.4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                                                    <div style="display: flex; align-items: flex-start; gap: 8px;">
-                                                        <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.2em; flex-shrink: 0; margin-top: 1px;"></i>
-                                                        <div>
-                                                            <strong style="color: #e65100; display: block; margin-bottom: 2px; font-size: 0.95em;">HPC Simulator</strong>
-                                                            <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
-                                                        </div>
+                                        <span class="right" style="width: 70%; display: flex; align-items: flex-start; gap: 12px;">
+                                            <div class="select" style="width: 200px; flex-shrink: 0;">
+                                                <select id="simulator_type_select" name="simulator_type" style="width: 100%">
+                                                    <option value="Standard" selected>Standard</option>
+                                                    <option value="HPC">HPC (Experimental)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <!-- HPC Info Box (shown when HPC is selected, horizontal layout) -->
+                                            <div id="hpc-info-inline" style="display: none; flex: 1; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 8px 10px; border-radius: 6px; font-size: 0.75em; line-height: 1.3; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                <div style="display: flex; align-items: flex-start; gap: 6px;">
+                                                    <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.1em; flex-shrink: 0; margin-top: 1px;"></i>
+                                                    <div>
+                                                        <strong style="color: #e65100; display: block; margin-bottom: 1px; font-size: 0.95em;">HPC Simulator</strong>
+                                                        <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1325,6 +1324,13 @@
                                             <ul id="tags"></ul>
                                             <input type="hidden" id="tags-hidden" name="tags">
                                             <input type="text" id="input-tag" placeholder="Enter topic name" style="width: 100%;"/>
+                                        </div>
+                                        
+                                        <!-- Numeric input for number of topics when LLM agents are disabled -->
+                                        <div id="topic-count-input" style="display: none; margin-top: 8px;">
+                                            <label for="topic-count" style="font-size: 0.9rem; color: #374151; display: block; margin-bottom: 4px;">Number of topics:</label>
+                                            <input type="number" id="topic-count" min="1" max="100" value="10" style="width: 100px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px;"/>
+                                            <button type="button" id="generate-topics-btn" title="Generate topics based on the specified count" aria-label="Generate topics" style="margin-left: 8px; padding: 4px 12px; background: #039be5; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate</button>
                                         </div>
 
                                         <script>
@@ -1416,36 +1422,48 @@
                                                                                        value=""></span>
                                     </div>
 
-                                    <!-- Redis Configuration Box (shown only for HPC) -->
+                                    <!-- Redis Configuration Box (shown only for HPC, collapsed by default) -->
                                     <div id="redis-config-box" class="box-line" style="display: none;">
-                                        <span class="left">Redis Configuration</span>
+                                        <span class="left">Advanced Settings</span>
                                         <span class="right" style="width: 70%;">
-                                            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
-                                                <div style="margin-bottom: 16px;">
-                                                    <label style="display: flex; align-items: center; gap: 8px;">
-                                                        <input type="checkbox" id="redis_enabled" name="redis_enabled" value="true" style="width: auto;">
-                                                        <span style="font-size: 0.9em; color: #374151; font-weight: 500;">Enable Redis</span>
-                                                    </label>
+                                            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+                                                <!-- Collapsible header -->
+                                                <div id="redis-config-header" style="padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 6px 6px 0 0; transition: background 0.2s;">
+                                                    <span style="font-size: 0.9em; color: #374151; font-weight: 600;">
+                                                        <i class="mdi mdi-cog-outline" style="margin-right: 6px;"></i>
+                                                        Redis Configuration
+                                                    </span>
+                                                    <i id="redis-config-icon" class="mdi mdi-chevron-down" style="font-size: 1.2em; color: #6b7280; transition: transform 0.3s;"></i>
                                                 </div>
+                                                
+                                                <!-- Collapsible content -->
+                                                <div id="redis-config-content" style="display: none; padding: 16px; border-top: 1px solid #e5e7eb;">
+                                                    <div style="margin-bottom: 16px;">
+                                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                                            <input type="checkbox" id="redis_enabled" name="redis_enabled" value="true" style="width: auto;">
+                                                            <span style="font-size: 0.9em; color: #374151; font-weight: 500;">Enable Redis</span>
+                                                        </label>
+                                                    </div>
 
-                                                <div style="margin-bottom: 12px;">
-                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Host</label>
-                                                    <input type="text" name="redis_host" value="localhost" class="input" style="width: 100%;">
-                                                </div>
+                                                    <div style="margin-bottom: 12px;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Host</label>
+                                                        <input type="text" name="redis_host" value="localhost" class="input" style="width: 100%;">
+                                                    </div>
 
-                                                <div style="margin-bottom: 12px;">
-                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Port</label>
-                                                    <input type="number" name="redis_port" value="6379" class="input" style="width: 100%;" min="1" max="65535">
-                                                </div>
+                                                    <div style="margin-bottom: 12px;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Port</label>
+                                                        <input type="number" name="redis_port" value="6379" class="input" style="width: 100%;" min="1" max="65535">
+                                                    </div>
 
-                                                <div style="margin-bottom: 12px;">
-                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Password <span style="color: #6b7280; font-weight: normal;">(optional)</span></label>
-                                                    <input type="password" name="redis_password" value="" placeholder="Leave empty for no password" class="input" style="width: 100%;">
-                                                </div>
+                                                    <div style="margin-bottom: 12px;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Password <span style="color: #6b7280; font-weight: normal;">(optional)</span></label>
+                                                        <input type="password" name="redis_password" value="" placeholder="Leave empty for no password" class="input" style="width: 100%;">
+                                                    </div>
 
-                                                <div style="margin-bottom: 0;">
-                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Sliding Window Days</label>
-                                                    <input type="number" name="redis_sliding_window_days" value="2" class="input" style="width: 100%;" min="1" max="365">
+                                                    <div style="margin-bottom: 0;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Sliding Window Days</label>
+                                                        <input type="number" name="redis_sliding_window_days" value="2" class="input" style="width: 100%;" min="1" max="365">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </span>
@@ -1594,6 +1612,8 @@
 
                             // Handle LLM agents toggle
                             llmAgentsToggle.addEventListener('change', function() {
+                                const topicCountInput = document.getElementById('topic-count-input');
+                                
                                 if (!this.checked) {
                                     // Disable all annotation toggles
                                     toxicityToggle.checked = false;
@@ -1604,21 +1624,18 @@
                                     emotionToggle.disabled = true;
                                     perspectiveApiField.style.display = 'none';
 
-                                    // Clear and disable topics input, set to 10 default topics
+                                    // Clear topics and show numeric input for topic count
                                     tagList.length = 0;
                                     while (tags.firstChild) {
                                         tags.removeChild(tags.firstChild);
                                     }
-                                    const defaultTopics = ['Topic1', 'Topic2', 'Topic3', 'Topic4', 'Topic5', 'Topic6', 'Topic7', 'Topic8', 'Topic9', 'Topic10'];
-                                    defaultTopics.forEach(function(topicName) {
-                                        tagList.push(topicName);
-                                        const tag = document.createElement('li');
-                                        tag.innerHTML = `${topicName} <button class="delete-button" disabled style="cursor: not-allowed; opacity: 0.5;">X</button>`;
-                                        tags.appendChild(tag);
-                                    });
-                                    hiddenInput.value = defaultTopics.join(',');
-                                    inputTag.disabled = true;
-                                    inputTag.placeholder = 'Topics disabled when LLM agents are off';
+                                    
+                                    // Hide tag input, show topic count input first
+                                    inputTag.style.display = 'none';
+                                    topicCountInput.style.display = 'block';
+                                    
+                                    // Generate initial topics with default count (10)
+                                    generateTopics(10);
                                     updateButtonState();
                                 } else {
                                     // Re-enable all annotation toggles
@@ -1634,9 +1651,51 @@
                                         tags.removeChild(tags.firstChild);
                                     }
                                     hiddenInput.value = '';
+                                    inputTag.style.display = 'block';
                                     inputTag.disabled = false;
                                     inputTag.placeholder = 'Enter topic name';
+                                    topicCountInput.style.display = 'none';
                                     updateButtonState();
+                                }
+                            });
+                            
+                            // Function to generate topics
+                            function generateTopics(count) {
+                                // Clear existing topics
+                                tagList.length = 0;
+                                while (tags.firstChild) {
+                                    tags.removeChild(tags.firstChild);
+                                }
+                                
+                                // Generate new topics
+                                for (let i = 1; i <= count; i++) {
+                                    const topicName = `Topic${i}`;
+                                    tagList.push(topicName);
+                                    const tag = document.createElement('li');
+                                    
+                                    // Create text node for topic name (prevents XSS)
+                                    tag.textContent = topicName + ' ';
+                                    
+                                    // Create delete button separately
+                                    const deleteBtn = document.createElement('button');
+                                    deleteBtn.className = 'delete-button';
+                                    deleteBtn.textContent = 'X';
+                                    deleteBtn.disabled = true;
+                                    deleteBtn.style.cursor = 'not-allowed';
+                                    deleteBtn.style.opacity = '0.5';
+                                    
+                                    tag.appendChild(deleteBtn);
+                                    tags.appendChild(tag);
+                                }
+                                hiddenInput.value = tagList.join(',');
+                                updateButtonState();
+                            }
+                            
+                            // Handle generate topics button click
+                            document.getElementById('generate-topics-btn').addEventListener('click', function() {
+                                const topicCount = parseInt(document.getElementById('topic-count').value);
+                                if (!isNaN(topicCount) && topicCount >= 1 && topicCount <= 100) {
+                                    generateTopics(topicCount);
                                 }
                             });
 
@@ -1645,11 +1704,35 @@
                             const hpcInfoInline = document.getElementById('hpc-info-inline');
                             const redisConfigBox = document.getElementById('redis-config-box');
                             const platformTypeSelect = document.getElementById('platform_type_select');
+                            
+                            // Handle Redis Configuration collapsible toggle
+                            const redisConfigHeader = document.getElementById('redis-config-header');
+                            const redisConfigContent = document.getElementById('redis-config-content');
+                            const redisConfigIcon = document.getElementById('redis-config-icon');
+                            
+                            redisConfigHeader.addEventListener('click', function() {
+                                const isExpanded = redisConfigContent.style.display === 'block';
+                                if (isExpanded) {
+                                    redisConfigContent.style.display = 'none';
+                                    redisConfigIcon.style.transform = 'rotate(0deg)';
+                                } else {
+                                    redisConfigContent.style.display = 'block';
+                                    redisConfigIcon.style.transform = 'rotate(180deg)';
+                                }
+                            });
+                            
+                            // Hover effect for Redis config header
+                            redisConfigHeader.addEventListener('mouseenter', function() {
+                                redisConfigHeader.style.background = '#f3f4f6';
+                            });
+                            redisConfigHeader.addEventListener('mouseleave', function() {
+                                redisConfigHeader.style.background = '#f9fafb';
+                            });
 
                             function updateSimulatorTypeUI() {
                                 const isHPC = simulatorTypeSelect.value === 'HPC';
                                 
-                                // Show/hide HPC info box inline
+                                // Show/hide HPC info box as overlay
                                 if (isHPC) {
                                     hpcInfoInline.style.display = 'block';
                                     redisConfigBox.style.display = 'flex';
