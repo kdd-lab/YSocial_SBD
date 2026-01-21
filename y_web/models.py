@@ -1213,7 +1213,7 @@ class OpinionEvolutionSampledAgents(db.Model):
     __tablename__ = "opinion_evolution_sampled_agents"
     id = db.Column(db.Integer, primary_key=True)
     exp_id = db.Column(db.Integer, db.ForeignKey("exps.idexp"), nullable=False, index=True)
-    topic_id = db.Column(db.Integer, nullable=True, index=True)  # NULL for all topics
+    topic_id = db.Column(db.String(50), nullable=True, index=True)  # NULL for all topics, String to support UUID in HPC
     sample_percentage = db.Column(db.Integer, nullable=False, index=True)
     
     # JSON array of sampled agent IDs

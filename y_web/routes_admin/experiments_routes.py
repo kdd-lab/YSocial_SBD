@@ -6272,7 +6272,7 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
     
     Args:
         expid: Experiment ID
-        topic_id: Topic ID (None for all topics)
+        topic_id: Topic ID as string (None for all topics, supports int or UUID)
         sample_percentage: Percentage of agents to sample
         all_agent_ids: List of all available agent IDs
     
@@ -6292,7 +6292,15 @@ def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
     
     # Sample agents deterministically using experiment ID as seed for reproducibility
     # This ensures the same sample is generated if we need to recreate it
-    random.seed(expid * 1000 + (topic_id or 0) * 10 + sample_percentage)
+    # Handle topic_id which can be None, integer string, or UUID string
+    if topic_id is None:
+        topic_seed = 0
+    else:
+        # topic_id is a string (either int converted to string or UUID)
+        # Use hash for consistent seeding
+        topic_seed = abs(hash(topic_id)) % 1000000
+    
+    random.seed(expid * 1000 + topic_seed + sample_percentage)
     num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
     sampled_agent_ids = random.sample(
         all_agent_ids, min(num_agents_to_sample, len(all_agent_ids))
@@ -6404,8 +6412,10 @@ def generate_agent_timeseries_data(
                 agent_first_opinion[agent_id] = opinion
 
     # Sample agents based on percentage - use stable sampling
+    # Convert topic_id to string for consistency (supports both int and UUID)
     all_agent_ids = list(agent_data.keys())
-    sampled_agent_ids = get_or_sample_agents(expid, filter_topic_id, sample_percentage, all_agent_ids)
+    topic_id_str = str(filter_topic_id) if filter_topic_id is not None else None
+    sampled_agent_ids = get_or_sample_agents(expid, topic_id_str, sample_percentage, all_agent_ids)
 
     # Generate sorted list of all unique timestamps (day*24+hour)
     all_timestamps_absolute = sorted(

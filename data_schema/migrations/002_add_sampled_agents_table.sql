@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS opinion_evolution_sampled_agents (
     id                   SERIAL PRIMARY KEY,
     exp_id               INTEGER NOT NULL,
-    topic_id             INTEGER,  -- NULL for all topics
+    topic_id             VARCHAR(50),  -- NULL for all topics, VARCHAR to support UUID in HPC experiments
     sample_percentage    INTEGER NOT NULL,
     sampled_agent_ids    TEXT NOT NULL,  -- JSON array of agent IDs
     created_at           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -21,4 +21,4 @@ CREATE INDEX IF NOT EXISTS idx_sampled_agents_lookup ON opinion_evolution_sample
 CREATE INDEX IF NOT EXISTS idx_sampled_agents_created ON opinion_evolution_sampled_agents(created_at);
 
 -- Add comment for documentation
-COMMENT ON TABLE opinion_evolution_sampled_agents IS 'Stores sampled agent IDs for stable opinion evolution visualization. Agents are sampled once per (experiment, topic, percentage) combination and reused across all animation frames for stability and performance.';
+COMMENT ON TABLE opinion_evolution_sampled_agents IS 'Stores sampled agent IDs for stable opinion evolution visualization. Agents are sampled once per (experiment, topic, percentage) combination and reused across all animation frames for stability and performance. Supports both integer topic IDs (standard) and UUID topic IDs (HPC experiments).';
