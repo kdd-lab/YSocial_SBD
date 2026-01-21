@@ -6180,13 +6180,39 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
             "absolute": r.day * 24 + r.hour,
         }
 
-    # Query all opinions up to this time
+    # Query ALL opinions up to the maximum time (not just from hour==0 rounds)
+    # We need all opinions to correctly identify the latest opinion per agent at each timestamp
+    max_day = filter_day
+    max_hour = 23  # Get all opinions up to end of the last day
+    
+    # Get all rounds up to the max time
+    all_rounds_query = db.session.query(Rounds.id, Rounds.day, Rounds.hour).filter(
+        or_(
+            Rounds.day < max_day,
+            and_(Rounds.day == max_day, Rounds.hour <= max_hour),
+        )
+    ).order_by(Rounds.day, Rounds.hour)
+    
+    all_rounds_list = all_rounds_query.all()
+    
+    if not all_rounds_list:
+        return {
+            "timestamps": simulation_days,
+            "timestamp_mapping": timestamp_mapping,
+            "groups": [],
+        }
+    
+    # Query all opinions with timestamp info for these rounds
     base_query = db.session.query(
         Agent_Opinion.agent_id,
         Agent_Opinion.topic_id,
         Agent_Opinion.tid,
         Agent_Opinion.opinion,
-    ).filter(Agent_Opinion.tid.in_([r.id for r in rounds_up_to_time]))
+        Rounds.day,
+        Rounds.hour,
+    ).join(Rounds, Agent_Opinion.tid == Rounds.id).filter(
+        Agent_Opinion.tid.in_([r.id for r in all_rounds_list])
+    )
 
     # Apply topic filter if specified
     if filter_topic_id is not None:
@@ -6201,24 +6227,38 @@ def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
             "groups": [],
         }
 
-    # Organize opinions by round
-    round_opinions = defaultdict(list)
-    for agent_id, topic_id, tid, opinion in all_opinions:
-        round_opinions[tid].append((agent_id, topic_id, opinion))
-
-    # For each timestamp, calculate group percentages
-    # Maintain running dictionary of latest opinions to avoid O(n²) complexity
+    # Organize opinions by (day, hour) for incremental processing
+    opinions_by_time = defaultdict(list)
+    for agent_id, topic_id, tid, opinion, opinion_day, opinion_hour in all_opinions:
+        opinions_by_time[(opinion_day, opinion_hour)].append((agent_id, topic_id, opinion))
+    
+    # Sort time keys chronologically
+    sorted_times = sorted(opinions_by_time.keys())
+    
+    # For each timestamp we want to display, calculate group percentages
+    # using incremental updates for efficiency
     group_trends = {group.name: [] for group in opinion_groups}
     latest_at_time = {}  # Running dictionary: (agent_id, topic_id) -> opinion
-
+    current_time_index = 0  # Track which times we've processed
+    
     for round_obj in rounds_up_to_time:
-        round_id = round_obj.id
-
-        # Update latest opinions with new data from this round
-        # Since we're iterating chronologically, later opinions overwrite earlier ones
-        for agent_id, topic_id, opinion in round_opinions[round_id]:
-            key = (agent_id, topic_id)
-            latest_at_time[key] = opinion
+        target_day = round_obj.day
+        target_hour = round_obj.hour
+        
+        # Process all opinions up to the target time (incrementally)
+        while current_time_index < len(sorted_times):
+            time_day, time_hour = sorted_times[current_time_index]
+            
+            # Stop if this time is beyond our target
+            if time_day > target_day or (time_day == target_day and time_hour > target_hour):
+                break
+            
+            # Update latest_at_time with opinions from this time
+            for agent_id, topic_id, opinion in opinions_by_time[(time_day, time_hour)]:
+                key = (agent_id, topic_id)
+                latest_at_time[key] = opinion
+            
+            current_time_index += 1
 
         # Bin the opinions at this timestamp
         binned_counts = {group.name: 0 for group in opinion_groups}
