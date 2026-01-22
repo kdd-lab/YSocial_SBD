@@ -403,18 +403,22 @@ def generate_hpc_client_config(
     emotion_annotation,
     enable_toxicity,
     perspective_api_key,
+    server_address=None,
+    server_port=None,
 ):
     """Generate client configuration for HPC simulator type.
 
     Args:
         client_name: Name of the client
         namespace: Experiment name (not db_name)
+        server_address: Server address for remote experiments
+        server_port: Server port for remote experiments
         ...
     """
     config = {
         "client_name": client_name,
         "namespace": namespace,
-        "server": {"address": None, "port": None},
+        "server": {"address": server_address, "port": server_port},
         "llm": llm_config,
         "llm_v": llm_v_config,
         "simulation": simulation_config,
@@ -748,6 +752,10 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     }
 
     # Generate HPC client config
+    # For remote experiments, include server address and port
+    server_address = exp.server if exp.is_remote == 1 else None
+    server_port = exp.port if exp.is_remote == 1 else None
+    
     config = generate_hpc_client_config(
         client_name=name,
         namespace=exp.exp_name,
@@ -761,6 +769,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         emotion_annotation=emotion_annotation,
         enable_toxicity=enable_toxicity,
         perspective_api_key=perspective_api_key,
+        server_address=server_address,
+        server_port=server_port,
     )
 
     # Save config file using standard naming pattern
