@@ -131,6 +131,30 @@
 
                     <div id="server-controls-section" class="dashboard-box">
                         <h3 class="title is-5 is-thin">Server & Analysis Controls</h3>
+                        
+                        {% if experiment.is_remote == 1 %}
+                        <!-- Remote experiment info -->
+                        <div style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 16px; margin-bottom: 15px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <i class="mdi mdi-cloud-outline" style="font-size: 24px; color: #1976D2;"></i>
+                                <div>
+                                    <div style="font-weight: 600; color: #0d47a1; font-size: 0.95em;">Remote Experiment</div>
+                                    <div style="font-size: 0.85em; color: #1565C0; margin-top: 2px;">YServer running on external machine</div>
+                                </div>
+                            </div>
+                            <div style="background: white; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="font-size: 0.85em; color: #555; font-weight: 500;">Host:</span>
+                                    <span style="font-size: 0.9em; color: #0d47a1; font-family: monospace; font-weight: 600;">{{ experiment.server }}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 0.85em; color: #555; font-weight: 500;">Port:</span>
+                                    <span style="font-size: 0.9em; color: #0d47a1; font-family: monospace; font-weight: 600;">{{ experiment.port }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Local experiment controls -->
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Control panel for simulation server, web interface, and data analysis environment.
                         </p>
@@ -182,6 +206,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
                     </div>
 
                     <script>
@@ -394,7 +419,7 @@
                         </div>
                     </div>
 
-                    {% if experiment.annotations and 'opinions' in experiment.annotations %}
+                    {% if experiment.annotations and 'opinions' in experiment.annotations and experiment.is_remote == 0 %}
                     <!--Opinion Evolution Box-->
                     <div class="dashboard-box is-compact" style="flex: 0 0 auto; display: flex; flex-direction: column; margin-top: 1.5rem;">
                         <h3 class="title is-5 is-thin">Opinion Evolution</h3>

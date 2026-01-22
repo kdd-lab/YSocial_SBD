@@ -200,8 +200,9 @@ def run_client(uid, idexp):
     # get the client
     client = Client.query.filter_by(id=uid).first()
 
-    # check if the experiment is already running
-    if exp.running == 0:
+    # For remote experiments, allow running clients without server check
+    # For local experiments, check if the experiment is already running
+    if exp.is_remote == 0 and exp.running == 0:
         return redirect(request.referrer)
 
     # get population of the experiment
@@ -211,9 +212,16 @@ def run_client(uid, idexp):
     else:
         start_client(exp, client, population, resume=True)
 
-    # set the population_experiment running_status
+    # set the client running status
     db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
     db.session.commit()
+
+    # For remote experiments, set experiment to running when first client starts
+    if exp.is_remote == 1 and exp.running == 0:
+        db.session.query(Exps).filter_by(idexp=idexp).update(
+            {Exps.running: 1, Exps.exp_status: "active"}
+        )
+        db.session.commit()
 
     return experiment_details(idexp)
 
@@ -229,8 +237,9 @@ def resume_client(uid, idexp):
     # get the client
     client = Client.query.filter_by(id=uid).first()
 
-    # check if the experiment is already running
-    if exp.running == 0:
+    # For remote experiments, allow running clients without server check
+    # For local experiments, check if the experiment is already running
+    if exp.is_remote == 0 and exp.running == 0:
         return redirect(request.referrer)
 
     # get population of the experiment
@@ -240,9 +249,16 @@ def resume_client(uid, idexp):
     else:
         start_client(exp, client, population, resume=True)
 
-    # set the population_experiment running_status
+    # set the client running status
     db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
     db.session.commit()
+
+    # For remote experiments, set experiment to running when first client starts
+    if exp.is_remote == 1 and exp.running == 0:
+        db.session.query(Exps).filter_by(idexp=idexp).update(
+            {Exps.running: 1, Exps.exp_status: "active"}
+        )
+        db.session.commit()
 
     return redirect(request.referrer)
 
@@ -268,6 +284,17 @@ def pause_client(uid, idexp):
     else:
         terminate_client(client, pause=True)
 
+    # For remote experiments, check if all clients are stopped
+    if exp.is_remote == 1:
+        all_clients = Client.query.filter_by(id_exp=idexp).all()
+        any_running = any(c.status == 1 for c in all_clients)
+        if not any_running and exp.running == 1:
+            # All clients stopped, set experiment to stopped
+            db.session.query(Exps).filter_by(idexp=idexp).update(
+                {Exps.running: 0, Exps.exp_status: "stopped"}
+            )
+            db.session.commit()
+
     return experiment_details(idexp)  # redirect(request.referrer)
 
 
@@ -291,6 +318,17 @@ def stop_client(uid, idexp):
         stop_hpc_client(client)
     else:
         terminate_client(client, pause=False)
+
+    # For remote experiments, check if all clients are stopped
+    if exp.is_remote == 1:
+        all_clients = Client.query.filter_by(id_exp=idexp).all()
+        any_running = any(c.status == 1 for c in all_clients)
+        if not any_running and exp.running == 1:
+            # All clients stopped, set experiment to stopped
+            db.session.query(Exps).filter_by(idexp=idexp).update(
+                {Exps.running: 0, Exps.exp_status: "stopped"}
+            )
+            db.session.commit()
 
     return experiment_details(idexp)  # redirect(request.referrer)
 
