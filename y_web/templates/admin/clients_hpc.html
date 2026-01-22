@@ -901,59 +901,209 @@
                                     <div class="form-section-header">Social Network Structure <span style="font-size: 0.85em; color: #6b7280; font-weight: 400;">(Optional)</span></div>
                                     <div class="form-section-description">
                                         Configure a starting social network among the agents. You can either generate a synthetic network or upload a custom network file.
-                                        <strong>Note:</strong> These options are mutually exclusive - selecting one will disable the other.
                                     </div>
 
                                     <details style="margin-bottom: 20px;">
-                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 8px 0; color: #374151; list-style: none;">
-                                            <span>Click to expand/collapse network configuration</span>
+                                        <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 12px 16px; color: #374151; list-style: none; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; transition: all 0.2s;">
+                                            <span style="display: inline-flex; align-items: center; gap: 8px;">
+                                                <svg style="width: 18px; height: 18px; transition: transform 0.2s;" class="details-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                                Network Configuration
+                                            </span>
                                         </summary>
-                                        <div style="padding: 15px 0; margin-top: 10px;">
+                                        <div style="padding: 20px; margin-top: 8px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px;">
+                                            
+                                            <style>
+                                                details[open] .details-arrow {
+                                                    transform: rotate(180deg);
+                                                }
+                                                .network-option-card {
+                                                    background: #f9fafb;
+                                                    border: 2px solid #e5e7eb;
+                                                    border-radius: 8px;
+                                                    padding: 20px;
+                                                    margin-bottom: 16px;
+                                                    transition: all 0.3s ease;
+                                                }
+                                                .network-option-card:hover {
+                                                    border-color: #d1d5db;
+                                                    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                                                }
+                                                .network-option-card.active {
+                                                    border-color: #3b82f6;
+                                                    background: #eff6ff;
+                                                }
+                                                .network-card-title {
+                                                    font-size: 1em;
+                                                    font-weight: 600;
+                                                    color: #1f2937;
+                                                    margin-bottom: 12px;
+                                                    display: flex;
+                                                    align-items: center;
+                                                    gap: 8px;
+                                                }
+                                                .network-card-icon {
+                                                    font-size: 1.2em;
+                                                }
+                                                .network-params-container {
+                                                    display: grid;
+                                                    gap: 12px;
+                                                    margin-top: 16px;
+                                                    padding-top: 16px;
+                                                    border-top: 1px solid #e5e7eb;
+                                                }
+                                                .network-param-row {
+                                                    display: grid;
+                                                    grid-template-columns: 200px 1fr;
+                                                    gap: 12px;
+                                                    align-items: center;
+                                                }
+                                                .network-param-label {
+                                                    font-size: 0.875em;
+                                                    font-weight: 500;
+                                                    color: #4b5563;
+                                                }
+                                                .network-param-input {
+                                                    width: 100%;
+                                                    max-width: 300px;
+                                                }
+                                                .network-divider {
+                                                    display: flex;
+                                                    align-items: center;
+                                                    text-align: center;
+                                                    margin: 20px 0;
+                                                    color: #9ca3af;
+                                                    font-size: 0.875em;
+                                                    font-weight: 500;
+                                                }
+                                                .network-divider::before,
+                                                .network-divider::after {
+                                                    content: '';
+                                                    flex: 1;
+                                                    border-bottom: 1px solid #e5e7eb;
+                                                }
+                                                .network-divider::before {
+                                                    margin-right: 16px;
+                                                }
+                                                .network-divider::after {
+                                                    margin-left: 16px;
+                                                }
+                                            </style>
 
                                             <!-- Synthetic Network Section -->
-                                            <div id="synthetic_network_section" style="margin-bottom: 20px;">
-                                                <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Synthetic Network</h4>
+                                            <div class="network-option-card" id="synthetic_network_card">
+                                                <div class="network-card-title">
+                                                    <span class="network-card-icon">🔗</span>
+                                                    Generate Synthetic Network
+                                                </div>
+                                                <p style="font-size: 0.875em; color: #6b7280; margin-bottom: 12px;">
+                                                    Choose from various network topologies with configurable parameters.
+                                                </p>
 
                                                 <div class="box-line">
-                                                    <span class="left">Model</span>
+                                                    <span class="left" style="font-weight: 500;">Network Model</span>
                                                     <span class="right">
-                                                        <div class="select">
-                                                            <select name="network_model" id="network_model_select">
-                                                                <option value="">None</option>
-                                                                <option value="ER">Random Network</option>
-                                                                <option value="BA">Scale Free</option>
+                                                        <div class="select" style="width: 100%; max-width: 400px;">
+                                                            <select name="network_model" id="network_model_select" style="width: 100%;">
+                                                                <option value="">Select a network model...</option>
+                                                                <optgroup label="Basic Models">
+                                                                    <option value="ER">Random Network (Erdős-Rényi)</option>
+                                                                    <option value="BA">Scale Free (Barabási-Albert)</option>
+                                                                    <option value="C">Complete Graph</option>
+                                                                </optgroup>
+                                                                <optgroup label="Structured Models">
+                                                                    <option value="WS">Small World (Watts-Strogatz)</option>
+                                                                    <option value="PLC">Powerlaw Cluster</option>
+                                                                </optgroup>
+                                                                <optgroup label="Community Models">
+                                                                    <option value="SBM">Stochastic Block Model</option>
+                                                                    <option value="LFR">LFR Benchmark</option>
+                                                                </optgroup>
                                                             </select>
                                                         </div>
                                                     </span>
                                                 </div>
 
-                                                <div class="box-line" id="er_param_field" style="display: none;">
-                                                    <span class="left">Rewiring probability</span>
-                                                    <span class="right">
-                                                        <input type="number" name="network_p" class="input" value="0.1" min="0" max="1" step="0.00001">
-                                                    </span>
-                                                </div>
-                                                <div class="box-line" id="ba_param_field" style="display: none;">
-                                                    <span class="left">Connections per new node</span>
-                                                    <span class="right">
-                                                        <input type="number" name="network_m" class="input" value="2">
-                                                    </span>
+                                                <!-- Parameter fields with improved layout -->
+                                                <div class="network-params-container">
+                                                    <div class="network-param-row" id="er_param_field" style="display: none;">
+                                                        <span class="network-param-label">Edge probability (p)</span>
+                                                        <input type="number" name="network_p" class="input network-param-input" value="0.1" min="0" max="1" step="0.00001">
+                                                    </div>
+                                                    
+                                                    <div class="network-param-row" id="ba_param_field" style="display: none;">
+                                                        <span class="network-param-label">Edges per node (m)</span>
+                                                        <input type="number" name="network_m" class="input network-param-input" value="2" min="1">
+                                                    </div>
+                                                    
+                                                    <div class="network-param-row" id="ws_param_field" style="display: none;">
+                                                        <span class="network-param-label">Nearest neighbors (k)</span>
+                                                        <input type="number" name="network_k" class="input network-param-input" value="4" min="2">
+                                                    </div>
+                                                    <div class="network-param-row" id="ws_param_field2" style="display: none;">
+                                                        <span class="network-param-label">Rewiring probability (p)</span>
+                                                        <input type="number" name="network_ws_p" class="input network-param-input" value="0.3" min="0" max="1" step="0.01">
+                                                    </div>
+                                                    
+                                                    <div class="network-param-row" id="plc_param_field" style="display: none;">
+                                                        <span class="network-param-label">Edges per node (m)</span>
+                                                        <input type="number" name="network_plc_m" class="input network-param-input" value="2" min="1">
+                                                    </div>
+                                                    <div class="network-param-row" id="plc_param_field2" style="display: none;">
+                                                        <span class="network-param-label">Triangle probability (p)</span>
+                                                        <input type="number" name="network_plc_p" class="input network-param-input" value="0.5" min="0" max="1" step="0.01">
+                                                    </div>
+                                                    
+                                                    <div class="network-param-row" id="sbm_param_field" style="display: none;">
+                                                        <span class="network-param-label">Number of blocks</span>
+                                                        <input type="number" name="network_blocks" class="input network-param-input" value="3" min="2">
+                                                    </div>
+                                                    <div class="network-param-row" id="sbm_param_field2" style="display: none;">
+                                                        <span class="network-param-label">Intra-block edge probability</span>
+                                                        <input type="number" name="network_p_in" class="input network-param-input" value="0.3" min="0" max="1" step="0.01">
+                                                    </div>
+                                                    <div class="network-param-row" id="sbm_param_field3" style="display: none;">
+                                                        <span class="network-param-label">Inter-block edge probability</span>
+                                                        <input type="number" name="network_p_out" class="input network-param-input" value="0.05" min="0" max="1" step="0.01">
+                                                    </div>
+                                                    
+                                                    <div class="network-param-row" id="lfr_param_field" style="display: none;">
+                                                        <span class="network-param-label">Degree exponent (tau1)</span>
+                                                        <input type="number" name="network_tau1" class="input network-param-input" value="2.5" min="1" step="0.1">
+                                                    </div>
+                                                    <div class="network-param-row" id="lfr_param_field2" style="display: none;">
+                                                        <span class="network-param-label">Community size exponent (tau2)</span>
+                                                        <input type="number" name="network_tau2" class="input network-param-input" value="1.5" min="1" step="0.1">
+                                                    </div>
+                                                    <div class="network-param-row" id="lfr_param_field3" style="display: none;">
+                                                        <span class="network-param-label">Mixing parameter (mu)</span>
+                                                        <input type="number" name="network_mu" class="input network-param-input" value="0.1" min="0" max="1" step="0.05">
+                                                    </div>
+                                                    <div class="network-param-row" id="lfr_param_field4" style="display: none;">
+                                                        <span class="network-param-label">Average degree</span>
+                                                        <input type="number" name="network_avg_degree" class="input network-param-input" value="5" min="2">
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div style="border-top: 1px solid #d1d5db; padding-top: 15px; margin-top: 15px;">
-                                                <p style="text-align: center; font-size: 0.85em; color: #666; margin: 10px 0;">OR</p>
-                                            </div>
+                                            <div class="network-divider">OR</div>
 
                                             <!-- Upload Custom Network Section -->
-                                            <div id="upload_network_section" style="margin-top: 20px;">
-                                                <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 8px; color: #333; border-bottom: 1px solid #e0e0e0; padding-bottom: 3px;">Upload Custom Network</h4>
+                                            <div class="network-option-card" id="upload_network_card">
+                                                <div class="network-card-title">
+                                                    <span class="network-card-icon">📤</span>
+                                                    Upload Custom Network
+                                                </div>
+                                                <p style="font-size: 0.875em; color: #6b7280; margin-bottom: 16px;">
+                                                    Upload a CSV file with edges (one per line: source,target).
+                                                </p>
+                                                
                                                 <style>
                                                     .file-upload-wrapper-network-create {
                                                         position: relative;
                                                         overflow: hidden;
                                                         display: block;
-                                                        margin-bottom: 12px;
                                                     }
                                                     .file-upload-wrapper-network-create input[type=file] {
                                                         position: absolute;
@@ -963,34 +1113,39 @@
                                                         display: flex;
                                                         align-items: center;
                                                         justify-content: center;
-                                                        padding: 10px 12px;
-                                                        background: #f9fafb;
-                                                        border: 1px dashed #d1d5db;
-                                                        border-radius: 4px;
+                                                        padding: 16px 20px;
+                                                        background: #ffffff;
+                                                        border: 2px dashed #d1d5db;
+                                                        border-radius: 8px;
                                                         cursor: pointer;
-                                                        transition: all 0.2s;
-                                                        font-size: 0.85em;
+                                                        transition: all 0.3s;
+                                                        font-size: 0.9em;
                                                     }
                                                     .file-upload-label-network-create:hover {
-                                                        background: #f3f4f6;
-                                                        border-color: #22c55e;
+                                                        background: #f9fafb;
+                                                        border-color: #3b82f6;
                                                     }
                                                     .file-upload-label-network-create.disabled {
                                                         opacity: 0.5;
                                                         cursor: not-allowed;
                                                         pointer-events: none;
+                                                        background: #f3f4f6;
                                                     }
                                                     .file-upload-icon-network-create {
-                                                        margin-right: 8px;
-                                                        font-size: 1.1em;
+                                                        margin-right: 10px;
+                                                        font-size: 1.4em;
                                                     }
                                                     .file-upload-text-network-create {
                                                         color: #6b7280;
+                                                        font-weight: 500;
                                                     }
                                                     .file-name-display-network-create {
-                                                        margin-top: 6px;
-                                                        font-size: 0.8em;
-                                                        color: #22c55e;
+                                                        margin-top: 12px;
+                                                        padding: 8px 12px;
+                                                        font-size: 0.85em;
+                                                        color: #059669;
+                                                        background: #ecfdf5;
+                                                        border-radius: 6px;
                                                         font-weight: 500;
                                                         text-align: center;
                                                     }
@@ -1001,7 +1156,7 @@
                                                         <span class="file-upload-icon-network-create">📊</span>
                                                         <span class="file-upload-text-network-create">Choose edge list file (CSV)...</span>
                                                     </label>
-                                                    <div id="network-file-name-display-create" class="file-name-display-network-create"></div>
+                                                    <div id="network-file-name-display-create" class="file-name-display-network-create" style="display: none;"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1754,6 +1909,17 @@ function updateNetworkInputStates() {
     const networkFileLabel = document.querySelector('.file-upload-label-network-create');
     const erParamField = document.getElementById('er_param_field');
     const baParamField = document.getElementById('ba_param_field');
+    const wsParamField = document.getElementById('ws_param_field');
+    const wsParamField2 = document.getElementById('ws_param_field2');
+    const plcParamField = document.getElementById('plc_param_field');
+    const plcParamField2 = document.getElementById('plc_param_field2');
+    const sbmParamField = document.getElementById('sbm_param_field');
+    const sbmParamField2 = document.getElementById('sbm_param_field2');
+    const sbmParamField3 = document.getElementById('sbm_param_field3');
+    const lfrParamField = document.getElementById('lfr_param_field');
+    const lfrParamField2 = document.getElementById('lfr_param_field2');
+    const lfrParamField3 = document.getElementById('lfr_param_field3');
+    const lfrParamField4 = document.getElementById('lfr_param_field4');
     
     if (!networkModelSelect || !networkFileInput) return;
     
@@ -1783,12 +1949,39 @@ function updateNetworkInputStates() {
     // Show/hide parameter fields based on model selection
     if (erParamField) erParamField.style.display = 'none';
     if (baParamField) baParamField.style.display = 'none';
+    if (wsParamField) wsParamField.style.display = 'none';
+    if (wsParamField2) wsParamField2.style.display = 'none';
+    if (plcParamField) plcParamField.style.display = 'none';
+    if (plcParamField2) plcParamField2.style.display = 'none';
+    if (sbmParamField) sbmParamField.style.display = 'none';
+    if (sbmParamField2) sbmParamField2.style.display = 'none';
+    if (sbmParamField3) sbmParamField3.style.display = 'none';
+    if (lfrParamField) lfrParamField.style.display = 'none';
+    if (lfrParamField2) lfrParamField2.style.display = 'none';
+    if (lfrParamField3) lfrParamField3.style.display = 'none';
+    if (lfrParamField4) lfrParamField4.style.display = 'none';
     
     if (networkModelSelect.value === 'ER' && erParamField) {
         erParamField.style.display = 'block';
     } else if (networkModelSelect.value === 'BA' && baParamField) {
         baParamField.style.display = 'block';
+    } else if (networkModelSelect.value === 'WS') {
+        if (wsParamField) wsParamField.style.display = 'block';
+        if (wsParamField2) wsParamField2.style.display = 'block';
+    } else if (networkModelSelect.value === 'PLC') {
+        if (plcParamField) plcParamField.style.display = 'block';
+        if (plcParamField2) plcParamField2.style.display = 'block';
+    } else if (networkModelSelect.value === 'SBM') {
+        if (sbmParamField) sbmParamField.style.display = 'block';
+        if (sbmParamField2) sbmParamField2.style.display = 'block';
+        if (sbmParamField3) sbmParamField3.style.display = 'block';
+    } else if (networkModelSelect.value === 'LFR') {
+        if (lfrParamField) lfrParamField.style.display = 'block';
+        if (lfrParamField2) lfrParamField2.style.display = 'block';
+        if (lfrParamField3) lfrParamField3.style.display = 'block';
+        if (lfrParamField4) lfrParamField4.style.display = 'block';
     }
+    // C (Complete graph) has no parameters
 }
 
 // Display network file name when selected
@@ -1796,8 +1989,10 @@ function displayNetworkFileNameCreate(input) {
     const display = document.getElementById('network-file-name-display-create');
     if (input.files && input.files[0]) {
         display.textContent = '✓ ' + input.files[0].name;
+        display.style.display = 'block';
     } else {
         display.textContent = '';
+        display.style.display = 'none';
     }
     updateNetworkInputStates();
 }
