@@ -1099,19 +1099,59 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             m = int(network_m) if network_m else 2
             p = float(network_p) if network_p else 0.1
             k = int(form_data.get("network_k")) if form_data.get("network_k") else 4
-            ws_p = float(form_data.get("network_ws_p")) if form_data.get("network_ws_p") else 0.3
-            plc_m = int(form_data.get("network_plc_m")) if form_data.get("network_plc_m") else 2
-            plc_p = float(form_data.get("network_plc_p")) if form_data.get("network_plc_p") else 0.5
-            blocks = int(form_data.get("network_blocks")) if form_data.get("network_blocks") else 3
-            p_in = float(form_data.get("network_p_in")) if form_data.get("network_p_in") else 0.3
-            p_out = float(form_data.get("network_p_out")) if form_data.get("network_p_out") else 0.05
-            tau1 = float(form_data.get("network_tau1")) if form_data.get("network_tau1") else 2.5
-            tau2 = float(form_data.get("network_tau2")) if form_data.get("network_tau2") else 1.5
-            mu = float(form_data.get("network_mu")) if form_data.get("network_mu") else 0.1
-            avg_degree = int(form_data.get("network_avg_degree")) if form_data.get("network_avg_degree") else 5
+            ws_p = (
+                float(form_data.get("network_ws_p"))
+                if form_data.get("network_ws_p")
+                else 0.3
+            )
+            plc_m = (
+                int(form_data.get("network_plc_m"))
+                if form_data.get("network_plc_m")
+                else 2
+            )
+            plc_p = (
+                float(form_data.get("network_plc_p"))
+                if form_data.get("network_plc_p")
+                else 0.5
+            )
+            blocks = (
+                int(form_data.get("network_blocks"))
+                if form_data.get("network_blocks")
+                else 3
+            )
+            p_in = (
+                float(form_data.get("network_p_in"))
+                if form_data.get("network_p_in")
+                else 0.3
+            )
+            p_out = (
+                float(form_data.get("network_p_out"))
+                if form_data.get("network_p_out")
+                else 0.05
+            )
+            tau1 = (
+                float(form_data.get("network_tau1"))
+                if form_data.get("network_tau1")
+                else 2.5
+            )
+            tau2 = (
+                float(form_data.get("network_tau2"))
+                if form_data.get("network_tau2")
+                else 1.5
+            )
+            mu = (
+                float(form_data.get("network_mu"))
+                if form_data.get("network_mu")
+                else 0.1
+            )
+            avg_degree = (
+                int(form_data.get("network_avg_degree"))
+                if form_data.get("network_avg_degree")
+                else 5
+            )
 
             n = len(all_node_ids)
-            
+
             # Generate network based on selected model
             if network_model == "BA":
                 g = nx.barabasi_albert_graph(n, m=m)
@@ -1129,7 +1169,10 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                 # Add remaining nodes to last block
                 block_sizes[-1] += n % blocks
                 # Create probability matrix
-                probs = [[p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)]
+                probs = [
+                    [p_in if i == j else p_out for j in range(blocks)]
+                    for i in range(blocks)
+                ]
                 g = nx.stochastic_block_model(block_sizes, probs)
             elif network_model == "LFR":
                 # LFR benchmark with community structure
@@ -1141,7 +1184,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
                     tau2=tau2,
                     mu=mu,
                     average_degree=avg_degree,
-                    min_community=min_community
+                    min_community=min_community,
                 )
             else:
                 g = None
@@ -2011,20 +2054,64 @@ def create_client():
             # Extract parameters with defaults
             m = int(network_m) if network_m else 2
             p = float(network_p) if network_p else 0.1
-            k = int(request.form.get("network_k")) if request.form.get("network_k") else 4
-            ws_p = float(request.form.get("network_ws_p")) if request.form.get("network_ws_p") else 0.3
-            plc_m = int(request.form.get("network_plc_m")) if request.form.get("network_plc_m") else 2
-            plc_p = float(request.form.get("network_plc_p")) if request.form.get("network_plc_p") else 0.5
-            blocks = int(request.form.get("network_blocks")) if request.form.get("network_blocks") else 3
-            p_in = float(request.form.get("network_p_in")) if request.form.get("network_p_in") else 0.3
-            p_out = float(request.form.get("network_p_out")) if request.form.get("network_p_out") else 0.05
-            tau1 = float(request.form.get("network_tau1")) if request.form.get("network_tau1") else 2.5
-            tau2 = float(request.form.get("network_tau2")) if request.form.get("network_tau2") else 1.5
-            mu = float(request.form.get("network_mu")) if request.form.get("network_mu") else 0.1
-            avg_degree = int(request.form.get("network_avg_degree")) if request.form.get("network_avg_degree") else 5
+            k = (
+                int(request.form.get("network_k"))
+                if request.form.get("network_k")
+                else 4
+            )
+            ws_p = (
+                float(request.form.get("network_ws_p"))
+                if request.form.get("network_ws_p")
+                else 0.3
+            )
+            plc_m = (
+                int(request.form.get("network_plc_m"))
+                if request.form.get("network_plc_m")
+                else 2
+            )
+            plc_p = (
+                float(request.form.get("network_plc_p"))
+                if request.form.get("network_plc_p")
+                else 0.5
+            )
+            blocks = (
+                int(request.form.get("network_blocks"))
+                if request.form.get("network_blocks")
+                else 3
+            )
+            p_in = (
+                float(request.form.get("network_p_in"))
+                if request.form.get("network_p_in")
+                else 0.3
+            )
+            p_out = (
+                float(request.form.get("network_p_out"))
+                if request.form.get("network_p_out")
+                else 0.05
+            )
+            tau1 = (
+                float(request.form.get("network_tau1"))
+                if request.form.get("network_tau1")
+                else 2.5
+            )
+            tau2 = (
+                float(request.form.get("network_tau2"))
+                if request.form.get("network_tau2")
+                else 1.5
+            )
+            mu = (
+                float(request.form.get("network_mu"))
+                if request.form.get("network_mu")
+                else 0.1
+            )
+            avg_degree = (
+                int(request.form.get("network_avg_degree"))
+                if request.form.get("network_avg_degree")
+                else 5
+            )
 
             n = len(agent_ids)
-            
+
             # Generate network based on selected model
             if network_model == "BA":
                 g = nx.barabasi_albert_graph(n, m=m)
@@ -2042,7 +2129,10 @@ def create_client():
                 # Add remaining nodes to last block
                 block_sizes[-1] += n % blocks
                 # Create probability matrix
-                probs = [[p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)]
+                probs = [
+                    [p_in if i == j else p_out for j in range(blocks)]
+                    for i in range(blocks)
+                ]
                 g = nx.stochastic_block_model(block_sizes, probs)
             elif network_model == "LFR":
                 # LFR benchmark with community structure
@@ -2054,7 +2144,7 @@ def create_client():
                     tau2=tau2,
                     mu=mu,
                     average_degree=avg_degree,
-                    min_community=min_community
+                    min_community=min_community,
                 )
             else:
                 g = None
@@ -2333,10 +2423,12 @@ def set_network(uid):
     tau1 = float(request.form.get("tau1")) if request.form.get("tau1") else 2.5
     tau2 = float(request.form.get("tau2")) if request.form.get("tau2") else 1.5
     mu = float(request.form.get("mu")) if request.form.get("mu") else 0.1
-    avg_degree = int(request.form.get("avg_degree")) if request.form.get("avg_degree") else 5
+    avg_degree = (
+        int(request.form.get("avg_degree")) if request.form.get("avg_degree") else 5
+    )
 
     n = len(agent_ids)
-    
+
     # Generate network based on selected model
     if network == "BA":
         g = nx.barabasi_albert_graph(n, m=m)
@@ -2354,7 +2446,9 @@ def set_network(uid):
         # Add remaining nodes to last block
         block_sizes[-1] += n % blocks
         # Create probability matrix
-        probs = [[p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)]
+        probs = [
+            [p_in if i == j else p_out for j in range(blocks)] for i in range(blocks)
+        ]
         g = nx.stochastic_block_model(block_sizes, probs)
     elif network == "LFR":
         # LFR benchmark with community structure
@@ -2366,7 +2460,7 @@ def set_network(uid):
             tau2=tau2,
             mu=mu,
             average_degree=avg_degree,
-            min_community=min_community
+            min_community=min_community,
         )
     else:
         # Default to ER for backward compatibility if unrecognized model
