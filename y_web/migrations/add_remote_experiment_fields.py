@@ -108,7 +108,8 @@ def migrate_postgresql(host, port, database, user, password):
         cursor.execute("""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = 'exps'
+            WHERE table_schema = 'public' 
+            AND LOWER(table_name) = 'exps'
         """)
         columns = [row[0] for row in cursor.fetchall()]
 

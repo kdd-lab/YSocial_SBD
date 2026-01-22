@@ -1394,12 +1394,41 @@ def create_experiment():
 
     # Remote experiment configuration
     is_remote = 1 if request.form.get("is_remote") == "true" else 0
-    remote_host = request.form.get("remote_host") if is_remote else None
-    remote_port = (
-        int(request.form.get("remote_port"))
-        if is_remote and request.form.get("remote_port")
-        else None
-    )
+    
+    # Validate remote configuration if remote experiment is selected
+    if is_remote:
+        remote_host = request.form.get("remote_host", "").strip()
+        if not remote_host:
+            flash("Remote host address is required for remote experiments.")
+            return redirect(url_for("experiments.settings"))
+        
+        # Basic validation for hostname/IP format
+        # Allow: IP addresses (IPv4), domain names, and localhost
+        # This is a basic check - actual connectivity validation happens at runtime
+        import re
+        # Pattern allows: alphanumeric, dots, hyphens, and colons (for IPv6)
+        if not re.match(r'^[a-zA-Z0-9\.\-\:]+$', remote_host):
+            flash("Invalid remote host format. Use IP address or domain name.")
+            return redirect(url_for("experiments.settings"))
+        
+        # Validate and parse remote_port
+        remote_port_str = request.form.get("remote_port", "").strip()
+        if not remote_port_str:
+            flash("Remote port is required for remote experiments.")
+            return redirect(url_for("experiments.settings"))
+        
+        try:
+            remote_port = int(remote_port_str)
+            # Validate port range
+            if not (1 <= remote_port <= 65535):
+                flash("Invalid remote port. Port must be between 1 and 65535.")
+                return redirect(url_for("experiments.settings"))
+        except ValueError:
+            flash("Invalid remote port. Please enter a valid number.")
+            return redirect(url_for("experiments.settings"))
+    else:
+        remote_host = None
+        remote_port = None
 
     # Redis configuration parameters for HPC simulator
     redis_enabled = request.form.get("redis_enabled") == "true"
