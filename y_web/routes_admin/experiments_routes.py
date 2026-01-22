@@ -1236,9 +1236,12 @@ def generate_standard_config(
     db_uri,
     topics,
     data_path,
+    is_remote=False,
+    remote_host=None,
+    remote_port=None,
 ):
     """Generate config file for Standard simulator type."""
-    return {
+    config = {
         "platform_type": platform_type,
         "name": exp_name,
         "host": host,
@@ -1255,7 +1258,15 @@ def generate_standard_config(
         "database_uri": db_uri,
         "topics": [t.strip() for t in topics if t.strip()],
         "data_path": data_path,
+        "is_remote": is_remote,
     }
+    
+    # Add remote configuration if experiment is remote
+    if is_remote:
+        config["remote_host"] = remote_host
+        config["remote_port"] = remote_port
+    
+    return config
 
 
 def generate_hpc_config(
@@ -1274,6 +1285,9 @@ def generate_hpc_config(
     topics,
     data_path,
     db_config_dict=None,
+    is_remote=False,
+    remote_host=None,
+    remote_port=None,
 ):
     """Generate config file for HPC simulator type."""
     # Build database configuration section
@@ -1296,7 +1310,7 @@ def generate_hpc_config(
                 "password": "password",
             }
 
-    return {
+    config = {
         "server_name": exp_name,
         "namespace": exp_name,
         "address": "auto",
@@ -1354,7 +1368,15 @@ def generate_hpc_config(
         "database_uri": db_uri,
         "topics": [t.strip() for t in topics if t.strip()],
         "data_path": data_path,
+        "is_remote": is_remote,
     }
+    
+    # Add remote configuration if experiment is remote
+    if is_remote:
+        config["remote_host"] = remote_host
+        config["remote_port"] = remote_port
+    
+    return config
 
 
 @experiments.route("/admin/create_experiment", methods=["POST", "GET"])
@@ -1369,6 +1391,15 @@ def create_experiment():
     simulator_type = request.form.get(
         "simulator_type", "Standard"
     )  # Default to Standard
+
+    # Remote experiment configuration
+    is_remote = 1 if request.form.get("is_remote") == "true" else 0
+    remote_host = request.form.get("remote_host") if is_remote else None
+    remote_port = (
+        int(request.form.get("remote_port"))
+        if is_remote and request.form.get("remote_port")
+        else None
+    )
 
     # Redis configuration parameters for HPC simulator
     redis_enabled = request.form.get("redis_enabled") == "true"
@@ -1574,6 +1605,9 @@ def create_experiment():
             topics=topics,
             data_path=data_path,
             db_config_dict=db_config_dict,
+            is_remote=is_remote,
+            remote_host=remote_host,
+            remote_port=remote_port,
         )
     else:
         # Standard simulator
@@ -1593,6 +1627,9 @@ def create_experiment():
             db_uri=db_uri,
             topics=topics,
             data_path=data_path,
+            is_remote=is_remote,
+            remote_host=remote_host,
+            remote_port=remote_port,
         )
 
     if simulator_type == "HPC":
@@ -1637,6 +1674,9 @@ def create_experiment():
         annotations=annotations,
         llm_agents_enabled=llm_agents_enabled,
         simulator_type=simulator_type,
+        is_remote=is_remote,
+        remote_host=remote_host,
+        remote_port=remote_port,
     )
 
     db.session.add(exp)
