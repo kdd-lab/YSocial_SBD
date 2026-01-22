@@ -944,6 +944,34 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run opinion evolution cache migration: {e}")
 
+        # Run remote experiment fields migration
+        try:
+            if db_type == "sqlite":
+                from y_web.migrations.add_remote_experiment_fields import (
+                    migrate_sqlite as migrate_remote_fields_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_remote_fields_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_remote_experiment_fields import (
+                    migrate_postgresql as migrate_remote_fields_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_remote_fields_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run remote experiment fields migration: {e}")
+
         # Ensure all tables defined in models exist (including release_info)
         # This creates any missing tables that are defined in models.py
         try:

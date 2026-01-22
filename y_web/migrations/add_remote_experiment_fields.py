@@ -6,7 +6,8 @@ This script adds:
 - remote_host: String column (default NULL, stores remote host address)
 - remote_port: Integer column (default NULL, stores remote port)
 
-Run this script to update existing YSocial installations.
+This migration is automatically run at application startup.
+Can also be run manually to update existing YSocial installations.
 """
 
 import os
