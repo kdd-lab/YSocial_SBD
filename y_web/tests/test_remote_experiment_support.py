@@ -19,12 +19,13 @@ from y_web.routes_admin.experiments_routes import (
 )
 
 
-def test_exps_model_has_remote_fields():
-    """Test that Exps model has the new remote experiment fields."""
-    # Check that the model has the required attributes
+def test_exps_model_has_remote_field():
+    """Test that Exps model has the is_remote field."""
+    # Check that the model has the required attribute
     assert hasattr(Exps, "is_remote")
-    assert hasattr(Exps, "remote_host")
-    assert hasattr(Exps, "remote_port")
+    # Also check that server and port fields exist (they should be pre-existing)
+    assert hasattr(Exps, "server")
+    assert hasattr(Exps, "port")
 
 
 def test_generate_standard_config_local_experiment():
@@ -42,8 +43,6 @@ def test_generate_standard_config_local_experiment():
         topics=["topic1", "topic2"],
         data_path="/path/to/data",
         is_remote=False,
-        remote_host=None,
-        remote_port=None,
     )
 
     # Verify basic config structure
@@ -52,10 +51,6 @@ def test_generate_standard_config_local_experiment():
     assert config["host"] == "127.0.0.1"
     assert config["port"] == 5000
     assert config["is_remote"] is False
-    
-    # Verify remote fields are not present for local experiments
-    assert "remote_host" not in config
-    assert "remote_port" not in config
 
 
 def test_generate_standard_config_remote_experiment():
@@ -63,8 +58,8 @@ def test_generate_standard_config_remote_experiment():
     config = generate_standard_config(
         platform_type="microblogging",
         exp_name="Test Remote Experiment",
-        host="127.0.0.1",
-        port=5000,
+        host="192.168.1.100",  # Remote host stored in host parameter
+        port=8080,  # Remote port stored in port parameter
         perspective_api=None,
         sentiment_annotation=True,
         emotion_annotation=True,
@@ -73,8 +68,6 @@ def test_generate_standard_config_remote_experiment():
         topics=["topic1", "topic2"],
         data_path="/path/to/data",
         is_remote=True,
-        remote_host="192.168.1.100",
-        remote_port=8080,
     )
 
     # Verify basic config structure
@@ -82,9 +75,9 @@ def test_generate_standard_config_remote_experiment():
     assert config["name"] == "Test Remote Experiment"
     assert config["is_remote"] is True
     
-    # Verify remote configuration is present
-    assert config["remote_host"] == "192.168.1.100"
-    assert config["remote_port"] == 8080
+    # Verify remote server info is in host and port fields
+    assert config["host"] == "192.168.1.100"
+    assert config["port"] == 8080
 
 
 def test_generate_hpc_config_local_experiment():
@@ -106,18 +99,12 @@ def test_generate_hpc_config_local_experiment():
         data_path="/path/to/data",
         db_config_dict=None,
         is_remote=False,
-        remote_host=None,
-        remote_port=None,
     )
 
     # Verify basic config structure
     assert config["server_name"] == "Test HPC Experiment"
     assert config["platform_type"] == "microblogging"
     assert config["is_remote"] is False
-    
-    # Verify remote fields are not present for local experiments
-    assert "remote_host" not in config
-    assert "remote_port" not in config
 
 
 def test_generate_hpc_config_remote_experiment():
@@ -139,17 +126,11 @@ def test_generate_hpc_config_remote_experiment():
         data_path="/path/to/data",
         db_config_dict=None,
         is_remote=True,
-        remote_host="example.com",
-        remote_port=9000,
     )
 
     # Verify basic config structure
     assert config["server_name"] == "Test Remote HPC Experiment"
     assert config["is_remote"] is True
-    
-    # Verify remote configuration is present
-    assert config["remote_host"] == "example.com"
-    assert config["remote_port"] == 9000
 
 
 def test_remote_experiment_validation():
@@ -172,14 +153,12 @@ def test_remote_experiment_validation():
 
 
 def test_experiment_model_defaults():
-    """Test that Exps model has correct default values for remote fields."""
+    """Test that Exps model has correct default values for is_remote field."""
     # Note: This tests the model definition, not actual database interaction
-    # The default values should be: is_remote=0, remote_host=None, remote_port=None
+    # The default value should be: is_remote=0
     
-    # Check column defaults are defined
+    # Check column default is defined
     assert Exps.is_remote.default.arg == 0
-    assert Exps.remote_host.default.arg is None
-    assert Exps.remote_port.default.arg is None
 
 
 if __name__ == "__main__":

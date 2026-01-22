@@ -1237,8 +1237,6 @@ def generate_standard_config(
     topics,
     data_path,
     is_remote=False,
-    remote_host=None,
-    remote_port=None,
 ):
     """Generate config file for Standard simulator type."""
     config = {
@@ -1261,11 +1259,6 @@ def generate_standard_config(
         "is_remote": is_remote,
     }
     
-    # Add remote configuration if experiment is remote
-    if is_remote:
-        config["remote_host"] = remote_host
-        config["remote_port"] = remote_port
-    
     return config
 
 
@@ -1286,8 +1279,6 @@ def generate_hpc_config(
     data_path,
     db_config_dict=None,
     is_remote=False,
-    remote_host=None,
-    remote_port=None,
 ):
     """Generate config file for HPC simulator type."""
     # Build database configuration section
@@ -1371,11 +1362,6 @@ def generate_hpc_config(
         "is_remote": is_remote,
     }
     
-    # Add remote configuration if experiment is remote
-    if is_remote:
-        config["remote_host"] = remote_host
-        config["remote_port"] = remote_port
-    
     return config
 
 
@@ -1397,8 +1383,9 @@ def create_experiment():
     
     # Validate remote configuration if remote experiment is selected
     if is_remote:
-        remote_host = request.form.get("remote_host", "").strip()
-        if not remote_host:
+        # For remote experiments, use the provided host and port
+        host = request.form.get("remote_host", "").strip()
+        if not host:
             flash("Remote host address is required for remote experiments.")
             return redirect(url_for("experiments.settings"))
         
@@ -1407,7 +1394,7 @@ def create_experiment():
         # This is a basic check - actual connectivity validation happens at runtime
         import re
         # Pattern allows: alphanumeric, dots, hyphens, and colons (for IPv6)
-        if not re.match(r'^[a-zA-Z0-9\.\-\:]+$', remote_host):
+        if not re.match(r'^[a-zA-Z0-9\.\-\:]+$', host):
             flash("Invalid remote host format. Use IP address or domain name.")
             return redirect(url_for("experiments.settings"))
         
@@ -1418,17 +1405,19 @@ def create_experiment():
             return redirect(url_for("experiments.settings"))
         
         try:
-            remote_port = int(remote_port_str)
+            port = int(remote_port_str)
             # Validate port range
-            if not (1 <= remote_port <= 65535):
+            if not (1 <= port <= 65535):
                 flash("Invalid remote port. Port must be between 1 and 65535.")
                 return redirect(url_for("experiments.settings"))
         except ValueError:
             flash("Invalid remote port. Please enter a valid number.")
             return redirect(url_for("experiments.settings"))
     else:
-        remote_host = None
-        remote_port = None
+        # For local experiments, use default local settings
+        host = "127.0.0.1"
+        # Use suggested port (first available in range 5000-6000)
+        port = get_suggested_port()
 
     # Redis configuration parameters for HPC simulator
     redis_enabled = request.form.get("redis_enabled") == "true"
@@ -1448,12 +1437,6 @@ def create_experiment():
         if request.form.get("redis_sliding_window_days")
         else 2
     )
-
-    # Use fixed host value
-    host = "127.0.0.1"
-
-    # Use suggested port (first available in range 5000-6000)
-    port = get_suggested_port()
 
     # Use current logged-in user as owner
     owner = current_user.username
@@ -1635,8 +1618,6 @@ def create_experiment():
             data_path=data_path,
             db_config_dict=db_config_dict,
             is_remote=is_remote,
-            remote_host=remote_host,
-            remote_port=remote_port,
         )
     else:
         # Standard simulator
@@ -1657,8 +1638,6 @@ def create_experiment():
             topics=topics,
             data_path=data_path,
             is_remote=is_remote,
-            remote_host=remote_host,
-            remote_port=remote_port,
         )
 
     if simulator_type == "HPC":
@@ -1704,8 +1683,6 @@ def create_experiment():
         llm_agents_enabled=llm_agents_enabled,
         simulator_type=simulator_type,
         is_remote=is_remote,
-        remote_host=remote_host,
-        remote_port=remote_port,
     )
 
     db.session.add(exp)

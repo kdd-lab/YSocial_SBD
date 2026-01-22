@@ -1,10 +1,12 @@
 """
-Database migration script to add remote experiment fields to exps table.
+Database migration script to add remote experiment support to exps table.
 
 This script adds:
 - is_remote: Integer column (default 0, where 0=local, 1=remote)
-- remote_host: String column (default NULL, stores remote host address)
-- remote_port: Integer column (default NULL, stores remote port)
+
+This script also removes deprecated columns if they exist:
+- remote_host (replaced by existing 'server' field)
+- remote_port (replaced by existing 'port' field)
 
 This migration is automatically run at application startup.
 Can also be run manually to update existing YSocial installations.
@@ -24,7 +26,7 @@ except ImportError:
 
 def migrate_sqlite(db_path):
     """
-    Add remote experiment fields to SQLite database.
+    Add is_remote column and remove deprecated remote_host/remote_port columns from SQLite database.
 
     Args:
         db_path: Path to the SQLite database file
@@ -40,7 +42,7 @@ def migrate_sqlite(db_path):
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
 
-        # Check if columns already exist
+        # Check if columns exist
         cursor.execute("PRAGMA table_info(exps)")
         columns = [row[1] for row in cursor.fetchall()]
 
@@ -53,23 +55,37 @@ def migrate_sqlite(db_path):
         else:
             print("○ is_remote column already exists in SQLite database")
 
-        # Add remote_host column if it doesn't exist
-        if "remote_host" not in columns:
-            cursor.execute(
-                "ALTER TABLE exps ADD COLUMN remote_host TEXT DEFAULT NULL"
-            )
-            print("✓ Added remote_host column to SQLite database")
-        else:
-            print("○ remote_host column already exists in SQLite database")
+        # Remove deprecated remote_host column if it exists
+        if "remote_host" in columns:
+            # SQLite doesn't support DROP COLUMN directly, need to recreate table
+            print("○ Removing deprecated remote_host column (using server field instead)")
+            cursor.execute("""
+                CREATE TABLE exps_new AS 
+                SELECT idexp, platform_type, exp_name, db_name, owner, exp_descr, 
+                       status, running, port, server, annotations, server_pid, 
+                       llm_agents_enabled, exp_status, simulator_type, is_remote
+                FROM exps
+            """)
+            cursor.execute("DROP TABLE exps")
+            cursor.execute("ALTER TABLE exps_new RENAME TO exps")
+            print("✓ Removed remote_host column from SQLite database")
 
-        # Add remote_port column if it doesn't exist
-        if "remote_port" not in columns:
-            cursor.execute(
-                "ALTER TABLE exps ADD COLUMN remote_port INTEGER DEFAULT NULL"
-            )
-            print("✓ Added remote_port column to SQLite database")
-        else:
-            print("○ remote_port column already exists in SQLite database")
+        # Check again for remote_port (in case only one was present)
+        cursor.execute("PRAGMA table_info(exps)")
+        columns = [row[1] for row in cursor.fetchall()]
+        
+        if "remote_port" in columns:
+            print("○ Removing deprecated remote_port column (using port field instead)")
+            cursor.execute("""
+                CREATE TABLE exps_new AS 
+                SELECT idexp, platform_type, exp_name, db_name, owner, exp_descr, 
+                       status, running, port, server, annotations, server_pid, 
+                       llm_agents_enabled, exp_status, simulator_type, is_remote
+                FROM exps
+            """)
+            cursor.execute("DROP TABLE exps")
+            cursor.execute("ALTER TABLE exps_new RENAME TO exps")
+            print("✓ Removed remote_port column from SQLite database")
 
         conn.commit()
         conn.close()
@@ -82,7 +98,7 @@ def migrate_sqlite(db_path):
 
 def migrate_postgresql(host, port, database, user, password):
     """
-    Add remote experiment fields to PostgreSQL database.
+    Add is_remote column and remove deprecated remote_host/remote_port columns from PostgreSQL database.
 
     Args:
         host: PostgreSQL server host
@@ -105,7 +121,7 @@ def migrate_postgresql(host, port, database, user, password):
         )
         cursor = conn.cursor()
 
-        # Check if columns already exist
+        # Check if columns exist
         cursor.execute("""
             SELECT column_name 
             FROM information_schema.columns 
@@ -124,25 +140,15 @@ def migrate_postgresql(host, port, database, user, password):
         else:
             print("○ is_remote column already exists in PostgreSQL database")
 
-        # Add remote_host column if it doesn't exist
-        if "remote_host" not in columns:
-            cursor.execute("""
-                ALTER TABLE exps 
-                ADD COLUMN remote_host VARCHAR(255) DEFAULT NULL
-            """)
-            print("✓ Added remote_host column to PostgreSQL database")
-        else:
-            print("○ remote_host column already exists in PostgreSQL database")
+        # Remove deprecated remote_host column if it exists
+        if "remote_host" in columns:
+            cursor.execute("ALTER TABLE exps DROP COLUMN remote_host")
+            print("✓ Removed deprecated remote_host column from PostgreSQL database")
 
-        # Add remote_port column if it doesn't exist
-        if "remote_port" not in columns:
-            cursor.execute("""
-                ALTER TABLE exps 
-                ADD COLUMN remote_port INTEGER DEFAULT NULL
-            """)
-            print("✓ Added remote_port column to PostgreSQL database")
-        else:
-            print("○ remote_port column already exists in PostgreSQL database")
+        # Remove deprecated remote_port column if it exists
+        if "remote_port" in columns:
+            cursor.execute("ALTER TABLE exps DROP COLUMN remote_port")
+            print("✓ Removed deprecated remote_port column from PostgreSQL database")
 
         conn.commit()
         conn.close()
@@ -155,7 +161,7 @@ def migrate_postgresql(host, port, database, user, password):
 
 def main():
     """Run migration for both SQLite and PostgreSQL databases."""
-    print("YSocial Database Migration: Adding Remote Experiment Fields")
+    print("YSocial Database Migration: Adding Remote Experiment Support")
     print("=" * 60)
     print()
 
