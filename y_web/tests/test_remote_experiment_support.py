@@ -74,7 +74,7 @@ def test_generate_standard_config_remote_experiment():
     assert config["platform_type"] == "microblogging"
     assert config["name"] == "Test Remote Experiment"
     assert config["is_remote"] is True
-    
+
     # Verify remote server info is in host and port fields
     assert config["host"] == "192.168.1.100"
     assert config["port"] == 8080
@@ -138,15 +138,15 @@ def test_remote_experiment_validation():
     # Test valid remote host
     remote_host = "192.168.1.100"
     assert remote_host  # Should have a value
-    
+
     # Test valid remote port
     remote_port = 8000
     assert 1 <= remote_port <= 65535  # Valid port range
-    
+
     # Test invalid port (too low)
     remote_port = 0
     assert not (1 <= remote_port <= 65535)
-    
+
     # Test invalid port (too high)
     remote_port = 65536
     assert not (1 <= remote_port <= 65535)
@@ -156,7 +156,7 @@ def test_experiment_model_defaults():
     """Test that Exps model has correct default values for is_remote field."""
     # Note: This tests the model definition, not actual database interaction
     # The default value should be: is_remote=0
-    
+
     # Check column default is defined
     assert Exps.is_remote.default.arg == 0
 

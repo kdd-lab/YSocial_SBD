@@ -48,9 +48,7 @@ def migrate_sqlite(db_path):
 
         # Add is_remote column if it doesn't exist
         if "is_remote" not in columns:
-            cursor.execute(
-                "ALTER TABLE exps ADD COLUMN is_remote INTEGER DEFAULT 0"
-            )
+            cursor.execute("ALTER TABLE exps ADD COLUMN is_remote INTEGER DEFAULT 0")
             print("✓ Added is_remote column to SQLite database")
         else:
             print("○ is_remote column already exists in SQLite database")
@@ -58,7 +56,9 @@ def migrate_sqlite(db_path):
         # Remove deprecated remote_host column if it exists
         if "remote_host" in columns:
             # SQLite doesn't support DROP COLUMN directly, need to recreate table
-            print("○ Removing deprecated remote_host column (using server field instead)")
+            print(
+                "○ Removing deprecated remote_host column (using server field instead)"
+            )
             cursor.execute("""
                 CREATE TABLE exps_new AS 
                 SELECT idexp, platform_type, exp_name, db_name, owner, exp_descr, 
@@ -73,7 +73,7 @@ def migrate_sqlite(db_path):
         # Check again for remote_port (in case only one was present)
         cursor.execute("PRAGMA table_info(exps)")
         columns = [row[1] for row in cursor.fetchall()]
-        
+
         if "remote_port" in columns:
             print("○ Removing deprecated remote_port column (using port field instead)")
             cursor.execute("""
