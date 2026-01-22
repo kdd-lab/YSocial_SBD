@@ -1236,9 +1236,10 @@ def generate_standard_config(
     db_uri,
     topics,
     data_path,
+    is_remote=False,
 ):
     """Generate config file for Standard simulator type."""
-    return {
+    config = {
         "platform_type": platform_type,
         "name": exp_name,
         "host": host,
@@ -1255,7 +1256,10 @@ def generate_standard_config(
         "database_uri": db_uri,
         "topics": [t.strip() for t in topics if t.strip()],
         "data_path": data_path,
+        "is_remote": is_remote,
     }
+    
+    return config
 
 
 def generate_hpc_config(
@@ -1274,6 +1278,7 @@ def generate_hpc_config(
     topics,
     data_path,
     db_config_dict=None,
+    is_remote=False,
 ):
     """Generate config file for HPC simulator type."""
     # Build database configuration section
@@ -1296,7 +1301,7 @@ def generate_hpc_config(
                 "password": "password",
             }
 
-    return {
+    config = {
         "server_name": exp_name,
         "namespace": exp_name,
         "address": "auto",
@@ -1354,7 +1359,10 @@ def generate_hpc_config(
         "database_uri": db_uri,
         "topics": [t.strip() for t in topics if t.strip()],
         "data_path": data_path,
+        "is_remote": is_remote,
     }
+    
+    return config
 
 
 @experiments.route("/admin/create_experiment", methods=["POST", "GET"])
@@ -1369,6 +1377,47 @@ def create_experiment():
     simulator_type = request.form.get(
         "simulator_type", "Standard"
     )  # Default to Standard
+
+    # Remote experiment configuration
+    is_remote = 1 if request.form.get("is_remote") == "true" else 0
+    
+    # Validate remote configuration if remote experiment is selected
+    if is_remote:
+        # For remote experiments, use the provided host and port
+        host = request.form.get("remote_host", "").strip()
+        if not host:
+            flash("Remote host address is required for remote experiments.")
+            return redirect(url_for("experiments.settings"))
+        
+        # Basic validation for hostname/IP format
+        # Allow: IP addresses (IPv4), domain names, and localhost
+        # This is a basic check - actual connectivity validation happens at runtime
+        import re
+        # Pattern allows: alphanumeric, dots, hyphens, and colons (for IPv6)
+        if not re.match(r'^[a-zA-Z0-9\.\-\:]+$', host):
+            flash("Invalid remote host format. Use IP address or domain name.")
+            return redirect(url_for("experiments.settings"))
+        
+        # Validate and parse remote_port
+        remote_port_str = request.form.get("remote_port", "").strip()
+        if not remote_port_str:
+            flash("Remote port is required for remote experiments.")
+            return redirect(url_for("experiments.settings"))
+        
+        try:
+            port = int(remote_port_str)
+            # Validate port range
+            if not (1 <= port <= 65535):
+                flash("Invalid remote port. Port must be between 1 and 65535.")
+                return redirect(url_for("experiments.settings"))
+        except ValueError:
+            flash("Invalid remote port. Please enter a valid number.")
+            return redirect(url_for("experiments.settings"))
+    else:
+        # For local experiments, use default local settings
+        host = "127.0.0.1"
+        # Use suggested port (first available in range 5000-6000)
+        port = get_suggested_port()
 
     # Redis configuration parameters for HPC simulator
     redis_enabled = request.form.get("redis_enabled") == "true"
@@ -1388,12 +1437,6 @@ def create_experiment():
         if request.form.get("redis_sliding_window_days")
         else 2
     )
-
-    # Use fixed host value
-    host = "127.0.0.1"
-
-    # Use suggested port (first available in range 5000-6000)
-    port = get_suggested_port()
 
     # Use current logged-in user as owner
     owner = current_user.username
@@ -1574,6 +1617,7 @@ def create_experiment():
             topics=topics,
             data_path=data_path,
             db_config_dict=db_config_dict,
+            is_remote=is_remote,
         )
     else:
         # Standard simulator
@@ -1593,6 +1637,7 @@ def create_experiment():
             db_uri=db_uri,
             topics=topics,
             data_path=data_path,
+            is_remote=is_remote,
         )
 
     if simulator_type == "HPC":
@@ -1637,6 +1682,7 @@ def create_experiment():
         annotations=annotations,
         llm_agents_enabled=llm_agents_enabled,
         simulator_type=simulator_type,
+        is_remote=is_remote,
     )
 
     db.session.add(exp)
@@ -2044,6 +2090,146 @@ def experiment_details(uid):
         notebooks=current_app.config["ENABLE_NOTEBOOK"],
         telemetry_enabled=telemetry_enabled,
     )
+
+
+@experiments.route("/admin/test_remote_server/<int:exp_id>", methods=["POST"])
+@login_required
+def test_remote_server(exp_id):
+    """Test connection to remote experiment server."""
+    check_privileges(current_user.username)
+    
+    try:
+        data = request.get_json()
+        host = data.get("host", "").strip()
+        port = data.get("port")
+        
+        if not host or not port:
+            return jsonify({"success": False, "message": "Host and port are required"})
+        
+        # Try to connect to the server
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)  # 5 second timeout
+        
+        try:
+            result = sock.connect_ex((host, int(port)))
+            sock.close()
+            
+            if result == 0:
+                return jsonify({"success": True, "message": f"Successfully connected to {host}:{port}"})
+            else:
+                return jsonify({"success": False, "message": f"Cannot connect to {host}:{port} - Connection refused"})
+        except socket.gaierror:
+            return jsonify({"success": False, "message": f"Invalid hostname: {host}"})
+        except socket.timeout:
+            return jsonify({"success": False, "message": f"Connection timeout to {host}:{port}"})
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Connection error: {str(e)}"})
+            
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+
+@experiments.route("/admin/update_remote_server/<int:exp_id>", methods=["POST"])
+@login_required
+def update_remote_server(exp_id):
+    """Update remote experiment server host and port."""
+    check_privileges(current_user.username)
+    
+    from y_web.utils.path_utils import get_writable_path
+    
+    try:
+        data = request.get_json()
+        host = data.get("host", "").strip()
+        port = data.get("port")
+        
+        if not host:
+            return jsonify({"success": False, "message": "Host address is required"})
+        
+        # Validate hostname/IP format
+        if not re.match(r'^[a-zA-Z0-9\.\-\:]+$', host):
+            return jsonify({"success": False, "message": "Invalid host format"})
+        
+        # Validate port
+        try:
+            port = int(port)
+            if not (1 <= port <= 65535):
+                return jsonify({"success": False, "message": "Port must be between 1 and 65535"})
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "Invalid port number"})
+        
+        # Get experiment
+        exp = Exps.query.filter_by(idexp=exp_id).first()
+        if not exp:
+            return jsonify({"success": False, "message": "Experiment not found"})
+        
+        if exp.is_remote != 1:
+            return jsonify({"success": False, "message": "This is not a remote experiment"})
+        
+        # Update database
+        db.session.query(Exps).filter_by(idexp=exp_id).update({
+            Exps.server: host,
+            Exps.port: port
+        })
+        db.session.commit()
+        
+        # Update config files
+        BASE_DIR = get_writable_path()
+        db_name_parts = exp.db_name.split(os.sep)
+        if len(db_name_parts) >= 2:
+            experiment_folder_name = db_name_parts[1]
+            experiment_folder = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{experiment_folder_name}"
+            
+            # Update config_server.json (Standard) or server_config.json (HPC)
+            if exp.simulator_type == "HPC":
+                config_file = os.path.join(experiment_folder, "server_config.json")
+            else:
+                config_file = os.path.join(experiment_folder, "config_server.json")
+            
+            if os.path.exists(config_file):
+                with open(config_file, "r") as f:
+                    config = json.load(f)
+                
+                config["host"] = host
+                config["port"] = port
+                
+                with open(config_file, "w") as f:
+                    json.dump(config, f, indent=4)
+            
+            # Update all client configuration files
+            clients = Client.query.filter_by(id_exp=exp_id).all()
+            for client in clients:
+                if exp.simulator_type == "HPC":
+                    # HPC client config format: "server": {"address": null, "port": null}
+                    client_config_file = os.path.join(experiment_folder, f"{client.name}_config.json")
+                    if os.path.exists(client_config_file):
+                        with open(client_config_file, "r") as f:
+                            client_config = json.load(f)
+                        
+                        if "server" not in client_config:
+                            client_config["server"] = {}
+                        client_config["server"]["address"] = host
+                        client_config["server"]["port"] = port
+                        
+                        with open(client_config_file, "w") as f:
+                            json.dump(client_config, f, indent=4)
+                else:
+                    # Standard client config format: "servers": {"api": "http://{host}:{port}/"}
+                    client_config_file = os.path.join(experiment_folder, f"{client.name}_config.json")
+                    if os.path.exists(client_config_file):
+                        with open(client_config_file, "r") as f:
+                            client_config = json.load(f)
+                        
+                        if "servers" in client_config:
+                            client_config["servers"]["api"] = f"http://{host}:{port}/"
+                        
+                        with open(client_config_file, "w") as f:
+                            json.dump(client_config, f, indent=4)
+        
+        return jsonify({"success": True, "message": "Server settings updated successfully"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error updating server: {str(e)}"})
 
 
 @experiments.route("/admin/submit_experiment_logs/<int:exp_id>", methods=["POST"])

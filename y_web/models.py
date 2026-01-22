@@ -434,6 +434,7 @@ class Exps(db.Model):
     llm_agents_enabled = db.Column(db.Integer, nullable=False, default=1)
     exp_status = db.Column(db.String(20), nullable=False, default="stopped")
     simulator_type = db.Column(db.String(20), nullable=False, default="Standard")
+    is_remote = db.Column(db.Integer, nullable=False, default=0)
 
 
 class ExperimentScheduleGroup(db.Model):

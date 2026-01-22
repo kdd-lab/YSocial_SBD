@@ -40,7 +40,9 @@ CREATE TABLE exps (
     annotations        TEXT DEFAULT '' NOT NULL,
     server_pid         INTEGER DEFAULT NULL,
     llm_agents_enabled INTEGER DEFAULT 1 NOT NULL,
-    exp_status         VARCHAR(20) DEFAULT 'stopped' NOT NULL
+    exp_status         VARCHAR(20) DEFAULT 'stopped' NOT NULL,
+    simulator_type     VARCHAR(20) DEFAULT 'Standard' NOT NULL,
+    is_remote          INTEGER DEFAULT 0 NOT NULL
 );
 
 CREATE TABLE exp_stats (

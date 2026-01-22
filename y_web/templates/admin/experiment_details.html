@@ -131,6 +131,147 @@
 
                     <div id="server-controls-section" class="dashboard-box">
                         <h3 class="title is-5 is-thin">Server & Analysis Controls</h3>
+                        
+                        {% if experiment.is_remote == 1 %}
+                        <!-- Remote experiment info -->
+                        <div id="remote-server-info" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 2px solid #2196F3; border-radius: 8px; padding: 16px; margin-bottom: 15px;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <i class="mdi mdi-cloud-outline" style="font-size: 24px; color: #1976D2;"></i>
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 600; color: #0d47a1; font-size: 0.95em;">Remote Experiment</div>
+                                    <div style="font-size: 0.85em; color: #1565C0; margin-top: 2px;">YServer running on external machine</div>
+                                </div>
+                                <button onclick="toggleRemoteServerEdit()" class="button is-small" style="padding: 4px 8px; font-size: 0.8em;" title="Edit server settings">
+                                    <i class="mdi mdi-pencil"></i> Edit
+                                </button>
+                            </div>
+                            
+                            <!-- Display mode -->
+                            <div id="remote-display-mode" style="background: white; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <span style="font-size: 0.85em; color: #555; font-weight: 500;">Host:</span>
+                                    <span id="display-host" style="font-size: 0.9em; color: #0d47a1; font-family: monospace; font-weight: 600;">{{ experiment.server }}</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 0.85em; color: #555; font-weight: 500;">Port:</span>
+                                    <span id="display-port" style="font-size: 0.9em; color: #0d47a1; font-family: monospace; font-weight: 600;">{{ experiment.port }}</span>
+                                </div>
+                                <div style="margin-top: 10px; text-align: center;">
+                                    <button onclick="testRemoteServer()" class="button is-info is-small is-fullwidth" style="display: flex; align-items: center; justify-content: center; gap: 0.5em;">
+                                        <i class="mdi mdi-network-outline"></i>
+                                        <span>Test Connection</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Edit mode (initially hidden) -->
+                            <div id="remote-edit-mode" style="background: white; border-radius: 6px; padding: 10px; margin-top: 10px; display: none;">
+                                <div style="margin-bottom: 10px;">
+                                    <label style="display: block; font-size: 0.85em; color: #555; font-weight: 500; margin-bottom: 4px;">Host:</label>
+                                    <input type="text" id="edit-host" value="{{ experiment.server }}" class="input is-small" placeholder="e.g., 192.168.1.100">
+                                </div>
+                                <div style="margin-bottom: 10px;">
+                                    <label style="display: block; font-size: 0.85em; color: #555; font-weight: 500; margin-bottom: 4px;">Port:</label>
+                                    <input type="number" id="edit-port" value="{{ experiment.port }}" class="input is-small" min="1" max="65535" placeholder="8000">
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="saveRemoteServer()" class="button is-success is-small" style="flex: 1;">
+                                        <i class="mdi mdi-check"></i> Save
+                                    </button>
+                                    <button onclick="cancelRemoteServerEdit()" class="button is-light is-small" style="flex: 1;">
+                                        <i class="mdi mdi-close"></i> Cancel
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Status message area -->
+                            <div id="remote-status-message" style="margin-top: 10px; display: none;"></div>
+                        </div>
+                        
+                        <script>
+                            function toggleRemoteServerEdit() {
+                                document.getElementById('remote-display-mode').style.display = 'none';
+                                document.getElementById('remote-edit-mode').style.display = 'block';
+                            }
+                            
+                            function cancelRemoteServerEdit() {
+                                document.getElementById('remote-edit-mode').style.display = 'none';
+                                document.getElementById('remote-display-mode').style.display = 'block';
+                            }
+                            
+                            function testRemoteServer() {
+                                const host = document.getElementById('display-host').textContent;
+                                const port = document.getElementById('display-port').textContent;
+                                const statusDiv = document.getElementById('remote-status-message');
+                                
+                                statusDiv.innerHTML = '<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px; font-size: 0.85em;"><i class="mdi mdi-loading mdi-spin"></i> Testing connection...</div>';
+                                statusDiv.style.display = 'block';
+                                
+                                fetch(`/admin/test_remote_server/{{ experiment.idexp }}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ host: host, port: port })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        statusDiv.innerHTML = `<div style="background: #d4edda; border: 1px solid #28a745; border-radius: 4px; padding: 8px; font-size: 0.85em; color: #155724;"><i class="mdi mdi-check-circle"></i> ${data.message}</div>`;
+                                        setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+                                    } else {
+                                        statusDiv.innerHTML = `<div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 4px; padding: 8px; font-size: 0.85em; color: #721c24;"><i class="mdi mdi-alert-circle"></i> ${data.message}</div>`;
+                                    }
+                                })
+                                .catch(error => {
+                                    statusDiv.innerHTML = '<div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 4px; padding: 8px; font-size: 0.85em; color: #721c24;"><i class="mdi mdi-alert-circle"></i> Error testing connection</div>';
+                                });
+                            }
+                            
+                            function saveRemoteServer() {
+                                const host = document.getElementById('edit-host').value.trim();
+                                const port = parseInt(document.getElementById('edit-port').value);
+                                const statusDiv = document.getElementById('remote-status-message');
+                                
+                                if (!host) {
+                                    alert('Please enter a host address');
+                                    return;
+                                }
+                                
+                                if (!port || port < 1 || port > 65535) {
+                                    alert('Please enter a valid port (1-65535)');
+                                    return;
+                                }
+                                
+                                statusDiv.innerHTML = '<div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 8px; font-size: 0.85em;"><i class="mdi mdi-loading mdi-spin"></i> Updating server settings...</div>';
+                                statusDiv.style.display = 'block';
+                                
+                                fetch(`/admin/update_remote_server/{{ experiment.idexp }}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({ host: host, port: port })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        document.getElementById('display-host').textContent = host;
+                                        document.getElementById('display-port').textContent = port;
+                                        cancelRemoteServerEdit();
+                                        statusDiv.innerHTML = '<div style="background: #d4edda; border: 1px solid #28a745; border-radius: 4px; padding: 8px; font-size: 0.85em; color: #155724;"><i class="mdi mdi-check-circle"></i> Server settings updated successfully</div>';
+                                        setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+                                    } else {
+                                        statusDiv.innerHTML = `<div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 4px; padding: 8px; font-size: 0.85em; color: #721c24;"><i class="mdi mdi-alert-circle"></i> ${data.message}</div>`;
+                                    }
+                                })
+                                .catch(error => {
+                                    statusDiv.innerHTML = '<div style="background: #f8d7da; border: 1px solid #dc3545; border-radius: 4px; padding: 8px; font-size: 0.85em; color: #721c24;"><i class="mdi mdi-alert-circle"></i> Error updating server settings</div>';
+                                });
+                            }
+                        </script>
+                        {% else %}
+                        <!-- Local experiment controls -->
                         <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
                             Control panel for simulation server, web interface, and data analysis environment.
                         </p>
@@ -182,6 +323,20 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Server Information Box (for local experiments) -->
+                        <div style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px 12px; margin-top: 10px;">
+                            <div style="font-size: 0.8em; color: #6c757d; margin-bottom: 4px; font-weight: 500;">Server Address</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;">
+                                <span style="color: #495057;">Host:</span>
+                                <span style="color: #212529; font-family: monospace; font-weight: 600;">{{ experiment.server }}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; margin-top: 2px;">
+                                <span style="color: #495057;">Port:</span>
+                                <span style="color: #212529; font-family: monospace; font-weight: 600;">{{ experiment.port }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <script>
@@ -272,7 +427,7 @@
                                             </div>
                                         </div>
                                         <div style="display: flex; gap: 3px;">
-                                            {% if client.status == 0 and experiment.running == 1 %}
+                                            {% if client.status == 0 and (experiment.running == 1 or experiment.is_remote == 1) %}
                                             <a class="link-tooltip" href="/admin/run_client/{{ client.id }}/{{ experiment.idexp }}" title="Run Client" onclick="event.preventDefault(); showLoading('Starting client...'); setTimeout(() => { window.location.href = this.href; }, 100);">
                                                 <i class="mdi mdi-play-box-outline" style="font-size: 20px;"></i>
                                             </a>
@@ -394,7 +549,7 @@
                         </div>
                     </div>
 
-                    {% if experiment.annotations and 'opinions' in experiment.annotations %}
+                    {% if experiment.annotations and 'opinions' in experiment.annotations and experiment.is_remote == 0 %}
                     <!--Opinion Evolution Box-->
                     <div class="dashboard-box is-compact" style="flex: 0 0 auto; display: flex; flex-direction: column; margin-top: 1.5rem;">
                         <h3 class="title is-5 is-thin">Opinion Evolution</h3>

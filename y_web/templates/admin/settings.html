@@ -1317,6 +1317,38 @@
                                     </div>
 
                                     <div class="box-line">
+                                        <span class="left">Experiment Type</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div id="remote-experiment-container" style="display: flex; align-items: center; gap: 8px;">
+                                                <label class="switch-small">
+                                                    <input type="checkbox" id="remote_experiment_toggle" name="is_remote" value="true">
+                                                    <span class="slider-small round"></span>
+                                                </label>
+                                                <span id="remote-experiment-label" style="font-size: 0.9rem; color: #6b7280;">Remote Experiment</span>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <!-- Remote Experiment Configuration (shown only when remote is enabled) -->
+                                    <div id="remote-config-box" class="box-line" style="display: none;">
+                                        <span class="left">Remote Server</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+                                                <div style="margin-bottom: 12px;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Host Address</label>
+                                                    <input type="text" id="remote_host" name="remote_host" value="" placeholder="e.g., 192.168.1.100 or example.com" class="input" style="width: 100%;">
+                                                </div>
+
+                                                <div style="margin-bottom: 0;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Port</label>
+                                                    <!-- Default: 8000 (common for YSocial experiment servers) -->
+                                                    <input type="number" id="remote_port" name="remote_port" value="8000" placeholder="8000" class="input" style="width: 100%;" min="1" max="65535">
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <div class="box-line">
                                         <span class="left">Simulation Topics</span>
                                         <span class="right" style="width: 70%;">
 
@@ -1731,6 +1763,9 @@
 
                             function updateSimulatorTypeUI() {
                                 const isHPC = simulatorTypeSelect.value === 'HPC';
+                                const remoteExperimentToggle = document.getElementById('remote_experiment_toggle');
+                                const remoteExperimentContainer = document.getElementById('remote-experiment-container');
+                                const remoteExperimentLabel = document.getElementById('remote-experiment-label');
                                 
                                 // Show/hide HPC info box as overlay
                                 if (isHPC) {
@@ -1745,6 +1780,28 @@
                                             option.style.display = 'none';
                                         }
                                     });
+                                    
+                                    // Disable remote experiment toggle for HPC
+                                    remoteExperimentToggle.disabled = true;
+                                    remoteExperimentToggle.checked = false;
+                                    // Add visual styling for disabled state
+                                    if (remoteExperimentContainer) {
+                                        remoteExperimentContainer.style.opacity = '0.5';
+                                        remoteExperimentContainer.style.cursor = 'not-allowed';
+                                    }
+                                    if (remoteExperimentLabel) {
+                                        remoteExperimentLabel.style.color = '#9ca3af';
+                                    }
+                                    // Hide remote config box if it was visible
+                                    const remoteConfigBox = document.getElementById('remote-config-box');
+                                    if (remoteConfigBox) {
+                                        remoteConfigBox.style.display = 'none';
+                                    }
+                                    // Update required attributes
+                                    const remoteHostInput = document.getElementById('remote_host');
+                                    const remotePortInput = document.getElementById('remote_port');
+                                    if (remoteHostInput) remoteHostInput.required = false;
+                                    if (remotePortInput) remotePortInput.required = false;
                                 } else {
                                     hpcInfoInline.style.display = 'none';
                                     redisConfigBox.style.display = 'none';
@@ -1753,6 +1810,17 @@
                                     Array.from(platformTypeSelect.options).forEach(option => {
                                         option.style.display = '';
                                     });
+                                    
+                                    // Enable remote experiment toggle for Standard
+                                    remoteExperimentToggle.disabled = false;
+                                    // Restore visual styling
+                                    if (remoteExperimentContainer) {
+                                        remoteExperimentContainer.style.opacity = '1';
+                                        remoteExperimentContainer.style.cursor = 'pointer';
+                                    }
+                                    if (remoteExperimentLabel) {
+                                        remoteExperimentLabel.style.color = '#6b7280';
+                                    }
                                 }
                             }
 
@@ -1760,6 +1828,24 @@
                             
                             // Initialize on page load
                             updateSimulatorTypeUI();
+
+                            // Handle Remote Experiment toggle
+                            const remoteExperimentToggle = document.getElementById('remote_experiment_toggle');
+                            const remoteConfigBox = document.getElementById('remote-config-box');
+                            const remoteHostInput = document.getElementById('remote_host');
+                            const remotePortInput = document.getElementById('remote_port');
+
+                            remoteExperimentToggle.addEventListener('change', function() {
+                                if (this.checked) {
+                                    remoteConfigBox.style.display = 'flex';
+                                    remoteHostInput.required = true;
+                                    remotePortInput.required = true;
+                                } else {
+                                    remoteConfigBox.style.display = 'none';
+                                    remoteHostInput.required = false;
+                                    remotePortInput.required = false;
+                                }
+                            });
                         });
                     </script>
 
