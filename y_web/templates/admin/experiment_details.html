@@ -427,7 +427,7 @@
                                             </div>
                                         </div>
                                         <div style="display: flex; gap: 3px;">
-                                            {% if client.status == 0 and experiment.running == 1 %}
+                                            {% if client.status == 0 and (experiment.running == 1 or experiment.is_remote == 1) %}
                                             <a class="link-tooltip" href="/admin/run_client/{{ client.id }}/{{ experiment.idexp }}" title="Run Client" onclick="event.preventDefault(); showLoading('Starting client...'); setTimeout(() => { window.location.href = this.href; }, 100);">
                                                 <i class="mdi mdi-play-box-outline" style="font-size: 20px;"></i>
                                             </a>
