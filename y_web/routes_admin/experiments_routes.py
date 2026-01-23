@@ -506,6 +506,7 @@ def upload_experiment():
     experiment = request.files["experiment"]
     # Get experiment name from form, fallback to name from config if not provided
     exp_name_override = request.form.get("exp_name", "").strip()
+    exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
     uid = str(uuid.uuid4()).replace("-", "_")
 
     from y_web.utils.path_utils import get_writable_path
@@ -800,6 +801,7 @@ def upload_experiment():
             platform_type=experiment_config.get("platform_type", "microblogging"),
             llm_agents_enabled=llm_agents_enabled,
             simulator_type="Standard",  # Default to Standard for uploaded experiments
+            exp_group=exp_group,
         )
 
         db.session.add(exp)
@@ -1377,6 +1379,7 @@ def create_experiment():
     simulator_type = request.form.get(
         "simulator_type", "Standard"
     )  # Default to Standard
+    exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
 
     # Remote experiment configuration
     is_remote = 1 if request.form.get("is_remote") == "true" else 0
@@ -1684,6 +1687,7 @@ def create_experiment():
         llm_agents_enabled=llm_agents_enabled,
         simulator_type=simulator_type,
         is_remote=is_remote,
+        exp_group=exp_group,
     )
 
     db.session.add(exp)
@@ -4284,6 +4288,7 @@ def copy_experiment():
     new_exp_name = request.form.get("new_exp_name")
     source_exp_id = request.form.get("source_exp_id")
     num_copies = request.form.get("num_copies", "1")
+    exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
 
     # Validate inputs
     if not new_exp_name or not source_exp_id:
@@ -4325,7 +4330,7 @@ def copy_experiment():
     created_count = 0
     for copy_name in exp_names_to_create:
         try:
-            success = _create_single_experiment_copy(source_exp, copy_name)
+            success = _create_single_experiment_copy(source_exp, copy_name, exp_group)
             if success:
                 created_count += 1
 
@@ -4360,13 +4365,14 @@ def copy_experiment():
     return redirect(url_for("experiments.settings"))
 
 
-def _create_single_experiment_copy(source_exp, new_exp_name):
+def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     """
     Helper function to create a single experiment copy.
 
     Args:
         source_exp: Source experiment object
         new_exp_name: Name for the new experiment
+        exp_group: Group name for the experiment (optional)
 
     Returns:
         bool: True if successful, False otherwise
@@ -4624,6 +4630,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
         annotations=source_exp.annotations,
         llm_agents_enabled=source_exp.llm_agents_enabled,
         simulator_type=source_exp.simulator_type,
+        exp_group=exp_group,
     )
     db.session.add(new_exp)
     db.session.commit()

@@ -42,7 +42,8 @@ CREATE TABLE exps (
     llm_agents_enabled INTEGER DEFAULT 1 NOT NULL,
     exp_status         VARCHAR(20) DEFAULT 'stopped' NOT NULL,
     simulator_type     VARCHAR(20) DEFAULT 'Standard' NOT NULL,
-    is_remote          INTEGER DEFAULT 0 NOT NULL
+    is_remote          INTEGER DEFAULT 0 NOT NULL,
+    exp_group          VARCHAR(100) DEFAULT ''
 );
 
 CREATE TABLE exp_stats (
