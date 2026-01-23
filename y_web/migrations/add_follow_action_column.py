@@ -22,7 +22,7 @@ except ImportError:
 
 def migrate_sqlite(db_path):
     """
-    Add follow column to SQLite database.
+    Add follow column to SQLite database client table.
 
     Args:
         db_path: Path to the SQLite database file
@@ -64,7 +64,7 @@ def migrate_sqlite(db_path):
 
 def migrate_postgresql(host, port, database, user, password):
     """
-    Add follow column to PostgreSQL database.
+    Add follow column to PostgreSQL database client table.
 
     Args:
         host: PostgreSQL server host

@@ -487,6 +487,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     search = float(form_data.get("search", "5.0"))
     vote = float(form_data.get("vote", "0.0"))
     share_link = float(form_data.get("share_link", "0.0"))
+    # Follow action - default 0.0 matches form default. Previously hardcoded at 0.1,
+    # now configurable via form field
     follow = float(form_data.get("follow", "0.0"))
 
     # RecSys
