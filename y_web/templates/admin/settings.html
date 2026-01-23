@@ -1500,6 +1500,29 @@
                                             </div>
                                         </span>
                                     </div>
+
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                <input type="text" 
+                                                       id="exp_group_input" 
+                                                       name="exp_group" 
+                                                       list="exp_groups_datalist" 
+                                                       class="input" 
+                                                       placeholder="Enter or select a group..."
+                                                       style="flex: 1;">
+                                                <datalist id="exp_groups_datalist">
+                                                    {% for group in exp_groups %}
+                                                    <option value="{{ group }}">
+                                                    {% endfor %}
+                                                </datalist>
+                                            </div>
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                Optional: Group experiments together (e.g., "Project A", "Study B")
+                                            </p>
+                                        </span>
+                                    </div>
                                 </div>
                                 <div class="button-wrap">
                                     <button id="create-experiment-btn" class="button is-solid primary-button is-fullwidth" disabled>
@@ -2068,6 +2091,25 @@
                                     If &gt;1, creates copies named: name_1, name_2, etc.
                                 </p>
                             </div>
+                            <div style="margin-bottom: 12px;">
+                                <label for="copy_exp_group" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
+                                    Experiment Group
+                                </label>
+                                <input type="text" 
+                                       id="copy_exp_group" 
+                                       name="exp_group" 
+                                       list="exp_groups_datalist_copy" 
+                                       class="input" 
+                                       placeholder="Enter or select a group...">
+                                <datalist id="exp_groups_datalist_copy">
+                                    {% for group in exp_groups %}
+                                    <option value="{{ group }}">
+                                    {% endfor %}
+                                </datalist>
+                                <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                    Optional: Group experiments together
+                                </p>
+                            </div>
                             <div class="help-block" style="margin-bottom: 12px;">
                                 <p style="font-size: 0.8em; color: #6b7280; line-height: 1.4;">
                                     Creates a complete copy of an experiment that will be ready to start immediately.
@@ -2146,6 +2188,22 @@
                                        name="exp_name" 
                                        class="input" 
                                        placeholder="Leave empty to use name from config...">
+                            </div>
+                            <div style="margin-bottom: 12px;">
+                                <label for="upload_exp_group" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
+                                    Experiment Group (optional)
+                                </label>
+                                <input type="text" 
+                                       id="upload_exp_group" 
+                                       name="exp_group" 
+                                       list="exp_groups_datalist_upload" 
+                                       class="input" 
+                                       placeholder="Enter or select a group...">
+                                <datalist id="exp_groups_datalist_upload">
+                                    {% for group in exp_groups %}
+                                    <option value="{{ group }}">
+                                    {% endfor %}
+                                </datalist>
                             </div>
                             <div class="file-upload-wrapper-exp">
                                 <input type="file" id="experiment" name="experiment" accept=".zip" onchange="displayExperimentFileName(this)" required>

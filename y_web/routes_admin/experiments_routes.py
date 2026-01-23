@@ -249,6 +249,10 @@ def settings():
     # Get suggested port for new experiment
     suggested_port = get_suggested_port()
 
+    # Get unique experiment groups
+    exp_groups = db.session.query(Exps.exp_group).filter(Exps.exp_group != "").filter(Exps.exp_group.isnot(None)).distinct().all()
+    exp_groups = [group[0] for group in exp_groups if group[0]]  # Extract from tuples and filter empty
+
     return render_template(
         "admin/settings.html",
         experiments=experiments,
@@ -258,6 +262,7 @@ def settings():
         suggested_port=suggested_port,
         enable_notebook=current_app.config.get("ENABLE_NOTEBOOK", False),
         exp_has_infinite=exp_has_infinite,
+        exp_groups=exp_groups,
     )
 
 
