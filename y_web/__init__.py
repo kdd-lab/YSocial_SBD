@@ -972,6 +972,32 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run remote experiment fields migration: {e}")
 
+        try:
+            # Run migration to add follow action column if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_follow_action_column import migrate_sqlite
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_follow_action_column import (
+                    migrate_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run follow action column migration: {e}")
+
         # Ensure all tables defined in models exist (including release_info)
         # This creates any missing tables that are defined in models.py
         try:

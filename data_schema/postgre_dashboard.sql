@@ -219,6 +219,7 @@ CREATE TABLE client (
     network_type                        TEXT,
     probability_of_secondary_follow     REAL DEFAULT 0,
     share_link                          REAL DEFAULT 0,
+    follow                              REAL DEFAULT 0,
     crecsys                             TEXT,
     frecsys                             TEXT,
     pid                                 INTEGER DEFAULT NULL,
