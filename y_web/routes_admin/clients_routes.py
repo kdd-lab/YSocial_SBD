@@ -493,7 +493,11 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
 
     # RecSys
     crecsys = form_data.get("recsys_type", "random")
+    if crecsys == "ContentRecSys":
+        crecsys = "random"
     frecsys = form_data.get("frecsys_type", "random")
+    if frecsys == "FollowRecSys":
+        frecsys = "random"
 
     # Agent archetypes
     enable_archetypes = form_data.get("enable_archetypes") == "on"
