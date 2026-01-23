@@ -490,8 +490,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     follow = float(form_data.get("follow", "0.1"))
 
     # RecSys
-    crecsys = form_data.get("crecsys", "random")
-    frecsys = form_data.get("frecsys", "random")
+    crecsys = form_data.get("recsys_type", "random")
+    frecsys = form_data.get("frecsys_type", "random")
 
     # Agent archetypes
     enable_archetypes = form_data.get("enable_archetypes") == "on"
@@ -866,8 +866,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "ex": agent.ex,
             "ag": agent.ag,
             "ne": agent.ne,
-            "recsys_type": crecsys,
-            "frecsys_type": frecsys,
+            "recsys_type": agent.crecsys if agent.crecsys else "random",
+            "frecsys_type": agent.frecsys if agent.frecsys else "random",
             "language": agent.language,
             "owner": exp.owner,
             "education_level": agent.education_level,
