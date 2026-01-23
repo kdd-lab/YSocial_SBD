@@ -131,11 +131,12 @@ def main():
     print("Migrating PostgreSQL database...")
 
     # Try to read PostgreSQL configuration from environment variables
-    pg_host = os.environ.get("POSTGRES_HOST", "localhost")
-    pg_port = os.environ.get("POSTGRES_PORT", "5432")
-    pg_database = os.environ.get("POSTGRES_DB", "ysocial")
-    pg_user = os.environ.get("POSTGRES_USER", "postgres")
-    pg_password = os.environ.get("POSTGRES_PASSWORD", "")
+    # Using the same variable names as in __init__.py for consistency
+    pg_host = os.environ.get("PG_HOST", "localhost")
+    pg_port = os.environ.get("PG_PORT", "5432")
+    pg_database = os.environ.get("PG_DBNAME", "dashboard")
+    pg_user = os.environ.get("PG_USER", "postgres")
+    pg_password = os.environ.get("PG_PASSWORD", "")
 
     if pg_password:
         postgresql_success = migrate_postgresql(
@@ -144,11 +145,11 @@ def main():
     else:
         print("○ PostgreSQL not configured (no password found in environment)")
         print("  To migrate PostgreSQL, set the following environment variables:")
-        print("  - POSTGRES_HOST (default: localhost)")
-        print("  - POSTGRES_PORT (default: 5432)")
-        print("  - POSTGRES_DB (default: ysocial)")
-        print("  - POSTGRES_USER (default: postgres)")
-        print("  - POSTGRES_PASSWORD (required)")
+        print("  - PG_HOST (default: localhost)")
+        print("  - PG_PORT (default: 5432)")
+        print("  - PG_DBNAME (default: dashboard)")
+        print("  - PG_USER (default: postgres)")
+        print("  - PG_PASSWORD (required)")
         postgresql_success = None
 
     print()

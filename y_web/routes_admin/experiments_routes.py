@@ -251,7 +251,7 @@ def settings():
 
     # Get unique experiment groups
     exp_groups = db.session.query(Exps.exp_group).filter(Exps.exp_group != "").filter(Exps.exp_group.isnot(None)).distinct().all()
-    exp_groups = [group[0] for group in exp_groups if group[0]]  # Extract from tuples and filter empty
+    exp_groups = [group[0] for group in exp_groups]  # Extract from tuples
 
     return render_template(
         "admin/settings.html",
