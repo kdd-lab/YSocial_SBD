@@ -487,7 +487,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     search = float(form_data.get("search", "5.0"))
     vote = float(form_data.get("vote", "0.0"))
     share_link = float(form_data.get("share_link", "0.0"))
-    follow = float(form_data.get("follow", "0.1"))
+    follow = float(form_data.get("follow", "0.0"))
 
     # RecSys
     crecsys = form_data.get("recsys_type", "random")
@@ -992,6 +992,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         search=search,
         vote=vote,
         share_link=share_link,
+        follow=follow,
         crecsys=crecsys,
         frecsys=frecsys,
         archetype_validator=archetype_validator,
