@@ -261,7 +261,13 @@ def settings():
     suggested_port = get_suggested_port()
 
     # Get unique experiment groups
-    exp_groups = db.session.query(Exps.exp_group).filter(Exps.exp_group != "").filter(Exps.exp_group.isnot(None)).distinct().all()
+    exp_groups = (
+        db.session.query(Exps.exp_group)
+        .filter(Exps.exp_group != "")
+        .filter(Exps.exp_group.isnot(None))
+        .distinct()
+        .all()
+    )
     exp_groups = [group[0] for group in exp_groups]  # Extract from tuples
 
     return render_template(
@@ -2054,7 +2060,7 @@ def experiments_data():
 @login_required
 def experiment_clients(exp_id):
     """Get client information for an experiment including progress data.
-    
+
     Returns:
         JSON with client details and progress information
     """
@@ -2063,51 +2069,66 @@ def experiment_clients(exp_id):
         experiment = Exps.query.filter_by(idexp=exp_id).first()
         if not experiment:
             return jsonify({"error": "Experiment not found"}), 404
-        
+
         # Check user permissions
         user = Admin_users.query.filter_by(username=current_user.username).first()
         if user.role == "researcher" and experiment.owner != user.username:
             return jsonify({"error": "Access denied"}), 403
-        
+
         # Get clients for this experiment
         clients = Client.query.filter_by(id_exp=exp_id).all()
-        
+
         client_data = []
         for client in clients:
             # Get client execution data
             client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
-            
+
             client_info = {
                 "id": client.id,
                 "name": client.name,
                 "status": client.status,
                 "days": client.days,
                 "progress": 0,
-                "infinite": client.days == -1
+                "infinite": client.days == -1,
             }
-            
+
             if client_exec:
                 # Calculate progress for finite clients
-                if client_exec.expected_duration_rounds and client_exec.expected_duration_rounds > 0:
-                    progress = min(100, max(0, int(
-                        client_exec.elapsed_time / client_exec.expected_duration_rounds * 100
-                    )))
+                if (
+                    client_exec.expected_duration_rounds
+                    and client_exec.expected_duration_rounds > 0
+                ):
+                    progress = min(
+                        100,
+                        max(
+                            0,
+                            int(
+                                client_exec.elapsed_time
+                                / client_exec.expected_duration_rounds
+                                * 100
+                            ),
+                        ),
+                    )
                     client_info["progress"] = progress
                     client_info["elapsed_time"] = client_exec.elapsed_time
-                    client_info["expected_duration_rounds"] = client_exec.expected_duration_rounds
+                    client_info["expected_duration_rounds"] = (
+                        client_exec.expected_duration_rounds
+                    )
                 elif client_exec.expected_duration_rounds == -1:
                     # Infinite client
                     client_info["infinite"] = True
                     client_info["elapsed_time"] = client_exec.elapsed_time
                     client_info["elapsed_days"] = client_exec.elapsed_time // 24
                     client_info["elapsed_hours"] = client_exec.elapsed_time % 24
-            
+
             client_data.append(client_info)
-        
+
         return jsonify({"clients": client_data})
-        
+
     except Exception as e:
-        current_app.logger.error(f"Error fetching experiment clients: {e}", exc_info=True)
+        current_app.logger.error(
+            f"Error fetching experiment clients: {e}", exc_info=True
+        )
         return jsonify({"error": str(e)}), 500
 
 
@@ -2950,7 +2971,7 @@ def stop_experiment(uid):
     # Step 4: Check if all clients have completed to determine final status
     all_clients_completed, _ = _get_clients_to_start(exp)
     final_status = "completed" if all_clients_completed else "stopped"
-    
+
     # Update the experiment status in database
     db.session.query(Exps).filter_by(idexp=uid).update(
         {Exps.running: 0, Exps.exp_status: final_status}
@@ -5531,7 +5552,7 @@ def stop_schedule():
                 # Check if all clients have completed to determine final status
                 all_clients_completed, _ = _get_clients_to_start(exp)
                 final_status = "completed" if all_clients_completed else "stopped"
-                
+
                 exp.running = 0
                 exp.exp_status = final_status
                 db.session.commit()
@@ -5956,7 +5977,9 @@ def auto_create_groups():
 
     # Apply group filter if specified
     if group_filter:
-        experiments_list = [exp for exp in experiments_list if exp.exp_group in group_filter]
+        experiments_list = [
+            exp for exp in experiments_list if exp.exp_group in group_filter
+        ]
 
     # Filter out experiments already in groups
     scheduled_exp_ids = set(

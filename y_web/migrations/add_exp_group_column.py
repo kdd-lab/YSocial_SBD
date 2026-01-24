@@ -44,9 +44,7 @@ def migrate_sqlite(db_path):
 
         # Add exp_group column if it doesn't exist
         if "exp_group" not in columns:
-            cursor.execute(
-                "ALTER TABLE exps ADD COLUMN exp_group TEXT DEFAULT ''"
-            )
+            cursor.execute("ALTER TABLE exps ADD COLUMN exp_group TEXT DEFAULT ''")
             print("✓ Added exp_group column to SQLite database")
         else:
             print("○ exp_group column already exists in SQLite database")

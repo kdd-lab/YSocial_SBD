@@ -158,9 +158,12 @@ def dashboard():
     # Helper function to group experiments by exp_group
     def group_experiments_by_group(experiments_list):
         from collections import defaultdict
+
         grouped = defaultdict(list)
         for e in experiments_list:
-            group_name = e.exp_group if e.exp_group and e.exp_group.strip() else "No group"
+            group_name = (
+                e.exp_group if e.exp_group and e.exp_group.strip() else "No group"
+            )
             grouped[group_name].append(e)
         return dict(grouped)
 
@@ -170,9 +173,15 @@ def dashboard():
     stopped_groups = group_experiments_by_group(stopped_experiments)
 
     # Build experiment data for each group
-    active_exps_by_group = {group: build_experiment_data(exps) for group, exps in active_groups.items()}
-    completed_exps_by_group = {group: build_experiment_data(exps) for group, exps in completed_groups.items()}
-    stopped_exps_by_group = {group: build_experiment_data(exps) for group, exps in stopped_groups.items()}
+    active_exps_by_group = {
+        group: build_experiment_data(exps) for group, exps in active_groups.items()
+    }
+    completed_exps_by_group = {
+        group: build_experiment_data(exps) for group, exps in completed_groups.items()
+    }
+    stopped_exps_by_group = {
+        group: build_experiment_data(exps) for group, exps in stopped_groups.items()
+    }
 
     # Keep the old format for backward compatibility (flatten all groups)
     active_exps = build_experiment_data(active_experiments)
