@@ -2936,9 +2936,13 @@ def stop_experiment(uid):
         # Fallback to port-based termination for backward compatibility
         terminate_process_on_port(exp.port)
 
-    # Step 4: Update the experiment status in database
+    # Step 4: Check if all clients have completed to determine final status
+    all_clients_completed, _ = _get_clients_to_start(exp)
+    final_status = "completed" if all_clients_completed else "stopped"
+    
+    # Update the experiment status in database
     db.session.query(Exps).filter_by(idexp=uid).update(
-        {Exps.running: 0, Exps.exp_status: "stopped"}
+        {Exps.running: 0, Exps.exp_status: final_status}
     )
     db.session.commit()
 
