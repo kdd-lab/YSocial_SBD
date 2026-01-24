@@ -2037,6 +2037,67 @@ def experiments_data():
     }
 
 
+@experiments.route("/admin/experiment_clients/<int:exp_id>")
+@login_required
+def experiment_clients(exp_id):
+    """Get client information for an experiment including progress data.
+    
+    Returns:
+        JSON with client details and progress information
+    """
+    try:
+        # Get experiment
+        experiment = Exps.query.filter_by(idexp=exp_id).first()
+        if not experiment:
+            return jsonify({"error": "Experiment not found"}), 404
+        
+        # Check user permissions
+        user = Admin_users.query.filter_by(username=current_user.username).first()
+        if user.role == "researcher" and experiment.owner != user.username:
+            return jsonify({"error": "Access denied"}), 403
+        
+        # Get clients for this experiment
+        clients = Client.query.filter_by(id_exp=exp_id).all()
+        
+        client_data = []
+        for client in clients:
+            # Get client execution data
+            client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
+            
+            client_info = {
+                "id": client.id,
+                "name": client.name,
+                "status": client.status,
+                "days": client.days,
+                "progress": 0,
+                "infinite": client.days == -1
+            }
+            
+            if client_exec:
+                # Calculate progress for finite clients
+                if client_exec.expected_duration_rounds > 0:
+                    progress = min(100, max(0, int(
+                        client_exec.elapsed_time / client_exec.expected_duration_rounds * 100
+                    )))
+                    client_info["progress"] = progress
+                    client_info["elapsed_time"] = client_exec.elapsed_time
+                    client_info["expected_duration_rounds"] = client_exec.expected_duration_rounds
+                elif client_exec.expected_duration_rounds == -1:
+                    # Infinite client
+                    client_info["infinite"] = True
+                    client_info["elapsed_time"] = client_exec.elapsed_time
+                    client_info["elapsed_days"] = client_exec.elapsed_time // 24
+                    client_info["elapsed_hours"] = client_exec.elapsed_time % 24
+            
+            client_data.append(client_info)
+        
+        return jsonify({"clients": client_data})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching experiment clients: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @experiments.route("/admin/experiment_details/<int:uid>")
 @login_required
 def experiment_details(uid):

@@ -141,6 +141,100 @@
     .count-badge.stopped {
         background: #6c757d;
     }
+    
+    /* Progress bar styles (from experiment_details) */
+    .sleek-progress-container {
+        flex: 1;
+        position: relative;
+        background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%);
+        border-radius: 20px;
+        height: 20px;
+        overflow: hidden;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.08);
+        min-width: 100px;
+    }
+    .sleek-progress-bar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #039be5 0%, #4facfe 100%);
+        border-radius: 20px;
+        transition: width 0.4s ease-in-out, background 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(3,155,229,0.3);
+    }
+    .sleek-progress-bar span {
+        font-size: 0.7em;
+        font-weight: 600;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    /* Pagination styles */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        padding: 8px 0;
+        font-size: 0.85em;
+    }
+    .pagination-info {
+        color: #666;
+    }
+    .pagination-buttons {
+        display: flex;
+        gap: 4px;
+    }
+    .pagination-buttons button {
+        padding: 4px 10px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+    }
+    .pagination-buttons button:hover:not(:disabled) {
+        background: #f0f0f0;
+    }
+    .pagination-buttons button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-buttons button.active {
+        background: #039be5;
+        color: white;
+        border-color: #039be5;
+    }
+    
+    /* Checkbox styles for completed experiments */
+    .exp-checkbox {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Client progress section in exp-item */
+    .client-progress-section {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .client-progress-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+        font-size: 0.8em;
+    }
+    .client-progress-item .client-name {
+        min-width: 80px;
+        color: #666;
+    }
 </style>
 
 <div class="view-wrapper is-dashboard">
@@ -749,10 +843,58 @@
         }
     }
     
-    // Function to create grouped experiment display
+    // Pagination state for each container
+    const paginationState = {};
+    
+    // Function to download all experiments from a group
+    function downloadGroupExperiments(groupName, statusFilter) {
+        // Fetch all experiments in this group
+        fetch(`/admin/experiments_data?exp_status=${statusFilter}&length=1000`)
+            .then(response => response.json())
+            .then(results => {
+                const groupExps = results.data.filter(exp => 
+                    (exp.exp_group || 'No group') === groupName
+                );
+                
+                if (groupExps.length === 0) {
+                    alert('No experiments found in this group.');
+                    return;
+                }
+                
+                const expIds = groupExps.map(exp => exp.idexp);
+                
+                // Submit form to download
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/admin/download_experiments_bulk';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'exp_ids';
+                input.value = JSON.stringify(expIds);
+                form.appendChild(input);
+                
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+            })
+            .catch(error => {
+                console.error('Error downloading group:', error);
+                alert('Error downloading group experiments.');
+            });
+    }
+    
+    // Function to create grouped experiment display with pagination
     function createGroupedView(containerId, statusFilter, boxId) {
         const containerDiv = document.getElementById(containerId);
         const boxDiv = document.getElementById(boxId);
+        
+        // Initialize pagination state if not exists
+        if (!paginationState[containerId]) {
+            paginationState[containerId] = { page: 0, itemsPerPage: 10 };
+        }
+        
+        const state = paginationState[containerId];
         
         // Fetch experiments for this status
         fetch(`/admin/experiments_data?exp_status=${statusFilter}&length=1000`)
@@ -778,9 +920,16 @@
                 // Sort groups alphabetically
                 const sortedGroups = Object.keys(grouped).sort();
                 
+                // Apply pagination to groups
+                const totalGroups = sortedGroups.length;
+                const startIdx = state.page * state.itemsPerPage;
+                const endIdx = Math.min(startIdx + state.itemsPerPage, totalGroups);
+                const paginatedGroups = sortedGroups.slice(startIdx, endIdx);
+                const totalPages = Math.ceil(totalGroups / state.itemsPerPage);
+                
                 // Build HTML
                 let html = '';
-                sortedGroups.forEach(group => {
+                paginatedGroups.forEach(group => {
                     const groupId = `${statusFilter}-${group.replace(/[^a-zA-Z0-9]/g, '_')}`;
                     const experiments = grouped[group];
                     const count = experiments.length;
@@ -790,6 +939,14 @@
                     if (statusFilter === EXP_STATUS.COMPLETED) badgeClass = 'completed';
                     else if (statusFilter === EXP_STATUS.STOPPED_SCHEDULED) badgeClass = 'stopped';
                     
+                    // Group header with download button for completed experiments
+                    const downloadBtn = statusFilter === EXP_STATUS.COMPLETED ? 
+                        `<button onclick="event.stopPropagation(); downloadGroupExperiments('${group.replace(/'/g, "\\'")}', '${statusFilter}')" 
+                                 style="background: #28a745; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7em; margin-left: 8px;"
+                                 title="Download all experiments in this group">
+                            <i class="mdi mdi-download"></i> Download Group
+                        </button>` : '';
+                    
                     html += `
                         <div class="experiment-group">
                             <div class="group-header" onclick="toggleGroup('${groupId}')" 
@@ -798,6 +955,7 @@
                                     <i class="mdi mdi-chevron-down chevron" id="chevron-${groupId}"></i>
                                     <span style="font-weight: 600; color: #333; font-size: 0.9em;">${group}</span>
                                     <span class="count-badge ${badgeClass}">${count}</span>
+                                    ${downloadBtn}
                                 </div>
                                 <span style="font-size: 0.7em; color: #999;">Click to expand/collapse</span>
                             </div>
@@ -806,26 +964,38 @@
                     
                     // Add experiments
                     experiments.forEach(exp => {
+                        // Add checkbox for completed experiments
+                        const checkbox = statusFilter === EXP_STATUS.COMPLETED ? 
+                            `<input type="checkbox" class="exp-checkbox" data-exp-id="${exp.idexp}" 
+                                    onchange="toggleExperimentSelection(${exp.idexp}, this)" 
+                                    ${selectedExperiments.has(exp.idexp) ? 'checked' : ''}
+                                    style="margin-right: 8px;" title="Select for download"/>` : '';
+                        
                         html += `
-                            <div class="exp-item">
-                                <div class="exp-item-info">
-                                    <span class="exp-item-name">${exp.exp_name}</span>
-                                    <span class="exp-tag owner">${exp.owner}</span>
-                                    ${exp.exp_group && exp.exp_group !== 'No group' ? `<span class="exp-tag group">${exp.exp_group}</span>` : ''}
-                                    ${exp.has_infinite_client ? '<span class="exp-tag" style="background: linear-gradient(90deg, #22c55e, #4ade80);">∞</span>' : ''}
+                            <div class="exp-item" style="flex-direction: column; align-items: stretch;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <div class="exp-item-info">
+                                        ${checkbox}
+                                        <span class="exp-item-name">${exp.exp_name}</span>
+                                        <span class="exp-tag owner">${exp.owner}</span>
+                                        ${exp.exp_group && exp.exp_group !== 'No group' ? `<span class="exp-tag group">${exp.exp_group}</span>` : ''}
+                                        ${exp.has_infinite_client ? '<span class="exp-tag" style="background: linear-gradient(90deg, #22c55e, #4ade80);">∞</span>' : ''}
+                                        ${statusFilter === EXP_STATUS.ACTIVE && exp.progress !== undefined ? `<span class="exp-tag" style="background: #039be5;">${exp.progress}%</span>` : ''}
+                                    </div>
+                                    <div style="display: flex; gap: 4px;">
+                                        ${exp.running === 'Running' ? 
+                                            `<a href="#" onclick="stopExperimentServer(${exp.idexp}); return false;" title="Stop Server"><i class="mdi mdi-stop" style="font-size: 18px; color: #dc3545;"></i></a>` : 
+                                            `<a href="#" onclick="startExperimentServer(${exp.idexp}); return false;" title="Start Server"><i class="mdi mdi-play-box-outline" style="font-size: 18px; color: #28a745;"></i></a>`
+                                        }
+                                        ${exp.web === 'Loaded' ? 
+                                            `<a href="/admin/select_experiment/${exp.idexp}" title="Loaded (click to unload)"><i class="mdi mdi-select-all" style="font-size: 18px; color: #28a745;"></i></a>` : 
+                                            `<a href="/admin/select_experiment/${exp.idexp}" title="Load Web Interface"><i class="mdi mdi-select-all" style="font-size: 18px; color: #6c757d;"></i></a>`
+                                        }
+                                        <a href="/admin/experiment_details/${exp.idexp}" title="View Details"><i class="mdi mdi-information-outline" style="font-size: 18px; color: #039be5;"></i></a>
+                                        <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
+                                    </div>
                                 </div>
-                                <div style="display: flex; gap: 4px;">
-                                    ${exp.running === 'Running' ? 
-                                        `<a href="#" onclick="stopExperimentServer(${exp.idexp}); return false;" title="Stop"><i class="mdi mdi-stop" style="font-size: 18px; color: #dc3545;"></i></a>` : 
-                                        `<a href="#" onclick="startExperimentServer(${exp.idexp}); return false;" title="Run"><i class="mdi mdi-play" style="font-size: 18px; color: #28a745;"></i></a>`
-                                    }
-                                    <a href="/admin/experiment_details/${exp.idexp}" title="Details"><i class="mdi mdi-information" style="font-size: 18px; color: #039be5;"></i></a>
-                                    ${exp.web === 'Loaded' ? 
-                                        `<a href="/admin/select_experiment/${exp.idexp}" title="Unload"><i class="mdi mdi-checkbox-marked" style="font-size: 18px; color: #28a745;"></i></a>` : 
-                                        `<a href="/admin/select_experiment/${exp.idexp}" title="Load"><i class="mdi mdi-checkbox-blank-outline" style="font-size: 18px; color: #6c757d;"></i></a>`
-                                    }
-                                    <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
-                                </div>
+                                ${statusFilter === EXP_STATUS.ACTIVE ? `<div id="progress-section-${exp.idexp}" class="client-progress-section" style="display: none;"></div>` : ''}
                             </div>
                         `;
                     });
@@ -836,16 +1006,193 @@
                     `;
                 });
                 
+                // Add pagination controls if there are multiple pages
+                if (totalPages > 1) {
+                    html += `
+                        <div class="pagination-container">
+                            <div class="pagination-info">
+                                Showing groups ${startIdx + 1}-${endIdx} of ${totalGroups}
+                            </div>
+                            <div class="pagination-buttons">
+                                <button onclick="changePage('${containerId}', ${state.page - 1})" 
+                                        ${state.page === 0 ? 'disabled' : ''}>
+                                    <i class="mdi mdi-chevron-left"></i> Previous
+                                </button>
+                                <span style="padding: 4px 10px;">Page ${state.page + 1} of ${totalPages}</span>
+                                <button onclick="changePage('${containerId}', ${state.page + 1})" 
+                                        ${state.page >= totalPages - 1 ? 'disabled' : ''}>
+                                    Next <i class="mdi mdi-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+                
                 containerDiv.innerHTML = html;
+                
+                // For active experiments, fetch and display client progress bars
+                if (statusFilter === EXP_STATUS.ACTIVE) {
+                    results.data.forEach(exp => {
+                        if (exp.running === 'Running') {
+                            fetchAndDisplayClientProgress(exp.idexp);
+                        }
+                    });
+                }
+                
+                // Update download button visibility after rendering
+                updateDownloadButton();
             })
             .catch(error => {
                 console.error('Error fetching experiments:', error);
                 boxDiv.style.display = 'none';
             });
     }
+    
+    // Function to change pagination page
+    function changePage(containerId, newPage) {
+        if (!paginationState[containerId]) return;
+        paginationState[containerId].page = newPage;
+        
+        // Determine which status this container belongs to
+        let statusFilter;
+        if (containerId === 'groups-active') statusFilter = EXP_STATUS.ACTIVE;
+        else if (containerId === 'groups-completed') statusFilter = EXP_STATUS.COMPLETED;
+        else if (containerId === 'groups-stopped') statusFilter = EXP_STATUS.STOPPED_SCHEDULED;
+        
+        const boxId = containerId.replace('groups-', 'box-');
+        createGroupedView(containerId, statusFilter, boxId);
+    }
+    
+    // Store active progress poll intervals
+    const progressPollIntervals = {};
+    
+    // Function to fetch and display client progress for an experiment
+    function fetchAndDisplayClientProgress(expId) {
+        const progressSection = document.getElementById(`progress-section-${expId}`);
+        if (!progressSection) return;
+        
+        // Fetch client data for this experiment
+        fetch(`/admin/experiment_clients/${expId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error || !data.clients || data.clients.length === 0) {
+                    progressSection.style.display = 'none';
+                    return;
+                }
+                
+                progressSection.style.display = 'block';
+                let html = '';
+                
+                data.clients.forEach(client => {
+                    if (client.status === 1) {  // Only show running clients
+                        const progressId = `progress-${expId}-${client.id}`;
+                        html += `
+                            <div class="client-progress-item">
+                                <span class="client-name">${client.name}</span>
+                                <div class="sleek-progress-container">
+                                    <div id="${progressId}" class="sleek-progress-bar" style="width: 0%;">
+                                        <span>0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+                
+                if (html) {
+                    progressSection.innerHTML = html;
+                    
+                    // Start polling for each running client
+                    data.clients.forEach(client => {
+                        if (client.status === 1) {
+                            pollClientProgress(expId, client.id);
+                        }
+                    });
+                } else {
+                    progressSection.style.display = 'none';
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching client data:', err);
+                progressSection.style.display = 'none';
+            });
+    }
+    
+    // Function to poll a single client's progress
+    function pollClientProgress(expId, clientId) {
+        const progressId = `progress-${expId}-${clientId}`;
+        const intervalKey = `${expId}-${clientId}`;
+        
+        // Clear any existing interval for this client
+        if (progressPollIntervals[intervalKey]) {
+            clearInterval(progressPollIntervals[intervalKey]);
+        }
+        
+        // Function to update progress
+        const updateProgress = () => {
+            const progressBar = document.getElementById(progressId);
+            if (!progressBar) {
+                // Progress bar no longer exists, stop polling
+                if (progressPollIntervals[intervalKey]) {
+                    clearInterval(progressPollIntervals[intervalKey]);
+                    delete progressPollIntervals[intervalKey];
+                }
+                return;
+            }
+            
+            fetch(`/admin/progress/${clientId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.infinite) {
+                        // Infinite client - show green bar with elapsed time
+                        progressBar.style.width = '100%';
+                        progressBar.style.background = 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)';
+                        progressBar.style.boxShadow = '0 2px 6px rgba(34,197,94,0.3)';
+                        
+                        const days = data.elapsed_days || 0;
+                        const hours = data.elapsed_hours || 0;
+                        let timeText = '';
+                        if (days > 0) {
+                            timeText = days + 'd ' + hours + 'h';
+                        } else {
+                            timeText = hours + 'h';
+                        }
+                        progressBar.querySelector('span').textContent = '∞ ' + timeText;
+                    } else {
+                        // Finite client - show progress percentage
+                        const percentage = Math.min(100, Math.max(0, data.progress || 0));
+                        progressBar.style.width = percentage + '%';
+                        progressBar.querySelector('span').textContent = percentage + '%';
+                        
+                        // Update gradient based on progress
+                        if (percentage >= 75) {
+                            progressBar.style.background = 'linear-gradient(90deg, #039be5 0%, #00d1b2 100%)';
+                            progressBar.style.boxShadow = '0 2px 6px rgba(0,209,178,0.3)';
+                        } else if (percentage >= 50) {
+                            progressBar.style.background = 'linear-gradient(90deg, #039be5 0%, #5596e6 100%)';
+                            progressBar.style.boxShadow = '0 2px 6px rgba(85,150,230,0.3)';
+                        }
+                    }
+                })
+                .catch(err => console.error('Error polling progress:', err));
+        };
+        
+        // Initial update
+        updateProgress();
+        
+        // Poll every 2 seconds
+        progressPollIntervals[intervalKey] = setInterval(updateProgress, 2000);
+    }
 
     // Function to refresh all grouped views
     function refreshAllTables() {
+        // Clean up old progress poll intervals when refreshing
+        // (they will be recreated for visible experiments)
+        Object.keys(progressPollIntervals).forEach(key => {
+            clearInterval(progressPollIntervals[key]);
+            delete progressPollIntervals[key];
+        });
+        
         createGroupedView('groups-active', EXP_STATUS.ACTIVE, 'box-active');
         createGroupedView('groups-completed', EXP_STATUS.COMPLETED, 'box-completed');
         createGroupedView('groups-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
