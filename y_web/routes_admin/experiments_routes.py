@@ -6804,17 +6804,44 @@ def generate_agent_timeseries_data(
         )
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
 
-    # Create mapping of round_id to day (since hour is always 0)
-    round_time_map = {r.id: r.day for r in rounds_up_to_time}
-    round_ids = [r.id for r in rounds_up_to_time]
+    # Create list of timestamps (simulation days)
+    simulation_days = [float(r.day) for r in rounds_up_to_time]
 
-    # Query all opinions up to this time
-    base_query = db.session.query(
-        Agent_Opinion.agent_id,
-        Agent_Opinion.topic_id,
-        Agent_Opinion.tid,
-        Agent_Opinion.opinion,
-    ).filter(Agent_Opinion.tid.in_(round_ids))
+    # Query ALL opinions up to the maximum time (not just from display rounds)
+    # This ensures alignment with group trends which uses all opinions
+    max_day = filter_day
+    max_hour = 23  # Get all opinions up to end of the last day
+
+    # Get all rounds up to the max time
+    all_rounds_query = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            or_(
+                Rounds.day < max_day,
+                and_(Rounds.day == max_day, Rounds.hour <= max_hour),
+            )
+        )
+        .order_by(Rounds.day, Rounds.hour)
+    )
+
+    all_rounds_list = all_rounds_query.all()
+
+    if not all_rounds_list:
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
+    # Query all opinions with timestamp info for these rounds
+    base_query = (
+        db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Rounds.day,
+            Rounds.hour,
+        )
+        .join(Rounds, Agent_Opinion.tid == Rounds.id)
+        .filter(Agent_Opinion.tid.in_([r.id for r in all_rounds_list]))
+    )
 
     # Apply topic filter if specified
     if filter_topic_id is not None:
@@ -6825,43 +6852,73 @@ def generate_agent_timeseries_data(
     if not all_opinions:
         return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
 
-    # Organize data by agent
-    # Structure: {agent_id: {timestamp: opinion_value}}
-    agent_data = defaultdict(dict)
+    # Organize opinions by (day, hour) for incremental processing
+    opinions_by_time = defaultdict(list)
     agent_first_opinion = {}  # Track first observed opinion for each agent
 
-    for agent_id, topic_id, tid, opinion in all_opinions:
-        if tid in round_time_map:
-            day = round_time_map[tid]  # day number (since hour is always 0)
+    for agent_id, topic_id, tid, opinion, opinion_day, opinion_hour in all_opinions:
+        opinions_by_time[(opinion_day, opinion_hour)].append(
+            (agent_id, topic_id, opinion)
+        )
+        # Track first observed opinion for color coding (chronologically)
+        if agent_id not in agent_first_opinion:
+            agent_first_opinion[agent_id] = opinion
 
-            # Store opinion at this day
-            if agent_id not in agent_data:
-                agent_data[agent_id] = {}
+    # Sort time keys chronologically
+    sorted_times = sorted(opinions_by_time.keys())
 
-            # Keep only the latest opinion at each day
-            if day not in agent_data[agent_id]:
-                agent_data[agent_id][day] = opinion
-
-            # Track first observed opinion for color coding
-            if agent_id not in agent_first_opinion:
-                agent_first_opinion[agent_id] = opinion
+    # Get all unique agents that appear in the data
+    all_agent_ids = list(agent_first_opinion.keys())
 
     # Sample agents based on percentage - use stable sampling
     # Convert topic_id to string for consistency (supports both int and UUID)
-    all_agent_ids = list(agent_data.keys())
     topic_id_str = str(filter_topic_id) if filter_topic_id is not None else None
     sampled_agent_ids = get_or_sample_agents(
         expid, topic_id_str, sample_percentage, all_agent_ids
     )
 
-    # Generate sorted list of all unique days
-    simulation_days = sorted(
-        set(
-            day
-            for agent_opinions in agent_data.values()
-            for day in agent_opinions.keys()
-        )
-    )
+    # For each display timestamp, compute the latest opinion for each sampled agent
+    # Structure: {agent_id: {day: opinion_value}}
+    agent_data = {agent_id: {} for agent_id in sampled_agent_ids}
+
+    # Track latest opinion for each agent incrementally
+    latest_at_time = {}  # (agent_id, topic_id) -> opinion
+    current_time_index = 0
+
+    for round_obj in rounds_up_to_time:
+        target_day = round_obj.day
+        target_hour = round_obj.hour
+
+        # Process all opinions up to the target time (incrementally)
+        while current_time_index < len(sorted_times):
+            time_day, time_hour = sorted_times[current_time_index]
+
+            # Stop if this time is beyond our target
+            if time_day > target_day or (
+                time_day == target_day and time_hour > target_hour
+            ):
+                break
+
+            # Update latest_at_time with opinions from this time
+            for agent_id, topic_id, opinion in opinions_by_time[(time_day, time_hour)]:
+                key = (agent_id, topic_id)
+                latest_at_time[key] = opinion
+
+            current_time_index += 1
+
+        # Store the latest opinion for each sampled agent at this timestamp
+        for agent_id in sampled_agent_ids:
+            # Look up latest opinion for this agent (considering topic filter)
+            key = (agent_id, filter_topic_id) if filter_topic_id is not None else None
+            if key and key in latest_at_time:
+                agent_data[agent_id][target_day] = latest_at_time[key]
+            else:
+                # If topic filter is None, we need to check all topics for this agent
+                # Find any opinion for this agent
+                for (aid, tid), opinion in latest_at_time.items():
+                    if aid == agent_id:
+                        agent_data[agent_id][target_day] = opinion
+                        break
 
     # Create mapping for tooltip display
     timestamp_mapping = {}  # Maps day to (day, hour=0) for tooltips
