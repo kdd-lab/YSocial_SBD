@@ -1206,6 +1206,7 @@ def upload_database():
             exp_descr="",
             status=0,
             simulator_type="Standard",  # Default to Standard
+            exp_group="",  # Default empty group for legacy upload_database route
         )
 
         db.session.add(exp)
