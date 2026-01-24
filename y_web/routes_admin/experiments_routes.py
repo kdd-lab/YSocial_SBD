@@ -230,6 +230,17 @@ def settings():
 
     users = Admin_users.query.all()
 
+    # Check and update status for stopped experiments that are actually completed
+    # Get all stopped experiments
+    stopped_experiments = Exps.query.filter_by(exp_status="stopped").all()
+    for exp in stopped_experiments:
+        # Use existing helper function to check if all clients completed
+        all_clients_completed, _ = _get_clients_to_start(exp)
+        if all_clients_completed:
+            # Update status to completed
+            exp.exp_status = "completed"
+            db.session.commit()
+
     # Check which experiments have infinite clients
     exp_has_infinite = {}
     for exp in experiments:
