@@ -1023,7 +1023,6 @@
                                         ${checkbox}
                                         <span class="exp-item-name">${exp.exp_name}</span>
                                         <span class="exp-tag owner">${exp.owner}</span>
-                                        ${exp.exp_group && exp.exp_group !== 'No group' ? `<span class="exp-tag group">${exp.exp_group}</span>` : ''}
                                         ${exp.simulator_type === 'HPC' ? '<span class="exp-tag hpc">HPC</span>' : ''}
                                         ${exp.is_remote === 1 ? '<span class="exp-tag remote">Remote</span>' : ''}
                                         ${exp.has_infinite_client ? '<span class="exp-tag infinite">∞</span>' : ''}
