@@ -5940,7 +5940,7 @@ def auto_create_groups():
     ).all()
 
     # Apply group filter if specified
-    if group_filter and len(group_filter) > 0:
+    if group_filter:
         experiments_list = [exp for exp in experiments_list if exp.exp_group in group_filter]
 
     # Filter out experiments already in groups

@@ -2496,7 +2496,7 @@
                                             <i class="mdi mdi-auto-fix"></i> Auto
                                         </button>
                                         <input type="number" id="exps-per-group" value="2" min="1" max="10" style="width: 45px; padding: 3px 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8em; text-align: center;" title="Experiments per group">
-                                        <select id="group-filter" multiple style="width: 100px; padding: 2px 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.75em; max-height: 28px;" title="Filter by group (empty = all groups)">
+                                        <select id="group-filter" multiple aria-label="Filter experiments by group" style="width: 100px; padding: 2px 4px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.75em; max-height: 28px;" title="Filter by group (empty = all groups)">
                                             {% for group in exp_groups %}
                                             <option value="{{ group }}">{{ group }}</option>
                                             {% endfor %}
