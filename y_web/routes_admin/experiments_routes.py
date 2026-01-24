@@ -5517,8 +5517,12 @@ def stop_schedule():
                 if not terminated:
                     terminate_process_on_port(exp.port)
 
+                # Check if all clients have completed to determine final status
+                all_clients_completed, _ = _get_clients_to_start(exp)
+                final_status = "completed" if all_clients_completed else "stopped"
+                
                 exp.running = 0
-                exp.exp_status = "stopped"
+                exp.exp_status = final_status
                 db.session.commit()
 
     # Reset status
