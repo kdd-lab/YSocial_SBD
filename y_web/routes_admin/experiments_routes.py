@@ -2029,6 +2029,7 @@ def experiments_data():
                 "annotations": exp.annotations if exp.annotations else "",
                 "progress": exp_progress.get(exp.idexp, 0),
                 "has_infinite_client": exp_has_infinite.get(exp.idexp, False),
+                "exp_group": exp.exp_group if exp.exp_group else "No group",
             }
             for exp in res
         ],

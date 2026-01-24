@@ -54,6 +54,93 @@
         font-size: 0.9em;
         font-weight: 500;
     }
+    
+    /* Grouped experiments styles */
+    .experiment-group {
+        margin-bottom: 12px;
+    }
+    .group-header {
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+    }
+    .group-header:hover {
+        background: #e9ecef;
+    }
+    .group-header .chevron {
+        font-size: 16px;
+        color: #666;
+        transition: transform 0.2s;
+    }
+    .group-header .chevron.collapsed {
+        transform: rotate(-90deg);
+    }
+    .group-content {
+        margin-top: 6px;
+        display: block;
+    }
+    .group-content.collapsed {
+        display: none;
+    }
+    .exp-item {
+        background: #fafafa;
+        border: 1px solid #e6e6e6;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin: 4px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .exp-item-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+    .exp-item-name {
+        color: #0d95e8;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
+    .exp-tag {
+        display: inline-block;
+        color: white;
+        font-size: 0.7em;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    .exp-tag.owner {
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    }
+    .exp-tag.group {
+        background: linear-gradient(90deg, #10b981, #34d399);
+    }
+    .exp-tag.hpc {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+    }
+    .count-badge {
+        background: #28a745;
+        color: white;
+        font-size: 0.7em;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    .count-badge.completed {
+        background: #17a2b8;
+    }
+    .count-badge.stopped {
+        background: #6c757d;
+    }
 </style>
 
 <div class="view-wrapper is-dashboard">
@@ -82,7 +169,7 @@
                                 Running
                             </h3>
                             <div class="box-content" style="flex: 1;">
-                                <div id="table-active" class="experiment-table compact-table"></div>
+                                <div id="groups-active" class="experiment-groups"></div>
                             </div>
                         </div>
 
@@ -107,7 +194,7 @@
                                 </span>
                             </h3>
                             <div class="box-content" style="flex: 1;">
-                                <div id="table-completed" class="experiment-table compact-table"></div>
+                                <div id="groups-completed" class="experiment-groups"></div>
                             </div>
                         </div>
 
@@ -118,7 +205,7 @@
                                 Stopped / Scheduled
                             </h3>
                             <div class="box-content" style="flex: 1;">
-                                <div id="table-stopped" class="experiment-table compact-table"></div>
+                                <div id="groups-stopped" class="experiment-groups"></div>
                             </div>
                         </div>
                     </div>
@@ -199,7 +286,7 @@
     };
 
     // Store grid instances for refresh
-    const gridInstances = {};
+    // const gridInstances = {};  // No longer using Grid.js
     const DATA_REFRESH_INTERVAL = 30000; // 30 seconds
 
     const updateUrl = (prev, query) => {
@@ -648,108 +735,126 @@
     }
 
     // Create table for a specific status
-    function createTable(tableId, statusFilter, boxId) {
-        const tableDiv = document.getElementById(tableId);
+    // Function to toggle group visibility
+    function toggleGroup(groupId) {
+        const content = document.getElementById(`content-${groupId}`);
+        const chevron = document.getElementById(`chevron-${groupId}`);
+        
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            chevron.classList.remove('collapsed');
+        } else {
+            content.classList.add('collapsed');
+            chevron.classList.add('collapsed');
+        }
+    }
+    
+    // Function to create grouped experiment display
+    function createGroupedView(containerId, statusFilter, boxId) {
+        const containerDiv = document.getElementById(containerId);
         const boxDiv = document.getElementById(boxId);
         
-        // Use progress bar columns for running experiments, completed columns for completed (with checkboxes), tags for others
-        let columns;
-        if (statusFilter === EXP_STATUS.ACTIVE) {
-            columns = getRunningTableColumns();
-        } else if (statusFilter === EXP_STATUS.COMPLETED) {
-            columns = getCompletedTableColumns();
-        } else {
-            columns = getTableColumns();
-        }
-        
-        const grid = new gridjs.Grid({
-            columns: columns,
-            server: {
-                url: `/admin/experiments_data?exp_status=${statusFilter}`,
-                then: results => {
-                    // Show/hide box based on whether there are results
-                    if (results.total > 0) {
-                        boxDiv.style.display = 'flex';
-                    } else {
-                        boxDiv.style.display = 'none';
-                    }
-                    return results.data;
-                },
-                total: results => results.total,
-            },
-            search: {
-                enabled: true,
-                server: {
-                    url: (prev, search) => {
-                        return updateUrl(prev, { search });
-                    },
-                },
-            },
-            sort: {
-                enabled: true,
-                multiColumn: true,
-                server: {
-                    url: (prev, columns) => {
-                        const columnIds = ['idexp', 'exp_name', 'platform_type', 'exp_descr', 'owner', 'web', 'running'];
-                        const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
-                        return updateUrl(prev, { sort });
-                    },
-                },
-            },
-            pagination: {
-                enabled: true,
-                limit: 5,
-                server: {
-                    url: (prev, page, limit) => {
-                        return updateUrl(prev, { start: page * limit, length: limit });
-                    },
-                },
-            },
-            language: {
-                noRecordsFound: 'No experiments in this category'
-            }
-        });
-        
-        grid.render(tableDiv);
-        gridInstances[statusFilter] = grid;
-        
-        return grid;
-    }
-
-    // Function to refresh all tables with fresh data from server
-    function refreshAllTables() {
-        // Refresh each grid by triggering a new server request
-        Object.entries(gridInstances).forEach(([statusFilter, grid]) => {
-            if (grid && typeof grid.updateConfig === 'function') {
-                // Get box visibility element
-                const boxId = statusFilter === EXP_STATUS.ACTIVE ? 'box-active' : 
-                              statusFilter === EXP_STATUS.COMPLETED ? 'box-completed' : 'box-stopped';
-                const boxDiv = document.getElementById(boxId);
+        // Fetch experiments for this status
+        fetch(`/admin/experiments_data?exp_status=${statusFilter}&length=1000`)
+            .then(response => response.json())
+            .then(results => {
+                if (results.total === 0) {
+                    boxDiv.style.display = 'none';
+                    return;
+                }
                 
-                // Re-apply the same server config to trigger a fresh fetch
-                grid.updateConfig({
-                    server: {
-                        url: `/admin/experiments_data?exp_status=${statusFilter}`,
-                        then: results => {
-                            // Show/hide box based on whether there are results
-                            if (results.total > 0) {
-                                boxDiv.style.display = 'flex';
-                            } else {
-                                boxDiv.style.display = 'none';
-                            }
-                            return results.data;
-                        },
-                        total: results => results.total,
+                boxDiv.style.display = 'flex';
+                
+                // Group experiments by exp_group
+                const grouped = {};
+                results.data.forEach(exp => {
+                    const group = exp.exp_group || 'No group';
+                    if (!grouped[group]) {
+                        grouped[group] = [];
                     }
-                }).forceRender();
-            }
-        });
+                    grouped[group].push(exp);
+                });
+                
+                // Sort groups alphabetically
+                const sortedGroups = Object.keys(grouped).sort();
+                
+                // Build HTML
+                let html = '';
+                sortedGroups.forEach(group => {
+                    const groupId = `${statusFilter}-${group.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const experiments = grouped[group];
+                    const count = experiments.length;
+                    
+                    // Determine badge color
+                    let badgeClass = '';
+                    if (statusFilter === EXP_STATUS.COMPLETED) badgeClass = 'completed';
+                    else if (statusFilter === EXP_STATUS.STOPPED_SCHEDULED) badgeClass = 'stopped';
+                    
+                    html += `
+                        <div class="experiment-group">
+                            <div class="group-header" onclick="toggleGroup('${groupId}')" 
+                                 style="border-left: 3px solid ${statusFilter === EXP_STATUS.ACTIVE ? '#28a745' : statusFilter === EXP_STATUS.COMPLETED ? '#17a2b8' : '#6c757d'}">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <i class="mdi mdi-chevron-down chevron" id="chevron-${groupId}"></i>
+                                    <span style="font-weight: 600; color: #333; font-size: 0.9em;">${group}</span>
+                                    <span class="count-badge ${badgeClass}">${count}</span>
+                                </div>
+                                <span style="font-size: 0.7em; color: #999;">Click to expand/collapse</span>
+                            </div>
+                            <div id="content-${groupId}" class="group-content">
+                    `;
+                    
+                    // Add experiments
+                    experiments.forEach(exp => {
+                        html += `
+                            <div class="exp-item">
+                                <div class="exp-item-info">
+                                    <span class="exp-item-name">${exp.exp_name}</span>
+                                    <span class="exp-tag owner">${exp.owner}</span>
+                                    ${exp.exp_group && exp.exp_group !== 'No group' ? `<span class="exp-tag group">${exp.exp_group}</span>` : ''}
+                                    ${exp.has_infinite_client ? '<span class="exp-tag" style="background: linear-gradient(90deg, #22c55e, #4ade80);">∞</span>' : ''}
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    ${exp.running === 'Running' ? 
+                                        `<a href="#" onclick="stopExperimentServer(${exp.idexp}); return false;" title="Stop"><i class="mdi mdi-stop" style="font-size: 18px; color: #dc3545;"></i></a>` : 
+                                        `<a href="#" onclick="startExperimentServer(${exp.idexp}); return false;" title="Run"><i class="mdi mdi-play" style="font-size: 18px; color: #28a745;"></i></a>`
+                                    }
+                                    <a href="/admin/experiment_details/${exp.idexp}" title="Details"><i class="mdi mdi-information" style="font-size: 18px; color: #039be5;"></i></a>
+                                    ${exp.web === 'Loaded' ? 
+                                        `<a href="/admin/select_experiment/${exp.idexp}" title="Unload"><i class="mdi mdi-checkbox-marked" style="font-size: 18px; color: #28a745;"></i></a>` : 
+                                        `<a href="/admin/select_experiment/${exp.idexp}" title="Load"><i class="mdi mdi-checkbox-blank-outline" style="font-size: 18px; color: #6c757d;"></i></a>`
+                                    }
+                                    <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                containerDiv.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Error fetching experiments:', error);
+                boxDiv.style.display = 'none';
+            });
     }
 
-    // Create all three tables using status constants
-    createTable('table-active', EXP_STATUS.ACTIVE, 'box-active');
-    createTable('table-completed', EXP_STATUS.COMPLETED, 'box-completed');
-    createTable('table-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
+    // Function to refresh all grouped views
+    function refreshAllTables() {
+        createGroupedView('groups-active', EXP_STATUS.ACTIVE, 'box-active');
+        createGroupedView('groups-completed', EXP_STATUS.COMPLETED, 'box-completed');
+        createGroupedView('groups-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
+    }
+
+    // Create all three grouped views using status constants
+    createGroupedView('groups-active', EXP_STATUS.ACTIVE, 'box-active');
+    createGroupedView('groups-completed', EXP_STATUS.COMPLETED, 'box-completed');
+    createGroupedView('groups-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
 
     // Delay for Grid.js to complete rendering before equalizing heights
     const EQUALIZATION_DELAY = 500;
@@ -778,17 +883,17 @@
     }
 
     // Equalize heights after initial tables load (with delay for Grid.js render)
-    setTimeout(equalizeBoxHeights, EQUALIZATION_DELAY);
+    // setTimeout(equalizeBoxHeights, EQUALIZATION_DELAY);  // No longer needed with grouped views
 
-    // Also equalize after each refresh
-    if (typeof refreshAllTables === 'function') {
+    // Also equalize after each refresh - no longer needed
+    /* if (typeof refreshAllTables === 'function') {
         const originalRefreshAllTables = refreshAllTables;
         refreshAllTables = function() {
             originalRefreshAllTables();
             // Re-equalize after the async refresh completes
             setTimeout(equalizeBoxHeights, EQUALIZATION_DELAY);
         };
-    }
+    } */
 
     // Set up periodic refresh
     setInterval(refreshAllTables, DATA_REFRESH_INTERVAL);
