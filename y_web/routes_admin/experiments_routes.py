@@ -6921,10 +6921,15 @@ def generate_agent_timeseries_data(
                         break
 
     # Create mapping for tooltip display
-    timestamp_mapping = {}  # Maps day to (day, hour=0) for tooltips
+    timestamp_mapping = {}  # Maps day to (day, hour) for tooltips
 
-    for day in simulation_days:
-        timestamp_mapping[float(day)] = {"day": day, "hour": 0, "absolute": day * 24}
+    for round_obj in rounds_up_to_time:
+        sim_day = float(round_obj.day)
+        timestamp_mapping[sim_day] = {
+            "day": round_obj.day,
+            "hour": round_obj.hour,
+            "absolute": round_obj.day * 24 + round_obj.hour,
+        }
 
     # Get opinion groups for color coding
     opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
