@@ -399,6 +399,32 @@
         }
     };
 
+    // Functions to start/stop experiment servers
+    function startExperimentServer(expId) {
+        if (!confirm('Start the experiment server?')) return;
+        
+        // Show loading
+        const btn = event.target.closest('a');
+        const originalHTML = btn ? btn.innerHTML : '';
+        if (btn) btn.innerHTML = '<i class="mdi mdi-loading mdi-spin" style="font-size: 18px;"></i>';
+        
+        // Navigate to start endpoint
+        window.location.href = `/admin/start_experiment/${expId}`;
+    }
+    
+    function stopExperimentServer(expId) {
+        if (!confirm('Stop the experiment server?')) return;
+        
+        // Show loading
+        const btn = event.target.closest('a');
+        const originalHTML = btn ? btn.innerHTML : '';
+        if (btn) btn.innerHTML = '<i class="mdi mdi-loading mdi-spin" style="font-size: 18px;"></i>';
+        
+        // Navigate to stop endpoint
+        window.location.href = `/admin/stop_experiment/${expId}`;
+    }
+
+
     // Function to create compact table columns configuration for Running Experiments
     function getRunningTableColumns() {
         return [
