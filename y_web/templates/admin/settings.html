@@ -235,6 +235,21 @@
         min-width: 80px;
         color: #666;
     }
+    
+    /* Download group button */
+    .download-group-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 2px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.7em;
+        margin-left: 8px;
+    }
+    .download-group-btn:hover {
+        background: #218838;
+    }
 </style>
 
 <div class="view-wrapper is-dashboard">
@@ -966,7 +981,7 @@
                     // Group header with download button for completed experiments
                     const downloadBtn = statusFilter === EXP_STATUS.COMPLETED ? 
                         `<button onclick="event.stopPropagation(); downloadGroupExperiments('${group.replace(/'/g, "\\'")}', '${statusFilter}')" 
-                                 style="background: #28a745; color: white; border: none; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7em; margin-left: 8px;"
+                                 class="download-group-btn"
                                  title="Download all experiments in this group">
                             <i class="mdi mdi-download"></i> Download Group
                         </button>` : '';
@@ -1015,7 +1030,7 @@
                                             `<a href="/admin/select_experiment/${exp.idexp}" title="Loaded (click to unload)"><i class="mdi mdi-select-all" style="font-size: 18px; color: #28a745;"></i></a>` : 
                                             `<a href="/admin/select_experiment/${exp.idexp}" title="Load Web Interface"><i class="mdi mdi-select-all" style="font-size: 18px; color: #6c757d;"></i></a>`
                                         }
-                                        <a href="/admin/experiment_details/${exp.idexp}" title="View Details"><i class="mdi mdi-information-outline" style="font-size: 18px; color: #039be5;"></i></a>
+                                        <a href="/admin/experiment_details/${exp.idexp}" title="View Details"><i class="mdi mdi-information" style="font-size: 18px; color: #039be5;"></i></a>
                                         <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
                                     </div>
                                 </div>
@@ -1165,7 +1180,12 @@
             }
             
             fetch(`/admin/progress/${clientId}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.infinite) {
                         // Infinite client - show green bar with elapsed time
@@ -1227,6 +1247,14 @@
     createGroupedView('groups-completed', EXP_STATUS.COMPLETED, 'box-completed');
     createGroupedView('groups-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
 
+    // Clean up progress polling intervals when page unloads
+    window.addEventListener('beforeunload', () => {
+        Object.keys(progressPollIntervals).forEach(key => {
+            clearInterval(progressPollIntervals[key]);
+            delete progressPollIntervals[key];
+        });
+    });
+    
     // Delay for Grid.js to complete rendering before equalizing heights
     const EQUALIZATION_DELAY = 500;
 

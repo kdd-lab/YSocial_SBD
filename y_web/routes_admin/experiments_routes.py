@@ -2075,7 +2075,7 @@ def experiment_clients(exp_id):
             
             if client_exec:
                 # Calculate progress for finite clients
-                if client_exec.expected_duration_rounds > 0:
+                if client_exec.expected_duration_rounds and client_exec.expected_duration_rounds > 0:
                     progress = min(100, max(0, int(
                         client_exec.elapsed_time / client_exec.expected_duration_rounds * 100
                     )))
