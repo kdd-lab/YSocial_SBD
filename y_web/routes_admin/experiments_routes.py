@@ -6906,7 +6906,9 @@ def generate_agent_timeseries_data(
 
     # Track latest opinion for each agent incrementally
     latest_at_time = {}  # (agent_id, topic_id) -> opinion
-    latest_by_agent = {}  # agent_id -> opinion (for faster lookup when topic_id is None)
+    latest_by_agent = (
+        {}
+    )  # agent_id -> opinion (for faster lookup when topic_id is None)
     current_time_index = 0
 
     for round_obj in rounds_up_to_time:
