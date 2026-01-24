@@ -2030,6 +2030,8 @@ def experiments_data():
                 "progress": exp_progress.get(exp.idexp, 0),
                 "has_infinite_client": exp_has_infinite.get(exp.idexp, False),
                 "exp_group": exp.exp_group if exp.exp_group else "No group",
+                "simulator_type": getattr(exp, "simulator_type", "Standard"),
+                "is_remote": getattr(exp, "is_remote", 0),
             }
             for exp in res
         ],

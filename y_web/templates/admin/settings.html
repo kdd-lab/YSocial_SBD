@@ -127,6 +127,12 @@
     .exp-tag.hpc {
         background: linear-gradient(90deg, #f59e0b, #f97316);
     }
+    .exp-tag.remote {
+        background: linear-gradient(90deg, #2196F3, #03A9F4);
+    }
+    .exp-tag.infinite {
+        background: linear-gradient(90deg, #22c55e, #4ade80);
+    }
     .count-badge {
         background: #28a745;
         color: white;
@@ -1018,7 +1024,9 @@
                                         <span class="exp-item-name">${exp.exp_name}</span>
                                         <span class="exp-tag owner">${exp.owner}</span>
                                         ${exp.exp_group && exp.exp_group !== 'No group' ? `<span class="exp-tag group">${exp.exp_group}</span>` : ''}
-                                        ${exp.has_infinite_client ? '<span class="exp-tag" style="background: linear-gradient(90deg, #22c55e, #4ade80);">∞</span>' : ''}
+                                        ${exp.simulator_type === 'HPC' ? '<span class="exp-tag hpc">HPC</span>' : ''}
+                                        ${exp.is_remote === 1 ? '<span class="exp-tag remote">Remote</span>' : ''}
+                                        ${exp.has_infinite_client ? '<span class="exp-tag infinite">∞</span>' : ''}
                                         ${statusFilter === EXP_STATUS.ACTIVE && exp.progress !== undefined ? `<span class="exp-tag" style="background: #039be5;">${exp.progress}%</span>` : ''}
                                     </div>
                                     <div style="display: flex; gap: 4px;">
