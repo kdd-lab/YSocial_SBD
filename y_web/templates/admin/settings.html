@@ -1762,11 +1762,10 @@
 
             </div>
 
-            <!-- ROW 2: New Experiment -->
+            <!-- ROW 2: New Experiment (left) + Copy Experiment (right) -->
             <div class="columns is-layout-row">
-                <!--Dashboard column-->
-                <!--Dashboard column-->
-                <div class="column is-12">
+                <!-- New Experiment Column (left half) -->
+                <div class="column is-half">
                     <!--Dashboard box-->
 
                     <div id="box-new-experiment" class="dashboard-box">
@@ -2450,15 +2449,92 @@
                                 </a>
                             </div>
                         </div>
-                    </div> -->
+                    </div>
+                </div>
+                
+                <!-- Copy Experiment Column (right half) -->
+                <div class="column is-half">
+                    <div id="box-copy-experiment" class="dashboard-box">
+                        <h3 class="title is-5 is-thin">Copy Experiment</h3>
+                        <div class="box-content">
+                            <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">New Name</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="new_exp_name" 
+                                                   name="new_exp_name" 
+                                                   class="input" 
+                                                   placeholder="Enter new name..." 
+                                                   required>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Source Experiment</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="select" style="width: 100%;">
+                                                <select id="source_exp_id" name="source_exp_id" style="width: 100%;" required>
+                                                    <option value="">Select experiment...</option>
+                                                    {% for exp in all_experiments %}
+                                                    <option value="{{ exp.idexp }}">{{ exp.exp_name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Number of Copies</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="number" 
+                                                   id="num_copies" 
+                                                   name="num_copies" 
+                                                   class="input" 
+                                                   value="1" 
+                                                   min="1"
+                                                   max="20"
+                                                   style="width: 100%;">
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                If &gt;1, creates copies named: name_1, name_2, etc.
+                                            </p>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="copy_exp_group" 
+                                                   name="exp_group" 
+                                                   list="exp_groups_datalist_copy" 
+                                                   class="input" 
+                                                   placeholder="Enter or select a group...">
+                                            <datalist id="exp_groups_datalist_copy">
+                                                {% for group in exp_groups %}
+                                                <option value="{{ group }}">
+                                                {% endfor %}
+                                            </datalist>
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                Optional: Group experiments together
+                                            </p>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="button-wrap">
+                                    <button type="submit" class="button is-solid primary-button is-fullwidth">
+                                        Copy Experiment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
-            <!-- ROW 3: Experiment Schedule + Copy Experiment -->
+            <!-- ROW 3: Experiment Schedule (left) + Upload Experiment (right) -->
             <div class="columns">
-                <!-- Experiment Schedule Column (is-8) -->
-                <div class="column is-8">
+                <!-- Experiment Schedule Column (left half) -->
+                <div class="column is-half">
                     <div id="box-schedule" class="dashboard-box">
                         <h3 class="title is-5 is-thin" style="display: flex; align-items: center; justify-content: space-between;">
                             <span style="display: flex; align-items: center; gap: 10px;">
@@ -2534,195 +2610,113 @@
                     </div>
                 </div>
                 
-                <!-- Copy Experiment Column (is-4) -->
-                <div class="column is-4">
-                    <div id="box-copy-experiment" class="sidebar-box">
-                        <h3>Copy Experiment</h3>
-                        <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
-                            <div style="margin-bottom: 12px;">
-                                <label for="new_exp_name" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    New Experiment Name
-                                </label>
-                                <input type="text" 
-                                       id="new_exp_name" 
-                                       name="new_exp_name" 
-                                       class="input" 
-                                       placeholder="Enter new name..." 
-                                       required>
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <label for="source_exp_id" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Source Experiment
-                                </label>
-                                <div class="select" style="width: 100%;">
-                                    <select id="source_exp_id" name="source_exp_id" style="width: 100%;" required>
-                                        <option value="">Select experiment...</option>
-                                        {% for exp in all_experiments %}
-                                        <option value="{{ exp.idexp }}">{{ exp.exp_name }}</option>
-                                        {% endfor %}
-                                    </select>
+                <!-- Upload Experiment Column (right half) -->
+                <div class="column is-half">
+                    <div id="box-upload-experiment" class="dashboard-box">
+                        <h3 class="title is-5 is-thin">Upload Experiment</h3>
+                        <div class="box-content">
+                            <form action="/admin/upload_experiment" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Uploading experiment...');">
+                                <style>
+                                    .file-upload-wrapper-exp {
+                                        position: relative;
+                                        overflow: hidden;
+                                        display: block;
+                                        margin-bottom: 12px;
+                                    }
+                                    .file-upload-wrapper-exp input[type=file] {
+                                        position: absolute;
+                                        left: -9999px;
+                                    }
+                                    .file-upload-label-exp {
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        padding: 10px 12px;
+                                        background: #f9fafb;
+                                        border: 1px dashed #d1d5db;
+                                        border-radius: 4px;
+                                        cursor: pointer;
+                                        transition: all 0.2s;
+                                        font-size: 0.85em;
+                                    }
+                                    .file-upload-label-exp:hover {
+                                        background: #f3f4f6;
+                                        border-color: #22c55e;
+                                    }
+                                    .file-upload-icon-exp {
+                                        margin-right: 8px;
+                                        font-size: 1.1em;
+                                    }
+                                    .file-upload-text-exp {
+                                        color: #6b7280;
+                                    }
+                                    .file-name-display-exp {
+                                        margin-top: 6px;
+                                        font-size: 0.8em;
+                                        color: #22c55e;
+                                        font-weight: 500;
+                                        text-align: center;
+                                    }
+                                </style>
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">Experiment Name</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="exp_name" 
+                                                   name="exp_name" 
+                                                   class="input" 
+                                                   placeholder="Leave empty to use name from config...">
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="upload_exp_group" 
+                                                   name="exp_group" 
+                                                   list="exp_groups_datalist_upload" 
+                                                   class="input" 
+                                                   placeholder="Enter or select a group...">
+                                            <datalist id="exp_groups_datalist_upload">
+                                                {% for group in exp_groups %}
+                                                <option value="{{ group }}">
+                                                {% endfor %}
+                                            </datalist>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">ZIP File</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="file-upload-wrapper-exp">
+                                                <input type="file" id="experiment" name="experiment" accept=".zip" onchange="displayExperimentFileName(this)" required>
+                                                <label for="experiment" class="file-upload-label-exp">
+                                                    <span class="file-upload-icon-exp">📦</span>
+                                                    <span class="file-upload-text-exp">Choose ZIP file...</span>
+                                                </label>
+                                                <div id="experiment-file-name-display" class="file-name-display-exp"></div>
+                                            </div>
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <label for="num_copies" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Number of Copies
-                                </label>
-                                <input type="number" 
-                                       id="num_copies" 
-                                       name="num_copies" 
-                                       class="input" 
-                                       value="1" 
-                                       min="1"
-                                       max="20"
-                                       style="width: 100%;">
-                                <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
-                                    If &gt;1, creates copies named: name_1, name_2, etc.
-                                </p>
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <label for="copy_exp_group" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Experiment Group
-                                </label>
-                                <input type="text" 
-                                       id="copy_exp_group" 
-                                       name="exp_group" 
-                                       list="exp_groups_datalist_copy" 
-                                       class="input" 
-                                       placeholder="Enter or select a group...">
-                                <datalist id="exp_groups_datalist_copy">
-                                    {% for group in exp_groups %}
-                                    <option value="{{ group }}">
-                                    {% endfor %}
-                                </datalist>
-                                <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
-                                    Optional: Group experiments together
-                                </p>
-                            </div>
-                            <div class="help-block" style="margin-bottom: 12px;">
-                                <p style="font-size: 0.8em; color: #6b7280; line-height: 1.4;">
-                                    Creates a complete copy of an experiment that will be ready to start immediately.
-                                </p>
-                            </div>
-                            <div class="button-wrap">
-                                <button type="submit" class="button is-solid primary-button is-fullwidth">
-                                    Copy Experiment
-                                </button>
-                            </div>
-                        </form>
+                                <div class="button-wrap">
+                                    <button class="button is-solid primary-button is-fullwidth">
+                                        Upload Experiment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- ROW 4: Empty + Upload Experiment -->
-            <div class="columns">
-                <!-- Empty Column (is-8) -->
-                <div class="column is-8">
-                    <!-- Empty space under Experiment Schedule -->
-                </div>
-                
-                <!-- Upload Experiment Column (is-4) -->
-                <div class="column is-4">
-                    <div id="box-upload-experiment" class="sidebar-box">
-                        <h3>Upload Experiment</h3>
-                        <form action="/admin/upload_experiment" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Uploading experiment...');">
-                            <style>
-                                .file-upload-wrapper-exp {
-                                    position: relative;
-                                    overflow: hidden;
-                                    display: block;
-                                    margin-bottom: 12px;
-                                }
-                                .file-upload-wrapper-exp input[type=file] {
-                                    position: absolute;
-                                    left: -9999px;
-                                }
-                                .file-upload-label-exp {
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    padding: 10px 12px;
-                                    background: #f9fafb;
-                                    border: 1px dashed #d1d5db;
-                                    border-radius: 4px;
-                                    cursor: pointer;
-                                    transition: all 0.2s;
-                                    font-size: 0.85em;
-                                }
-                                .file-upload-label-exp:hover {
-                                    background: #f3f4f6;
-                                    border-color: #22c55e;
-                                }
-                                .file-upload-icon-exp {
-                                    margin-right: 8px;
-                                    font-size: 1.1em;
-                                }
-                                .file-upload-text-exp {
-                                    color: #6b7280;
-                                }
-                                .file-name-display-exp {
-                                    margin-top: 6px;
-                                    font-size: 0.8em;
-                                    color: #22c55e;
-                                    font-weight: 500;
-                                    text-align: center;
-                                }
-                            </style>
-                            <div style="margin-bottom: 12px;">
-                                <label for="exp_name" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Experiment Name (optional)
-                                </label>
-                                <input type="text" 
-                                       id="exp_name" 
-                                       name="exp_name" 
-                                       class="input" 
-                                       placeholder="Leave empty to use name from config...">
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <label for="upload_exp_group" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Experiment Group (optional)
-                                </label>
-                                <input type="text" 
-                                       id="upload_exp_group" 
-                                       name="exp_group" 
-                                       list="exp_groups_datalist_upload" 
-                                       class="input" 
-                                       placeholder="Enter or select a group...">
-                                <datalist id="exp_groups_datalist_upload">
-                                    {% for group in exp_groups %}
-                                    <option value="{{ group }}">
-                                    {% endfor %}
-                                </datalist>
-                            </div>
-                            <div class="file-upload-wrapper-exp">
-                                <input type="file" id="experiment" name="experiment" accept=".zip" onchange="displayExperimentFileName(this)" required>
-                                <label for="experiment" class="file-upload-label-exp">
-                                    <span class="file-upload-icon-exp">📦</span>
-                                    <span class="file-upload-text-exp">Choose ZIP file...</span>
-                                </label>
-                                <div id="experiment-file-name-display" class="file-name-display-exp"></div>
-                            </div>
-                            <div class="help-block" style="margin-bottom: 12px;">
-                                <p style="font-size: 0.8em; color: #6b7280; line-height: 1.4;">
-                                    Upload a ZIP file containing experiment data.
-                                </p>
-                            </div>
-                            <div class="button-wrap">
-                                <button class="button is-solid primary-button is-fullwidth">
-                                    Upload Experiment
-                                </button>
-                            </div>
-                        </form>
-                        <script>
-                            function displayExperimentFileName(input) {
-                                const display = document.getElementById('experiment-file-name-display');
-                                if (input.files && input.files[0]) {
-                                    display.textContent = '✓ ' + input.files[0].name;
-                                } else {
-                                    display.textContent = '';
-                                }
+                    <script>
+                        function displayExperimentFileName(input) {
+                            const display = document.getElementById('experiment-file-name-display');
+                            if (input.files && input.files[0]) {
+                                display.textContent = '✓ ' + input.files[0].name;
+                            } else {
+                                display.textContent = '';
                             }
-                        </script>
-                    </div>
+                        }
+                    </script>
                 </div>
             </div>
         </div>
