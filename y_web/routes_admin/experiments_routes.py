@@ -6883,6 +6883,7 @@ def generate_agent_timeseries_data(
 
     # Track latest opinion for each agent incrementally
     latest_at_time = {}  # (agent_id, topic_id) -> opinion
+    latest_by_agent = {}  # agent_id -> opinion (for faster lookup when topic_id is None)
     current_time_index = 0
 
     for round_obj in rounds_up_to_time:
@@ -6903,22 +6904,22 @@ def generate_agent_timeseries_data(
             for agent_id, topic_id, opinion in opinions_by_time[(time_day, time_hour)]:
                 key = (agent_id, topic_id)
                 latest_at_time[key] = opinion
+                # Also maintain agent-only index for faster lookup
+                latest_by_agent[agent_id] = opinion
 
             current_time_index += 1
 
         # Store the latest opinion for each sampled agent at this timestamp
         for agent_id in sampled_agent_ids:
-            # Look up latest opinion for this agent (considering topic filter)
-            key = (agent_id, filter_topic_id) if filter_topic_id is not None else None
-            if key and key in latest_at_time:
-                agent_data[agent_id][target_day] = latest_at_time[key]
+            if filter_topic_id is not None:
+                # Topic filter is specified - look up exact key
+                key = (agent_id, filter_topic_id)
+                if key in latest_at_time:
+                    agent_data[agent_id][target_day] = latest_at_time[key]
             else:
-                # If topic filter is None, we need to check all topics for this agent
-                # Find any opinion for this agent
-                for (aid, tid), opinion in latest_at_time.items():
-                    if aid == agent_id:
-                        agent_data[agent_id][target_day] = opinion
-                        break
+                # No topic filter - use agent-only index for O(1) lookup
+                if agent_id in latest_by_agent:
+                    agent_data[agent_id][target_day] = latest_by_agent[agent_id]
 
     # Create mapping for tooltip display
     timestamp_mapping = {}  # Maps day to (day, hour) for tooltips
