@@ -5897,6 +5897,7 @@ def auto_create_groups():
 
     Expects JSON body with:
     - experiments_per_group: Number of experiments per group
+    - group_filter: Optional list of experiment group names to filter by
 
     Returns:
         JSON with created groups
@@ -5922,6 +5923,9 @@ def auto_create_groups():
             400,
         )
 
+    # Get optional group filter
+    group_filter = data.get("group_filter", None)
+
     # Get current user
     user = Admin_users.query.filter_by(username=current_user.username).first()
 
@@ -5934,6 +5938,10 @@ def auto_create_groups():
     experiments_list = experiments_query.filter(
         Exps.exp_status.in_(["stopped", "scheduled"])
     ).all()
+
+    # Apply group filter if specified
+    if group_filter and len(group_filter) > 0:
+        experiments_list = [exp for exp in experiments_list if exp.exp_group in group_filter]
 
     # Filter out experiments already in groups
     scheduled_exp_ids = set(
