@@ -22,6 +22,7 @@ from y_web.models import (
     Client,
     Client_Execution,
     ClientLogMetrics,
+    Exps,
     LogFileOffset,
     ServerLogMetrics,
 )
@@ -759,6 +760,42 @@ def parse_client_log_incremental(
                         logger.info(
                             f"HPC client {client_id} simulation complete at round {current_round}, marking as stopped"
                         )
+
+                        # Check if all clients for this experiment are now complete
+                        exp_id = client.id_exp
+                        all_clients = Client.query.filter_by(id_exp=exp_id).all()
+
+                        # Check if all clients are stopped (status = 0)
+                        all_stopped = all(c.status == 0 for c in all_clients)
+
+                        if all_stopped:
+                            logger.info(
+                                f"All clients for HPC experiment {exp_id} are complete. Stopping server and updating status."
+                            )
+
+                            # Import here to avoid circular import
+                            from y_web.utils.external_processes import (
+                                stop_hpc_client,
+                                stop_hpc_server,
+                            )
+
+                            # Stop all clients that might still have running processes
+                            for c in all_clients:
+                                if c.pid:
+                                    logger.info(
+                                        f"Stopping HPC client {c.id} (PID: {c.pid})"
+                                    )
+                                    stop_hpc_client(c)
+
+                            # Stop the server
+                            logger.info(f"Stopping HPC server for experiment {exp_id}")
+                            stop_hpc_server(exp_id)
+
+                            # Update experiment status to completed
+                            exp = Exps.query.filter_by(idexp=exp_id).first()
+                            if exp:
+                                exp.exp_status = "completed"
+                                logger.info(f"Experiment {exp_id} marked as completed")
 
                 _commit_with_retry(db.session)
         except Exception as e:
