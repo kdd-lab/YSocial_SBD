@@ -161,6 +161,19 @@ def test_client_config_filename_patterns():
         and not server_config.startswith("server")
     )
 
+    # Ambiguous case: client_test_config.json matches both patterns
+    # This is handled correctly by using the is_hpc flag to determine config structure
+    ambiguous_filename = "client_test_config.json"
+    matches_standard = ambiguous_filename.startswith(
+        "client"
+    ) and ambiguous_filename.endswith(".json")
+    matches_hpc = ambiguous_filename.endswith(
+        "_config.json"
+    ) and not ambiguous_filename.startswith("server")
+    # Both are true, but the is_hpc flag in the implementation determines which config structure to use
+    assert matches_standard
+    assert matches_hpc
+
 
 def test_config_verification_logic():
     """Test configuration verification for both types."""

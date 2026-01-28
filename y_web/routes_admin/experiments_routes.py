@@ -4725,7 +4725,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
 
     # Update all client configuration files with new port
     # Standard: client_*.json, HPC: {client_name}_config.json
-    # Note: Avoid filenames like "client_test_config.json" that match both patterns
+    # The is_hpc flag determines which config structure to update, not the filename pattern
 
     for item in os.listdir(new_folder):
         # Match Standard (client_*.json) OR HPC (*_config.json excluding server_config.json)
@@ -4742,10 +4742,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
                 if is_hpc:
                     # HPC client config format: "server": {"address": null, "port": null}
                     if "server" in client_config:
-                        if "port" not in client_config["server"]:
-                            client_config["server"]["port"] = suggested_port
-                        else:
-                            client_config["server"]["port"] = suggested_port
+                        client_config["server"]["port"] = suggested_port
                 else:
                     # Standard client config: "servers": {"api": "http://..."}
                     if "servers" in client_config and "api" in client_config["servers"]:
