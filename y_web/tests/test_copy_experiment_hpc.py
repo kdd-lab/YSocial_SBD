@@ -7,6 +7,8 @@ Standard and HPC experiment types.
 
 import json
 import os
+import re
+import shutil
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -39,8 +41,6 @@ def test_hpc_config_detection():
             # Check that server_config.json doesn't exist
             assert not os.path.exists(os.path.join(std_tmpdir, "server_config.json"))
         finally:
-            import shutil
-
             shutil.rmtree(std_tmpdir, ignore_errors=True)
 
 
@@ -117,8 +117,6 @@ def test_standard_client_config_structure():
     assert "5000" in std_client_config["servers"]["api"]
 
     # Update port in URL
-    import re
-
     old_api = std_client_config["servers"]["api"]
     new_api = re.sub(r":(\d+)(/|$)", r":5001\2", old_api)
     std_client_config["servers"]["api"] = new_api
@@ -148,13 +146,20 @@ def test_client_config_filename_patterns():
     ]
 
     for filename in hpc_filenames:
-        is_client_config = filename.endswith("_config.json") and not filename.startswith(
-            "server"
-        )
+        is_client_config = filename.endswith(
+            "_config.json"
+        ) and not filename.startswith("server")
         assert is_client_config
 
-    # Should not match
-    assert not ("server_config.json".endswith("_config.json") and not "server_config.json".startswith("server"))
+    # Should not match: server_config.json should be excluded because it starts with "server"
+    server_config = "server_config.json"
+    assert server_config.endswith("_config.json")  # True
+    assert server_config.startswith("server")  # True
+    # So the full check should be False
+    assert not (
+        server_config.endswith("_config.json")
+        and not server_config.startswith("server")
+    )
 
 
 def test_config_verification_logic():

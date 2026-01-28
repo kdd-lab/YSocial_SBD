@@ -4705,7 +4705,8 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     # Verify based on experiment type
     if is_hpc:
         if (
-            verify_config.get("server", {}).get("port") != suggested_port
+            verify_config.get("experiment_name") != new_exp_name
+            or verify_config.get("server", {}).get("port") != suggested_port
             or verify_config.get("database_uri") != new_db_uri
         ):
             # Cleanup and return
@@ -4724,15 +4725,14 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
 
     # Update all client configuration files with new port
     # Standard: client_*.json, HPC: {client_name}_config.json
-    import re
+    # Note: Avoid filenames like "client_test_config.json" that match both patterns
 
     for item in os.listdir(new_folder):
-        # Match both Standard (client_*.json) and HPC (*_config.json) client configs
-        is_client_config = (item.startswith("client") and item.endswith(".json")) or (
-            item.endswith("_config.json") and not item.startswith("server")
-        )
+        # Match Standard (client_*.json) OR HPC (*_config.json excluding server_config.json)
+        is_standard_client = item.startswith("client") and item.endswith(".json")
+        is_hpc_client = item.endswith("_config.json") and not item.startswith("server")
 
-        if is_client_config:
+        if is_standard_client or is_hpc_client:
             client_config_path = os.path.join(new_folder, item)
             try:
                 with open(client_config_path, "r") as f:
@@ -4742,7 +4742,10 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
                 if is_hpc:
                     # HPC client config format: "server": {"address": null, "port": null}
                     if "server" in client_config:
-                        client_config["server"]["port"] = suggested_port
+                        if "port" not in client_config["server"]:
+                            client_config["server"]["port"] = suggested_port
+                        else:
+                            client_config["server"]["port"] = suggested_port
                 else:
                     # Standard client config: "servers": {"api": "http://..."}
                     if "servers" in client_config and "api" in client_config["servers"]:
