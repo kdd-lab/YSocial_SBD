@@ -4660,23 +4660,40 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
 
         admin_engine.dispose()
 
-    # Update config_server.json with new name, port, and database_uri
+    # Update configuration file with new name, port, and database_uri
+    # Check if this is an HPC or Standard experiment by looking for config files
+    is_hpc = False
     config_path = os.path.join(new_folder, "config_server.json")
     if not os.path.exists(config_path):
-        # Cleanup and return
-        if os.path.exists(new_folder):
-            shutil.rmtree(new_folder, ignore_errors=True)
-        return False
+        # Try HPC config file
+        config_path = os.path.join(new_folder, "server_config.json")
+        if os.path.exists(config_path):
+            is_hpc = True
+        else:
+            # Neither config file exists - cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
 
     with open(config_path, "r") as f:
         config = json.load(f)
 
-    # Update all necessary fields
-    config["name"] = new_exp_name
-    config["port"] = suggested_port
-    config["database_uri"] = new_db_uri
-    # Add data_path so YServer knows where to write logs (e.g., _server.log)
-    config["data_path"] = new_folder + os.sep
+    # Update configuration fields based on experiment type
+    if is_hpc:
+        # HPC experiment configuration structure
+        config["experiment_name"] = new_exp_name
+        if "server" in config:
+            config["server"]["port"] = suggested_port
+        else:
+            config["server"] = {"port": suggested_port}
+        config["database_uri"] = new_db_uri
+    else:
+        # Standard experiment configuration structure
+        config["name"] = new_exp_name
+        config["port"] = suggested_port
+        config["database_uri"] = new_db_uri
+        # Add data_path so YServer knows where to write logs (e.g., _server.log)
+        config["data_path"] = new_folder + os.sep
 
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
@@ -4685,37 +4702,61 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     with open(config_path, "r") as f:
         verify_config = json.load(f)
 
-    if (
-        verify_config.get("port") != suggested_port
-        or verify_config.get("database_uri") != new_db_uri
-    ):
-        # Cleanup and return
-        if os.path.exists(new_folder):
-            shutil.rmtree(new_folder, ignore_errors=True)
-        return False
+    # Verify based on experiment type
+    if is_hpc:
+        if (
+            verify_config.get("server", {}).get("port") != suggested_port
+            or verify_config.get("database_uri") != new_db_uri
+        ):
+            # Cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
+    else:
+        if (
+            verify_config.get("port") != suggested_port
+            or verify_config.get("database_uri") != new_db_uri
+        ):
+            # Cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
 
     # Update all client configuration files with new port
-    # Client configs have the format: client_*.json
+    # Standard: client_*.json, HPC: {client_name}_config.json
+    import re
+
     for item in os.listdir(new_folder):
-        if item.startswith("client") and item.endswith(".json"):
+        # Match both Standard (client_*.json) and HPC (*_config.json) client configs
+        is_client_config = (item.startswith("client") and item.endswith(".json")) or (
+            item.endswith("_config.json") and not item.startswith("server")
+        )
+
+        if is_client_config:
             client_config_path = os.path.join(new_folder, item)
             try:
                 with open(client_config_path, "r") as f:
                     client_config = json.load(f)
 
-                # Update the API endpoint in servers section
-                if "servers" in client_config and "api" in client_config["servers"]:
-                    # Update the port in the API URL
-                    old_api = client_config["servers"]["api"]
-                    # Replace port in URL - handles both with and without trailing slash
-                    # Pattern matches :port/ or :port at end of string
-                    import re
+                # Update port based on experiment type
+                if is_hpc:
+                    # HPC client config format: "server": {"address": null, "port": null}
+                    if "server" in client_config:
+                        client_config["server"]["port"] = suggested_port
+                else:
+                    # Standard client config: "servers": {"api": "http://..."}
+                    if "servers" in client_config and "api" in client_config["servers"]:
+                        # Update the port in the API URL
+                        old_api = client_config["servers"]["api"]
+                        # Replace port in URL - handles both with and without trailing slash
+                        # Pattern matches :port/ or :port at end of string
+                        new_api = re.sub(
+                            r":(\d+)(/|$)", f":{suggested_port}\\2", old_api
+                        )
+                        client_config["servers"]["api"] = new_api
 
-                    new_api = re.sub(r":(\d+)(/|$)", f":{suggested_port}\\2", old_api)
-                    client_config["servers"]["api"] = new_api
-
-                    with open(client_config_path, "w") as f:
-                        json.dump(client_config, f, indent=4)
+                with open(client_config_path, "w") as f:
+                    json.dump(client_config, f, indent=4)
             except Exception as e:
                 # Continue anyway - this is not critical enough to fail the entire copy
                 current_app.logger.warning(
