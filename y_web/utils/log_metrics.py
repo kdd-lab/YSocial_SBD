@@ -761,43 +761,82 @@ def parse_client_log_incremental(
                             f"HPC client {client_id} simulation complete at round {current_round}, marking as stopped"
                         )
 
+                        # Commit the client status change before checking other clients
+                        _commit_with_retry(db.session)
+
                         # Check if all clients for this experiment are now complete
                         exp_id = client.id_exp
-                        all_clients = Client.query.filter_by(id_exp=exp_id).all()
 
-                        # Check if all clients are stopped (status = 0)
-                        all_stopped = all(c.status == 0 for c in all_clients)
+                        # Get the experiment first to check status
+                        exp = Exps.query.filter_by(idexp=exp_id).first()
 
-                        if all_stopped:
-                            logger.info(
-                                f"All clients for HPC experiment {exp_id} are complete. Stopping server and updating status."
-                            )
+                        # Only proceed with auto-stop if experiment is not already completed
+                        # This prevents race conditions when multiple clients finish simultaneously
+                        if exp and exp.exp_status != "completed":
+                            all_clients = Client.query.filter_by(id_exp=exp_id).all()
 
-                            # Import here to avoid circular import
-                            from y_web.utils.external_processes import (
-                                stop_hpc_client,
-                                stop_hpc_server,
-                            )
+                            # Check if all clients are stopped (status = 0)
+                            all_stopped = all(c.status == 0 for c in all_clients)
 
-                            # Stop all clients that might still have running processes
-                            for c in all_clients:
-                                if c.pid:
-                                    logger.info(
-                                        f"Stopping HPC client {c.id} (PID: {c.pid})"
+                            if all_stopped:
+                                logger.info(
+                                    f"All clients for HPC experiment {exp_id} are complete. Stopping server and updating status."
+                                )
+
+                                try:
+                                    # Import here to avoid circular import
+                                    from y_web.utils.external_processes import (
+                                        stop_hpc_client,
+                                        stop_hpc_server,
                                     )
-                                    stop_hpc_client(c)
 
-                            # Stop the server
-                            logger.info(f"Stopping HPC server for experiment {exp_id}")
-                            stop_hpc_server(exp_id)
+                                    # Stop all clients that might still have running processes
+                                    for c in all_clients:
+                                        if c.pid:
+                                            try:
+                                                logger.info(
+                                                    f"Stopping HPC client {c.id} (PID: {c.pid})"
+                                                )
+                                                stop_hpc_client(c)
+                                            except Exception as e:
+                                                logger.error(
+                                                    f"Error stopping HPC client {c.id}: {e}",
+                                                    exc_info=True,
+                                                )
 
-                            # Update experiment status to completed
-                            exp = Exps.query.filter_by(idexp=exp_id).first()
-                            if exp:
-                                exp.exp_status = "completed"
-                                logger.info(f"Experiment {exp_id} marked as completed")
+                                    # Stop the server
+                                    try:
+                                        logger.info(
+                                            f"Stopping HPC server for experiment {exp_id}"
+                                        )
+                                        stop_hpc_server(exp_id)
+                                    except Exception as e:
+                                        logger.error(
+                                            f"Error stopping HPC server for experiment {exp_id}: {e}",
+                                            exc_info=True,
+                                        )
 
-                _commit_with_retry(db.session)
+                                    # Update experiment status to completed
+                                    # Re-query to get fresh instance
+                                    exp = Exps.query.filter_by(idexp=exp_id).first()
+                                    if exp:
+                                        exp.exp_status = "completed"
+                                        _commit_with_retry(db.session)
+                                        logger.info(
+                                            f"Experiment {exp_id} marked as completed"
+                                        )
+
+                                except Exception as e:
+                                    logger.error(
+                                        f"Error in auto-stop flow for HPC experiment {exp_id}: {e}",
+                                        exc_info=True,
+                                    )
+                    else:
+                        # Client was not running, just commit the execution update
+                        _commit_with_retry(db.session)
+                else:
+                    # Client not complete yet, just commit the execution update
+                    _commit_with_retry(db.session)
         except Exception as e:
             logger.error(
                 f"Error updating client_execution for HPC client {client_id}: {e}",
