@@ -4673,26 +4673,34 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         shutil.rmtree(new_folder, ignore_errors=True)
         return False
 
+    # Detect if this is an HPC or Standard experiment BEFORE handling database
+    # This is critical: HPC experiments generate their own database on server startup
+    is_hpc = os.path.exists(os.path.join(new_folder, "server_config.json"))
+
     # Handle database copying first to get the correct db_uri
     new_db_name = ""
     new_db_uri = ""
 
     if db_type == "sqlite":
-        # Create a fresh SQLite database with clean schema (no data from source)
+        # Create database path
         new_db_path = os.path.join(new_folder, "database_server.db")
 
-        # Copy the clean database schema instead of the source database
-        clean_db_path = get_resource_path(
-            os.path.join("data_schema", "database_clean_server.db")
-        )
-        if os.path.exists(clean_db_path):
-            shutil.copy2(clean_db_path, new_db_path)
-        else:
-            # Create an empty database file
-            import sqlite3
+        # Only Standard experiments get a pre-created database
+        # HPC experiments: database is created automatically by the server on first startup
+        if not is_hpc:
+            # Copy the clean database schema for Standard experiments
+            clean_db_path = get_resource_path(
+                os.path.join("data_schema", "database_clean_server.db")
+            )
+            if os.path.exists(clean_db_path):
+                shutil.copy2(clean_db_path, new_db_path)
+            else:
+                # If clean DB doesn't exist, create an empty database file
+                import sqlite3
 
-            conn = sqlite3.connect(new_db_path)
-            conn.close()
+                conn = sqlite3.connect(new_db_path)
+                conn.close()
+        # For HPC: Do NOT create any database file - the HPC server will create it on startup
 
         new_db_name = f"experiments{os.sep}{new_uid}{os.sep}database_server.db"
 
@@ -4787,19 +4795,18 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         admin_engine.dispose()
 
     # Update configuration file with new name, port, and database_uri
-    # Check if this is an HPC or Standard experiment by looking for config files
-    is_hpc = False
-    config_path = os.path.join(new_folder, "config_server.json")
-    if not os.path.exists(config_path):
-        # Try HPC config file
+    # is_hpc was already detected earlier (before database copying)
+    # Just need to determine the correct config path
+    if is_hpc:
         config_path = os.path.join(new_folder, "server_config.json")
-        if os.path.exists(config_path):
-            is_hpc = True
-        else:
-            # Neither config file exists - cleanup and return
-            if os.path.exists(new_folder):
-                shutil.rmtree(new_folder, ignore_errors=True)
-            return False
+    else:
+        config_path = os.path.join(new_folder, "config_server.json")
+    
+    if not os.path.exists(config_path):
+        # Config file doesn't exist - cleanup and return
+        if os.path.exists(new_folder):
+            shutil.rmtree(new_folder, ignore_errors=True)
+        return False
 
     with open(config_path, "r") as f:
         config = json.load(f)
