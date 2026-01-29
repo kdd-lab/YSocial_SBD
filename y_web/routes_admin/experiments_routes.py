@@ -1119,10 +1119,11 @@ def upload_experiment():
             )
             if f.endswith(".json") and f.startswith("client") and original_name in f
         ]
+        
+        # Handle missing client configs
         if len(client) == 0:
-            # For HPC experiments, client files might not exist yet
-            # They are created when populations are assigned
             if not is_hpc_experiment:
+                # Standard experiments REQUIRE client config
                 flash("No client file found for the population")
                 shutil.rmtree(
                     f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}",
@@ -1130,8 +1131,61 @@ def upload_experiment():
                 )
                 return redirect(request.referrer)
             else:
-                # Skip client creation for HPC - will be created when population is assigned
-                continue
+                # HPC experiments: Auto-create default client if config missing
+                # This ensures Client records exist for scheduler tracking
+                print(f"No client config found for HPC population {original_name}, creating default client")
+                
+                # Create default Client record for HPC
+                default_client_name = f"client_{original_name}"
+                cl = Client(
+                    id_exp=exp.idexp,
+                    population_id=population.id,
+                    status=0,
+                    name=default_client_name,
+                    descr=f"Auto-created client for {original_name}",
+                    days=7,  # Default 7 days
+                    percentage_new_agents_iteration=0,
+                    percentage_removed_agents_iteration=0,
+                    max_length_thread_reading=10,
+                    reading_from_follower_ratio=0.5,
+                    probability_of_daily_follow=0.1,
+                    attention_window=24,
+                    visibility_rounds=36,
+                    post=0.3,
+                    share=0.2,
+                    image=0.1,
+                    comment=0.2,
+                    read=0.8,
+                    news=0.1,
+                    search=0.1,
+                    vote=0.1,
+                    llm="",
+                    llm_api_key="",
+                    llm_max_tokens=100,
+                    llm_temperature=0.7,
+                    llm_v_agent=0,
+                    llm_v="",
+                    llm_v_api_key="",
+                    llm_v_max_tokens=100,
+                    llm_v_temperature=0.7,
+                )
+                db.session.add(cl)
+                db.session.commit()
+                
+                # Create Client_Execution for progress tracking
+                expected_rounds = cl.days * 24  # HPC uses 24 hourly slots
+                client_exec = Client_Execution(
+                    client_id=cl.id,
+                    elapsed_time=0,
+                    expected_duration_rounds=expected_rounds,
+                    last_active_hour=-1,
+                    last_active_day=-1,
+                )
+                db.session.add(client_exec)
+                db.session.commit()
+                
+                print(f"Created default HPC client '{default_client_name}' for population {original_name}")
+                continue  # Skip to next population
 
         client_config = json.load(
             open(
