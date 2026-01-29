@@ -552,6 +552,12 @@ def parse_client_log_incremental(
     # Track max day/hour for HPC client_execution updates
     max_day = -1
     max_hour = -1
+    
+    # Track stats for logging
+    total_lines = 0
+    parsed_lines = 0
+    hpc_hourly_count = 0
+    hpc_daily_count = 0
 
     try:
         with open(log_file_path, "r") as f:
@@ -559,12 +565,14 @@ def parse_client_log_incremental(
             f.seek(start_offset)
 
             for line in f:
+                total_lines += 1
                 line = line.strip()
                 if not line:
                     continue
 
                 try:
                     log_entry = json.loads(line)
+                    parsed_lines += 1
 
                     if is_hpc:
                         # HPC format: use summary entries (hourly and daily)
@@ -574,6 +582,11 @@ def parse_client_log_incremental(
                         summary_type = log_entry.get("summary_type")
                         if summary_type not in ("hourly", "daily"):
                             continue
+                        
+                        if summary_type == "hourly":
+                            hpc_hourly_count += 1
+                        elif summary_type == "daily":
+                            hpc_daily_count += 1
 
                         day = log_entry.get("day")
                         if day is None:
@@ -659,6 +672,14 @@ def parse_client_log_incremental(
     except Exception as e:
         logger.error(f"Error reading client log file: {e}", exc_info=True)
         return start_offset, {}
+    
+    # Log parsing summary for HPC
+    if is_hpc:
+        logger.info(
+            f"HPC log parsing for client {client_id}: total_lines={total_lines}, "
+            f"parsed_lines={parsed_lines}, hourly_summaries={hpc_hourly_count}, "
+            f"daily_summaries={hpc_daily_count}, max_day={max_day}, max_hour={max_hour}"
+        )
 
     # Update database with new metrics
     for day, methods in daily_data.items():
@@ -739,6 +760,9 @@ def parse_client_log_incremental(
 
     # For HPC, update Client_Execution with progress information
     if is_hpc and max_day >= 0 and max_hour >= 0:
+        logger.info(
+            f"HPC: Updating Client_Execution for client {client_id} with max_day={max_day}, max_hour={max_hour}"
+        )
         try:
             client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
             if client_exec:
@@ -749,6 +773,11 @@ def parse_client_log_incremental(
                 # Update elapsed_time (current round, 1-indexed)
                 # day 0, hour 0 = round 1
                 client_exec.elapsed_time = max_day * 24 + max_hour + 1
+                
+                logger.info(
+                    f"HPC: Updated Client_Execution for client {client_id}: "
+                    f"elapsed_time={client_exec.elapsed_time}, expected={client_exec.expected_duration_rounds}"
+                )
 
                 # Check if simulation is complete
                 current_round = client_exec.elapsed_time
@@ -837,11 +866,20 @@ def parse_client_log_incremental(
                 else:
                     # Client not complete yet, just commit the execution update
                     _commit_with_retry(db.session)
+            else:
+                logger.warning(
+                    f"HPC: No Client_Execution record found for client {client_id}"
+                )
         except Exception as e:
             logger.error(
                 f"Error updating client_execution for HPC client {client_id}: {e}",
                 exc_info=True,
             )
+    elif is_hpc:
+        logger.warning(
+            f"HPC: Not updating Client_Execution for client {client_id} because "
+            f"max_day={max_day}, max_hour={max_hour} (both must be >= 0)"
+        )
 
     return new_offset, {
         "daily": daily_data,
@@ -1002,6 +1040,11 @@ def update_client_log_metrics(exp_id, client_id, log_file_path, is_hpc=False):
     Returns:
         bool: True if successful, False otherwise
     """
+    logger.info(
+        f"update_client_log_metrics called: exp_id={exp_id}, client_id={client_id}, "
+        f"is_hpc={is_hpc}, log_file={log_file_path}"
+    )
+    
     # Ensure session is in clean state before starting
     _ensure_session_clean(db.session)
 

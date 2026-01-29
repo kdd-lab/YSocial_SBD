@@ -2226,6 +2226,10 @@ def experiment_clients(exp_id):
                 try:
                     # Pass is_hpc flag for HPC experiments to use correct log format
                     is_hpc = experiment.simulator_type == "HPC"
+                    current_app.logger.info(
+                        f"Updating metrics for client {client.id} ({client.name}), "
+                        f"is_hpc={is_hpc}, log_file={client_log_file}"
+                    )
                     update_client_log_metrics(
                         exp_id, client.id, client_log_file, is_hpc=is_hpc
                     )
@@ -2234,9 +2238,24 @@ def experiment_clients(exp_id):
                         f"Error updating client {client.id} log metrics: {e}",
                         exc_info=True,
                     )
+            else:
+                current_app.logger.warning(
+                    f"Log file not found for client {client.id} ({client.name}): {client_log_file}"
+                )
 
             # Get client execution data (now updated with latest info)
             client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
+
+            if client_exec:
+                current_app.logger.info(
+                    f"Client_Execution for client {client.id}: elapsed_time={client_exec.elapsed_time}, "
+                    f"expected={client_exec.expected_duration_rounds}, "
+                    f"last_day={client_exec.last_active_day}, last_hour={client_exec.last_active_hour}"
+                )
+            else:
+                current_app.logger.warning(
+                    f"No Client_Execution record found for client {client.id} ({client.name})"
+                )
 
             client_info = {
                 "id": client.id,
