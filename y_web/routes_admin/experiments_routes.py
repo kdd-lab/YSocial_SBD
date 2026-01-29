@@ -5778,7 +5778,12 @@ def check_schedule_progress():
             exp.running = 1
             exp.exp_status = "active"
             db.session.commit()
-            start_server(exp)
+            
+            # Start the server (use appropriate function for HPC vs Standard)
+            if exp.simulator_type == "HPC":
+                start_hpc_server(exp)
+            else:
+                start_server(exp)
 
             # Wait for server to be ready
             logs.append(f"Waiting for server '{exp.exp_name}' to be ready...")
