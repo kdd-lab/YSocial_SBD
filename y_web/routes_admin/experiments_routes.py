@@ -5488,8 +5488,11 @@ def start_schedule():
             exp.exp_status = "active"
             db.session.commit()
 
-            # Start the server
-            start_server(exp)
+            # Start the server (use appropriate function for HPC vs Standard)
+            if exp.simulator_type == "HPC":
+                start_hpc_server(exp)
+            else:
+                start_server(exp)
             started_count += 1
 
             # Wait for server to be ready
