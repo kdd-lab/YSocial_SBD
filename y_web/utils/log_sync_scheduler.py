@@ -240,9 +240,15 @@ class LogSyncScheduler:
                             update_client_log_metrics(
                                 exp.idexp, client.id, client_log_file, is_hpc=is_hpc
                             )
-                            logger.debug(
-                                f"Synced client logs for {client.name} in experiment {exp.exp_name}"
-                            )
+                            # Log HPC updates at info level for better visibility
+                            if is_hpc:
+                                logger.info(
+                                    f"Synced HPC client logs for {client.name} in experiment {exp.exp_name}"
+                                )
+                            else:
+                                logger.debug(
+                                    f"Synced client logs for {client.name} in experiment {exp.exp_name}"
+                                )
                         except Exception as e:
                             logger.warning(
                                 f"Error syncing client logs for {client.name}: {e}"
