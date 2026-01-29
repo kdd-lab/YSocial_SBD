@@ -2201,12 +2201,41 @@ def experiment_clients(exp_id):
         if user.role == "researcher" and experiment.owner != user.username:
             return jsonify({"error": "Access denied"}), 403
 
+        # Import log metrics function and path utilities
+        from y_web.utils.log_metrics import update_client_log_metrics
+        from y_web.utils.path_utils import get_writable_path
+
+        BASE_DIR = get_writable_path()
+
+        # Get experiment folder path
+        uid = get_experiment_uid_from_db_name(experiment.db_name)
+        if uid is None:
+            return jsonify({"error": "Invalid experiment path format"}), 400
+
+        exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+
         # Get clients for this experiment
         clients = Client.query.filter_by(id_exp=exp_id).all()
 
         client_data = []
         for client in clients:
-            # Get client execution data
+            # Update client log metrics before reading execution data
+            # This ensures we have the latest progress information
+            client_log_file = os.path.join(exp_folder, f"{client.name}_client.log")
+            if os.path.exists(client_log_file):
+                try:
+                    # Pass is_hpc flag for HPC experiments to use correct log format
+                    is_hpc = experiment.simulator_type == "HPC"
+                    update_client_log_metrics(
+                        exp_id, client.id, client_log_file, is_hpc=is_hpc
+                    )
+                except Exception as e:
+                    current_app.logger.error(
+                        f"Error updating client {client.id} log metrics: {e}",
+                        exc_info=True,
+                    )
+
+            # Get client execution data (now updated with latest info)
             client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
 
             client_info = {
