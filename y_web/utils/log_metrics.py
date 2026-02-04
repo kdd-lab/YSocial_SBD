@@ -1062,7 +1062,7 @@ def mark_hpc_client_as_completed(exp_id, client_id):
     
     Updates the client_execution record with:
     - elapsed_time = expected_duration_rounds
-    - last_active_day and last_active_hour set to the maximum values from the Rounds table
+    - last_active_day and last_active_hour calculated from expected_duration_rounds
     - client status set to stopped (0)
     
     Args:
@@ -1073,9 +1073,6 @@ def mark_hpc_client_as_completed(exp_id, client_id):
         bool: True if successfully marked as completed, False otherwise
     """
     try:
-        from y_web.models import Rounds
-        from y_web.experiment_context import get_db_bind_key_for_exp
-        
         # Get client execution record
         client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
         if not client_exec:
@@ -1084,48 +1081,24 @@ def mark_hpc_client_as_completed(exp_id, client_id):
             )
             return False
         
-        # Get the experiment to determine the database bind
-        exp = db.session.query(Client).filter_by(id=client_id).first()
-        if not exp:
+        # Get the client to verify it exists
+        client = Client.query.filter_by(id=client_id).first()
+        if not client:
             logger.warning(f"Client {client_id} not found")
             return False
         
-        # Query the Rounds table to get the maximum day and hour
-        # Rounds table is in the experiment database (db_exp)
-        try:
-            # Use the experiment's bind key to query Rounds
-            bind_key = get_db_bind_key_for_exp(exp_id)
-            
-            # Get max day and hour from Rounds table
-            max_round = db.session.query(Rounds).order_by(
-                Rounds.day.desc(), Rounds.hour.desc()
-            ).first()
-            
-            if max_round:
-                max_day = max_round.day
-                max_hour = max_round.hour
-            else:
-                # Fallback: use expected_duration_rounds to calculate
-                # Assuming day 0, hour 0 = round 1
-                if client_exec.expected_duration_rounds > 0:
-                    total_hours = client_exec.expected_duration_rounds - 1
-                    max_day = total_hours // 24
-                    max_hour = total_hours % 24
-                else:
-                    max_day = 0
-                    max_hour = 0
-        except Exception as e:
-            logger.warning(
-                f"Error querying Rounds table for exp {exp_id}: {e}. Using fallback."
-            )
-            # Fallback: calculate from expected_duration_rounds
-            if client_exec.expected_duration_rounds > 0:
-                total_hours = client_exec.expected_duration_rounds - 1
-                max_day = total_hours // 24
-                max_hour = total_hours % 24
-            else:
-                max_day = 0
-                max_hour = 0
+        # Calculate max day and hour from expected_duration_rounds
+        # Since each experiment has its own database and the Rounds table is in db_exp,
+        # it's more reliable to calculate from expected_duration_rounds
+        # Assuming day 0, hour 0 = round 1 (as per HPC format in parse_client_log_incremental)
+        if client_exec.expected_duration_rounds > 0:
+            total_hours = client_exec.expected_duration_rounds - 1
+            max_day = total_hours // 24
+            max_hour = total_hours % 24
+        else:
+            # Default to 0,0 if no rounds configured
+            max_day = 0
+            max_hour = 0
         
         # Update client_execution record
         client_exec.elapsed_time = client_exec.expected_duration_rounds
@@ -1133,7 +1106,6 @@ def mark_hpc_client_as_completed(exp_id, client_id):
         client_exec.last_active_hour = max_hour
         
         # Mark client as stopped
-        client = Client.query.filter_by(id=client_id).first()
         if client:
             client.status = 0
             logger.info(

@@ -140,7 +140,7 @@ class TestHPCExecutionLogMonitoring:
 
     def test_mark_client_as_completed(self, app, db):
         """Test marking a client as completed."""
-        from y_web.models import Client, Client_Execution, Exps, Rounds, Population
+        from y_web.models import Client, Client_Execution, Exps, Population
         from y_web.utils.log_metrics import mark_hpc_client_as_completed
 
         with app.app_context():
@@ -188,13 +188,6 @@ class TestHPCExecutionLogMonitoring:
             db.session.add(client_exec)
             db.session.commit()
 
-            # Create rounds data
-            for day in range(2):
-                for hour in range(24):
-                    round_entry = Rounds(day=day, hour=hour)
-                    db.session.add(round_entry)
-            db.session.commit()
-
             # Mark client as completed
             result = mark_hpc_client_as_completed(exp.idexp, client.id)
             assert result is True
@@ -202,7 +195,8 @@ class TestHPCExecutionLogMonitoring:
             # Verify updates
             updated_exec = Client_Execution.query.filter_by(client_id=client.id).first()
             assert updated_exec.elapsed_time == 24
-            assert updated_exec.last_active_day == 1
+            # With 24 rounds: round 1 = day 0, hour 0; round 24 = day 0, hour 23
+            assert updated_exec.last_active_day == 0
             assert updated_exec.last_active_hour == 23
 
             updated_client = Client.query.filter_by(id=client.id).first()
