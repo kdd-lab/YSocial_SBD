@@ -594,12 +594,12 @@ def upload_experiment():
     try:
         # list the files in the directory
         files = os.listdir(f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}")
-        
+
         # Detect simulator type by checking which config file exists
         # Standard experiments use config_server.json, HPC use server_config.json
         config_path_standard = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json"
         config_path_hpc = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}server_config.json"
-        
+
         is_hpc_experiment = False
         if os.path.exists(config_path_hpc):
             config_path = config_path_hpc
@@ -608,7 +608,9 @@ def upload_experiment():
             config_path = config_path_standard
             is_hpc_experiment = False
         else:
-            raise FileNotFoundError("No server configuration file found (config_server.json or server_config.json)")
+            raise FileNotFoundError(
+                "No server configuration file found (config_server.json or server_config.json)"
+            )
 
         with open(config_path, "r") as f:
             experiment_config = json.load(f)
@@ -1119,7 +1121,7 @@ def upload_experiment():
             )
             if f.endswith(".json") and f.startswith("client") and original_name in f
         ]
-        
+
         # Handle missing client configs
         if len(client) == 0:
             if not is_hpc_experiment:
@@ -1133,8 +1135,10 @@ def upload_experiment():
             else:
                 # HPC experiments: Auto-create default client if config missing
                 # This ensures Client records exist for scheduler tracking
-                print(f"No client config found for HPC population {original_name}, creating default client")
-                
+                print(
+                    f"No client config found for HPC population {original_name}, creating default client"
+                )
+
                 # Create default Client record for HPC
                 default_client_name = f"client_{original_name}"
                 cl = Client(
@@ -1171,7 +1175,7 @@ def upload_experiment():
                 )
                 db.session.add(cl)
                 db.session.commit()
-                
+
                 # Create Client_Execution for progress tracking
                 expected_rounds = cl.days * 24  # HPC uses 24 hourly slots
                 client_exec = Client_Execution(
@@ -1183,8 +1187,10 @@ def upload_experiment():
                 )
                 db.session.add(client_exec)
                 db.session.commit()
-                
-                print(f"Created default HPC client '{default_client_name}' for population {original_name}")
+
+                print(
+                    f"Created default HPC client '{default_client_name}' for population {original_name}"
+                )
                 continue  # Skip to next population
 
         client_config = json.load(
@@ -1199,7 +1205,7 @@ def upload_experiment():
             # Extract basic information
             client_name = client_config.get("name", "hpc_client")
             client_days = client_config.get("simulation", {}).get("days", 7)
-            
+
             # Create minimal Client record for HPC
             # Many fields will use defaults since HPC config is simpler
             cl = Client(
@@ -1249,9 +1255,15 @@ def upload_experiment():
                 percentage_removed_agents_iteration=client_config["simulation"][
                     "percentage_removed_agents_iteration"
                 ],
-                max_length_thread_reading=client_config["agents"]["max_length_thread_reading"],
-                reading_from_follower_ratio=client_config["agents"]["reading_from_follower_ratio"],
-                probability_of_daily_follow=client_config["agents"]["probability_of_daily_follow"],
+                max_length_thread_reading=client_config["agents"][
+                    "max_length_thread_reading"
+                ],
+                reading_from_follower_ratio=client_config["agents"][
+                    "reading_from_follower_ratio"
+                ],
+                probability_of_daily_follow=client_config["agents"][
+                    "probability_of_daily_follow"
+                ],
                 attention_window=client_config["agents"]["attention_window"],
                 visibility_rounds=client_config["posts"]["visibility_rounds"],
                 post=client_config["simulation"]["actions_likelihood"]["post"],
@@ -1281,10 +1293,8 @@ def upload_experiment():
             slots = 24  # HPC uses hourly slots
         else:
             slots = client_config.get("simulation", {}).get("slots", 24)
-        
-        expected_rounds = (
-            -1 if cl.days == -1 else cl.days * slots
-        )
+
+        expected_rounds = -1 if cl.days == -1 else cl.days * slots
         client_exec = Client_Execution(
             client_id=cl.id,
             last_active_hour=-1,
@@ -4849,7 +4859,7 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         config_path = os.path.join(new_folder, "server_config.json")
     else:
         config_path = os.path.join(new_folder, "config_server.json")
-    
+
     if not os.path.exists(config_path):
         # Config file doesn't exist - cleanup and return
         if os.path.exists(new_folder):
@@ -5959,7 +5969,7 @@ def check_schedule_progress():
             exp.running = 1
             exp.exp_status = "active"
             db.session.commit()
-            
+
             # Start the server (use appropriate function for HPC vs Standard)
             if exp.simulator_type == "HPC":
                 start_hpc_server(exp)

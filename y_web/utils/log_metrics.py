@@ -552,7 +552,7 @@ def parse_client_log_incremental(
     # Track max day/hour for HPC client_execution updates
     max_day = -1
     max_hour = -1
-    
+
     # Track stats for logging
     total_lines = 0
     parsed_lines = 0
@@ -582,7 +582,7 @@ def parse_client_log_incremental(
                         summary_type = log_entry.get("summary_type")
                         if summary_type not in ("hourly", "daily"):
                             continue
-                        
+
                         if summary_type == "hourly":
                             hpc_hourly_count += 1
                         elif summary_type == "daily":
@@ -672,7 +672,7 @@ def parse_client_log_incremental(
     except Exception as e:
         logger.error(f"Error reading client log file: {e}", exc_info=True)
         return start_offset, {}
-    
+
     # Log parsing summary for HPC
     if is_hpc:
         logger.info(
@@ -773,7 +773,7 @@ def parse_client_log_incremental(
                 # Update elapsed_time (current round, 1-indexed)
                 # day 0, hour 0 = round 1
                 client_exec.elapsed_time = max_day * 24 + max_hour + 1
-                
+
                 logger.info(
                     f"HPC: Updated Client_Execution for client {client_id}: "
                     f"elapsed_time={client_exec.elapsed_time}, expected={client_exec.expected_duration_rounds}"
@@ -1044,7 +1044,7 @@ def update_client_log_metrics(exp_id, client_id, log_file_path, is_hpc=False):
         f"update_client_log_metrics called: exp_id={exp_id}, client_id={client_id}, "
         f"is_hpc={is_hpc}, log_file={log_file_path}"
     )
-    
+
     # Ensure session is in clean state before starting
     _ensure_session_clean(db.session)
 
