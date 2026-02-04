@@ -978,3 +978,322 @@ def update_client_log_metrics(exp_id, client_id, log_file_path, is_hpc=False):
     except Exception as e:
         logger.error(f"Error updating client log metrics: {e}", exc_info=True)
         return False
+
+
+def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path):
+    """
+    Check if an HPC client has completed execution by reading the execution log.
+    
+    Looks for the "Client shutdown complete" message in the last line of the
+    execution log file. If found, updates the client_execution table to mark
+    the client as completed.
+    
+    Args:
+        exp_id: Experiment ID
+        client_id: Client ID
+        execution_log_path: Full path to the {client_name}_execution.log file
+    
+    Returns:
+        bool: True if client is completed (shutdown message found), False otherwise
+    """
+    if not os.path.exists(execution_log_path):
+        return False
+    
+    try:
+        # Read the last line of the log file
+        with open(execution_log_path, 'r') as f:
+            # Efficiently read last line by seeking to end
+            # Handle both small and large files
+            try:
+                f.seek(0, os.SEEK_END)
+                file_size = f.tell()
+                
+                if file_size == 0:
+                    return False
+                
+                # Read up to 10KB from the end to find the last line
+                # This handles cases where the last line might be very long
+                chunk_size = min(10240, file_size)
+                f.seek(max(0, file_size - chunk_size))
+                lines = f.read().splitlines()
+                
+                if not lines:
+                    return False
+                
+                last_line = lines[-1].strip()
+            except Exception:
+                # Fallback: read entire file if seeking fails
+                f.seek(0)
+                lines = f.readlines()
+                if not lines:
+                    return False
+                last_line = lines[-1].strip()
+        
+        # Parse the last line as JSON
+        if not last_line:
+            return False
+        
+        try:
+            log_entry = json.loads(last_line)
+        except json.JSONDecodeError:
+            return False
+        
+        # Check if the message indicates client shutdown complete
+        message = log_entry.get("message", "")
+        if message == "Client shutdown complete":
+            logger.info(
+                f"HPC client {client_id} shutdown detected for experiment {exp_id}"
+            )
+            return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(
+            f"Error checking execution log for client {client_id}: {e}",
+            exc_info=True
+        )
+        return False
+
+
+def mark_hpc_client_as_completed(exp_id, client_id):
+    """
+    Mark an HPC client as completed in the client_execution table.
+    
+    Updates the client_execution record with:
+    - elapsed_time = expected_duration_rounds
+    - last_active_day and last_active_hour set to the maximum values from the Rounds table
+    - client status set to stopped (0)
+    
+    Args:
+        exp_id: Experiment ID
+        client_id: Client ID
+    
+    Returns:
+        bool: True if successfully marked as completed, False otherwise
+    """
+    try:
+        from y_web.models import Rounds
+        from y_web.experiment_context import get_db_bind_key_for_exp
+        
+        # Get client execution record
+        client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
+        if not client_exec:
+            logger.warning(
+                f"No client_execution record found for client {client_id}"
+            )
+            return False
+        
+        # Get the experiment to determine the database bind
+        exp = db.session.query(Client).filter_by(id=client_id).first()
+        if not exp:
+            logger.warning(f"Client {client_id} not found")
+            return False
+        
+        # Query the Rounds table to get the maximum day and hour
+        # Rounds table is in the experiment database (db_exp)
+        try:
+            # Use the experiment's bind key to query Rounds
+            bind_key = get_db_bind_key_for_exp(exp_id)
+            
+            # Get max day and hour from Rounds table
+            max_round = db.session.query(Rounds).order_by(
+                Rounds.day.desc(), Rounds.hour.desc()
+            ).first()
+            
+            if max_round:
+                max_day = max_round.day
+                max_hour = max_round.hour
+            else:
+                # Fallback: use expected_duration_rounds to calculate
+                # Assuming day 0, hour 0 = round 1
+                if client_exec.expected_duration_rounds > 0:
+                    total_hours = client_exec.expected_duration_rounds - 1
+                    max_day = total_hours // 24
+                    max_hour = total_hours % 24
+                else:
+                    max_day = 0
+                    max_hour = 0
+        except Exception as e:
+            logger.warning(
+                f"Error querying Rounds table for exp {exp_id}: {e}. Using fallback."
+            )
+            # Fallback: calculate from expected_duration_rounds
+            if client_exec.expected_duration_rounds > 0:
+                total_hours = client_exec.expected_duration_rounds - 1
+                max_day = total_hours // 24
+                max_hour = total_hours % 24
+            else:
+                max_day = 0
+                max_hour = 0
+        
+        # Update client_execution record
+        client_exec.elapsed_time = client_exec.expected_duration_rounds
+        client_exec.last_active_day = max_day
+        client_exec.last_active_hour = max_hour
+        
+        # Mark client as stopped
+        client = Client.query.filter_by(id=client_id).first()
+        if client:
+            client.status = 0
+            logger.info(
+                f"Marked HPC client {client_id} as completed: "
+                f"elapsed_time={client_exec.elapsed_time}, "
+                f"last_active_day={max_day}, last_active_hour={max_hour}"
+            )
+        
+        # Commit changes
+        _commit_with_retry(db.session)
+        return True
+        
+    except Exception as e:
+        logger.error(
+            f"Error marking client {client_id} as completed: {e}",
+            exc_info=True
+        )
+        db.session.rollback()
+        return False
+
+
+def check_and_terminate_hpc_experiment(exp_id):
+    """
+    Check if all clients of an HPC experiment are completed and terminate the server if so.
+    
+    Args:
+        exp_id: Experiment ID
+    
+    Returns:
+        bool: True if experiment was terminated, False otherwise
+    """
+    try:
+        from y_web.models import Exps
+        from y_web.utils.external_processes import terminate_hpc_server_process
+        
+        # Get the experiment
+        exp = Exps.query.filter_by(idexp=exp_id).first()
+        if not exp:
+            return False
+        
+        # Only process HPC experiments that are running
+        if exp.simulator_type != "HPC" or exp.running != 1:
+            return False
+        
+        # Get all clients for this experiment
+        clients = Client.query.filter_by(id_exp=exp_id).all()
+        if not clients:
+            return False
+        
+        # Check if all clients are completed (status = 0)
+        all_completed = all(client.status == 0 for client in clients)
+        
+        if all_completed:
+            logger.info(
+                f"All clients completed for HPC experiment {exp_id} ({exp.exp_name}). "
+                f"Terminating server..."
+            )
+            
+            # Terminate the server process
+            terminate_hpc_server_process(exp_id)
+            
+            # Update experiment status
+            exp.running = 0
+            exp.exp_status = "completed"
+            _commit_with_retry(db.session)
+            
+            logger.info(f"HPC experiment {exp_id} terminated successfully")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(
+            f"Error checking/terminating HPC experiment {exp_id}: {e}",
+            exc_info=True
+        )
+        db.session.rollback()
+        return False
+
+
+def monitor_hpc_client_execution_logs():
+    """
+    Monitor execution logs for all active HPC experiments.
+    
+    For each running HPC client:
+    1. Check if {client_name}_execution.log exists
+    2. Check if last line contains "Client shutdown complete"
+    3. If yes, mark client as completed and update client_execution table
+    4. Check if all clients are completed and terminate server if so
+    
+    This function should be called periodically (e.g., every 30 seconds).
+    """
+    from y_web.models import Exps
+    from y_web.utils.path_utils import get_writable_path
+    
+    BASE_DIR = get_writable_path()
+    
+    try:
+        # Get all running HPC experiments
+        hpc_experiments = Exps.query.filter_by(
+            simulator_type="HPC", running=1
+        ).all()
+        
+        if not hpc_experiments:
+            return
+        
+        logger.debug(f"Monitoring {len(hpc_experiments)} active HPC experiment(s)")
+        
+        for exp in hpc_experiments:
+            try:
+                # Determine experiment folder path
+                db_name = exp.db_name
+                if db_name.startswith("experiments/") or db_name.startswith("experiments\\"):
+                    parts = db_name.split(os.sep)
+                    if len(parts) >= 2:
+                        exp_folder = os.path.join(
+                            BASE_DIR, f"y_web{os.sep}experiments{os.sep}{parts[1]}"
+                        )
+                    else:
+                        continue
+                elif db_name.startswith("experiments_"):
+                    uid = db_name.replace("experiments_", "")
+                    exp_folder = os.path.join(
+                        BASE_DIR, f"y_web{os.sep}experiments{os.sep}{uid}"
+                    )
+                else:
+                    continue
+                
+                # Get all running clients for this experiment
+                clients = Client.query.filter_by(id_exp=exp.idexp, status=1).all()
+                
+                for client in clients:
+                    # Check if execution log exists
+                    execution_log_path = os.path.join(
+                        exp_folder, f"{client.name}_execution.log"
+                    )
+                    
+                    if not os.path.exists(execution_log_path):
+                        continue
+                    
+                    # Check if client has completed
+                    if check_hpc_client_execution_completion(
+                        exp.idexp, client.id, execution_log_path
+                    ):
+                        # Mark client as completed
+                        if mark_hpc_client_as_completed(exp.idexp, client.id):
+                            logger.info(
+                                f"Successfully marked client {client.name} as completed "
+                                f"for experiment {exp.exp_name}"
+                            )
+                
+                # After processing all clients, check if experiment should be terminated
+                check_and_terminate_hpc_experiment(exp.idexp)
+                
+            except Exception as e:
+                logger.error(
+                    f"Error monitoring HPC experiment {exp.exp_name}: {e}",
+                    exc_info=True
+                )
+                continue
+    
+    except Exception as e:
+        logger.error(f"Error in HPC execution log monitoring: {e}", exc_info=True)

@@ -39,6 +39,7 @@ class LogSyncScheduler:
         self.app = app
         self._stop_event = threading.Event()
         self._thread = None
+        self._hpc_monitor_thread = None
         self._started = False
 
     def start(self):
@@ -50,8 +51,10 @@ class LogSyncScheduler:
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
+        self._hpc_monitor_thread = threading.Thread(target=self._run_hpc_monitor, daemon=True)
+        self._hpc_monitor_thread.start()
         self._started = True
-        logger.info("Log sync scheduler started")
+        logger.info("Log sync scheduler and HPC monitor started")
 
     def stop(self):
         """Stop the background scheduler thread."""
@@ -61,8 +64,10 @@ class LogSyncScheduler:
         self._stop_event.set()
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=5)
+        if self._hpc_monitor_thread and self._hpc_monitor_thread.is_alive():
+            self._hpc_monitor_thread.join(timeout=5)
         self._started = False
-        logger.info("Log sync scheduler stopped")
+        logger.info("Log sync scheduler and HPC monitor stopped")
 
     def _run(self):
         """Main scheduler loop running in background thread."""
@@ -106,6 +111,27 @@ class LogSyncScheduler:
                 logger.error(f"Error in log sync scheduler: {e}", exc_info=True)
                 # Sleep before retrying on error
                 self._stop_event.wait(60)
+
+    def _run_hpc_monitor(self):
+        """HPC execution log monitor loop running in background thread."""
+        # Wait a bit before first run to let the app fully start
+        time.sleep(5)
+
+        while not self._stop_event.is_set():
+            try:
+                with self.app.app_context():
+                    # Monitor HPC client execution logs
+                    from y_web.utils.log_metrics import monitor_hpc_client_execution_logs
+                    
+                    monitor_hpc_client_execution_logs()
+                    
+                    # Sleep for 30 seconds before next check
+                    self._stop_event.wait(30)
+
+            except Exception as e:
+                logger.error(f"Error in HPC execution log monitor: {e}", exc_info=True)
+                # Sleep before retrying on error
+                self._stop_event.wait(30)
 
     def _get_settings(self):
         """Get log sync settings from database with proper error handling."""
