@@ -1167,7 +1167,7 @@ def check_and_terminate_hpc_experiment(exp_id):
     """
     try:
         from y_web.models import Exps
-        from y_web.utils.external_processes import terminate_hpc_server_process
+        from y_web.utils.external_processes import stop_hpc_server
         
         # Get the experiment
         exp = Exps.query.filter_by(idexp=exp_id).first()
@@ -1193,7 +1193,7 @@ def check_and_terminate_hpc_experiment(exp_id):
             )
             
             # Terminate the server process
-            terminate_hpc_server_process(exp_id)
+            stop_hpc_server(exp_id)
             
             # Update experiment status
             exp.running = 0
