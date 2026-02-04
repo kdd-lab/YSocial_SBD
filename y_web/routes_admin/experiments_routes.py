@@ -594,7 +594,21 @@ def upload_experiment():
     try:
         # list the files in the directory
         files = os.listdir(f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}")
-        config_path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json"
+        
+        # Detect simulator type by checking which config file exists
+        # Standard experiments use config_server.json, HPC use server_config.json
+        config_path_standard = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json"
+        config_path_hpc = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}server_config.json"
+        
+        is_hpc_experiment = False
+        if os.path.exists(config_path_hpc):
+            config_path = config_path_hpc
+            is_hpc_experiment = True
+        elif os.path.exists(config_path_standard):
+            config_path = config_path_standard
+            is_hpc_experiment = False
+        else:
+            raise FileNotFoundError("No server configuration file found (config_server.json or server_config.json)")
 
         with open(config_path, "r") as f:
             experiment_config = json.load(f)
@@ -822,7 +836,7 @@ def upload_experiment():
             server=experiment_config.get("host", "127.0.0.1"),
             platform_type=experiment_config.get("platform_type", "microblogging"),
             llm_agents_enabled=llm_agents_enabled,
-            simulator_type="Standard",  # Default to Standard for uploaded experiments
+            simulator_type="HPC" if is_hpc_experiment else "Standard",
             exp_group=exp_group,
         )
 
@@ -873,12 +887,14 @@ def upload_experiment():
         return redirect(request.referrer)
 
     # get the json files that do not start with "client"
+    # Also exclude server_config.json for HPC experiments
     populations = [
         f
         for f in os.listdir(f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}")
         if f.endswith(".json")
         and not f.startswith("client")
         and f != "config_server.json"
+        and f != "server_config.json"  # Exclude HPC server config
         and f != "prompts.json"
     ]
 
@@ -1093,7 +1109,9 @@ def upload_experiment():
                     db.session.add(ap)
                     db.session.commit()
 
-        # get the json file that start with "client" and contains "population"
+        # Get client configuration file for this population
+        # For Standard: client_*.json files containing population name
+        # For HPC: client_{name}-{population}.json files
         client = [
             f
             for f in os.listdir(
@@ -1101,63 +1119,171 @@ def upload_experiment():
             )
             if f.endswith(".json") and f.startswith("client") and original_name in f
         ]
+        
+        # Handle missing client configs
         if len(client) == 0:
-            flash("No client file found for the population")
-            shutil.rmtree(
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}",
-                ignore_errors=True,
-            )
-            return redirect(request.referrer)
+            if not is_hpc_experiment:
+                # Standard experiments REQUIRE client config
+                flash("No client file found for the population")
+                shutil.rmtree(
+                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}",
+                    ignore_errors=True,
+                )
+                return redirect(request.referrer)
+            else:
+                # HPC experiments: Auto-create default client if config missing
+                # This ensures Client records exist for scheduler tracking
+                print(f"No client config found for HPC population {original_name}, creating default client")
+                
+                # Create default Client record for HPC
+                default_client_name = f"client_{original_name}"
+                cl = Client(
+                    id_exp=exp.idexp,
+                    population_id=population.id,
+                    status=0,
+                    name=default_client_name,
+                    descr=f"Auto-created client for {original_name}",
+                    days=7,  # Default 7 days
+                    percentage_new_agents_iteration=0,
+                    percentage_removed_agents_iteration=0,
+                    max_length_thread_reading=10,
+                    reading_from_follower_ratio=0.5,
+                    probability_of_daily_follow=0.1,
+                    attention_window=24,
+                    visibility_rounds=36,
+                    post=0.3,
+                    share=0.2,
+                    image=0.1,
+                    comment=0.2,
+                    read=0.8,
+                    news=0.1,
+                    search=0.1,
+                    vote=0.1,
+                    llm="",
+                    llm_api_key="",
+                    llm_max_tokens=100,
+                    llm_temperature=0.7,
+                    llm_v_agent=0,
+                    llm_v="",
+                    llm_v_api_key="",
+                    llm_v_max_tokens=100,
+                    llm_v_temperature=0.7,
+                )
+                db.session.add(cl)
+                db.session.commit()
+                
+                # Create Client_Execution for progress tracking
+                expected_rounds = cl.days * 24  # HPC uses 24 hourly slots
+                client_exec = Client_Execution(
+                    client_id=cl.id,
+                    elapsed_time=0,
+                    expected_duration_rounds=expected_rounds,
+                    last_active_hour=-1,
+                    last_active_day=-1,
+                )
+                db.session.add(client_exec)
+                db.session.commit()
+                
+                print(f"Created default HPC client '{default_client_name}' for population {original_name}")
+                continue  # Skip to next population
 
-        client = json.load(
+        client_config = json.load(
             open(
                 f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}{client[0]}"
             )
         )
 
-        # add client to the database
-        cl = Client(
-            id_exp=exp.idexp,
-            population_id=population.id,
-            status=0,
-            name=client["simulation"]["name"],
-            descr="",
-            days=client["simulation"]["days"],
-            percentage_new_agents_iteration=client["simulation"][
-                "percentage_new_agents_iteration"
-            ],
-            percentage_removed_agents_iteration=client["simulation"][
-                "percentage_removed_agents_iteration"
-            ],
-            max_length_thread_reading=client["agents"]["max_length_thread_reading"],
-            reading_from_follower_ratio=client["agents"]["reading_from_follower_ratio"],
-            probability_of_daily_follow=client["agents"]["probability_of_daily_follow"],
-            attention_window=client["agents"]["attention_window"],
-            visibility_rounds=client["posts"]["visibility_rounds"],
-            post=client["simulation"]["actions_likelihood"]["post"],
-            share=client["simulation"]["actions_likelihood"]["share"],
-            image=client["simulation"]["actions_likelihood"]["image"],
-            comment=client["simulation"]["actions_likelihood"]["comment"],
-            read=client["simulation"]["actions_likelihood"]["read"],
-            news=client["simulation"]["actions_likelihood"]["news"],
-            search=client["simulation"]["actions_likelihood"]["search"],
-            vote=client["simulation"]["actions_likelihood"]["cast"],
-            llm=client["servers"]["llm"],
-            llm_api_key=client["servers"]["llm_api_key"],
-            llm_max_tokens=client["servers"]["llm_max_tokens"],
-            llm_temperature=client["servers"]["llm_temperature"],
-            llm_v_agent=client["agents"]["llm_v_agent"],
-            llm_v=client["servers"]["llm_v"],
-            llm_v_api_key=client["servers"]["llm_v_api_key"],
-            llm_v_max_tokens=client["servers"]["llm_v_max_tokens"],
-            llm_v_temperature=client["servers"]["llm_v_temperature"],
-        )
+        # Parse client configuration based on experiment type
+        if is_hpc_experiment:
+            # HPC client config has simpler structure
+            # Extract basic information
+            client_name = client_config.get("name", "hpc_client")
+            client_days = client_config.get("simulation", {}).get("days", 7)
+            
+            # Create minimal Client record for HPC
+            # Many fields will use defaults since HPC config is simpler
+            cl = Client(
+                id_exp=exp.idexp,
+                population_id=population.id,
+                status=0,
+                name=client_name,
+                descr="",
+                days=client_days,
+                percentage_new_agents_iteration=0,
+                percentage_removed_agents_iteration=0,
+                max_length_thread_reading=10,
+                reading_from_follower_ratio=0.5,
+                probability_of_daily_follow=0.1,
+                attention_window=24,
+                visibility_rounds=36,
+                post=0.3,
+                share=0.2,
+                image=0.1,
+                comment=0.2,
+                read=0.8,
+                news=0.1,
+                search=0.1,
+                vote=0.1,
+                llm="",
+                llm_api_key="",
+                llm_max_tokens=100,
+                llm_temperature=0.7,
+                llm_v_agent=0,
+                llm_v="",
+                llm_v_api_key="",
+                llm_v_max_tokens=100,
+                llm_v_temperature=0.7,
+            )
+        else:
+            # Standard client config - use existing parsing logic
+            cl = Client(
+                id_exp=exp.idexp,
+                population_id=population.id,
+                status=0,
+                name=client_config["simulation"]["name"],
+                descr="",
+                days=client_config["simulation"]["days"],
+                percentage_new_agents_iteration=client_config["simulation"][
+                    "percentage_new_agents_iteration"
+                ],
+                percentage_removed_agents_iteration=client_config["simulation"][
+                    "percentage_removed_agents_iteration"
+                ],
+                max_length_thread_reading=client_config["agents"]["max_length_thread_reading"],
+                reading_from_follower_ratio=client_config["agents"]["reading_from_follower_ratio"],
+                probability_of_daily_follow=client_config["agents"]["probability_of_daily_follow"],
+                attention_window=client_config["agents"]["attention_window"],
+                visibility_rounds=client_config["posts"]["visibility_rounds"],
+                post=client_config["simulation"]["actions_likelihood"]["post"],
+                share=client_config["simulation"]["actions_likelihood"]["share"],
+                image=client_config["simulation"]["actions_likelihood"]["image"],
+                comment=client_config["simulation"]["actions_likelihood"]["comment"],
+                read=client_config["simulation"]["actions_likelihood"]["read"],
+                news=client_config["simulation"]["actions_likelihood"]["news"],
+                search=client_config["simulation"]["actions_likelihood"]["search"],
+                vote=client_config["simulation"]["actions_likelihood"]["cast"],
+                llm=client_config["servers"]["llm"],
+                llm_api_key=client_config["servers"]["llm_api_key"],
+                llm_max_tokens=client_config["servers"]["llm_max_tokens"],
+                llm_temperature=client_config["servers"]["llm_temperature"],
+                llm_v_agent=client_config["agents"]["llm_v_agent"],
+                llm_v=client_config["servers"]["llm_v"],
+                llm_v_api_key=client_config["servers"]["llm_v_api_key"],
+                llm_v_max_tokens=client_config["servers"]["llm_v_max_tokens"],
+                llm_v_temperature=client_config["servers"]["llm_v_temperature"],
+            )
         db.session.add(cl)
         db.session.commit()
 
         # For infinite clients (days = -1), set expected_duration_rounds to -1
+        # For HPC, slots default to 24 (one per hour)
+        if is_hpc_experiment:
+            slots = 24  # HPC uses hourly slots
+        else:
+            slots = client_config.get("simulation", {}).get("slots", 24)
+        
         expected_rounds = (
-            -1 if cl.days == -1 else cl.days * client["simulation"]["slots"]
+            -1 if cl.days == -1 else cl.days * slots
         )
         client_exec = Client_Execution(
             client_id=cl.id,
@@ -2075,13 +2201,61 @@ def experiment_clients(exp_id):
         if user.role == "researcher" and experiment.owner != user.username:
             return jsonify({"error": "Access denied"}), 403
 
+        # Import log metrics function and path utilities
+        from y_web.utils.log_metrics import update_client_log_metrics
+        from y_web.utils.path_utils import get_writable_path
+
+        BASE_DIR = get_writable_path()
+
+        # Get experiment folder path
+        uid = get_experiment_uid_from_db_name(experiment.db_name)
+        if uid is None:
+            return jsonify({"error": "Invalid experiment path format"}), 400
+
+        exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+
         # Get clients for this experiment
         clients = Client.query.filter_by(id_exp=exp_id).all()
 
         client_data = []
         for client in clients:
-            # Get client execution data
+            # Update client log metrics before reading execution data
+            # This ensures we have the latest progress information
+            client_log_file = os.path.join(exp_folder, f"{client.name}_client.log")
+            if os.path.exists(client_log_file):
+                try:
+                    # Pass is_hpc flag for HPC experiments to use correct log format
+                    is_hpc = experiment.simulator_type == "HPC"
+                    current_app.logger.info(
+                        f"Updating metrics for client {client.id} ({client.name}), "
+                        f"is_hpc={is_hpc}, log_file={client_log_file}"
+                    )
+                    update_client_log_metrics(
+                        exp_id, client.id, client_log_file, is_hpc=is_hpc
+                    )
+                except Exception as e:
+                    current_app.logger.error(
+                        f"Error updating client {client.id} log metrics: {e}",
+                        exc_info=True,
+                    )
+            else:
+                current_app.logger.warning(
+                    f"Log file not found for client {client.id} ({client.name}): {client_log_file}"
+                )
+
+            # Get client execution data (now updated with latest info)
             client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
+
+            if client_exec:
+                current_app.logger.info(
+                    f"Client_Execution for client {client.id}: elapsed_time={client_exec.elapsed_time}, "
+                    f"expected={client_exec.expected_duration_rounds}, "
+                    f"last_day={client_exec.last_active_day}, last_hour={client_exec.last_active_hour}"
+                )
+            else:
+                current_app.logger.warning(
+                    f"No Client_Execution record found for client {client.id} ({client.name})"
+                )
 
             client_info = {
                 "id": client.id,
@@ -4547,26 +4721,34 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         shutil.rmtree(new_folder, ignore_errors=True)
         return False
 
+    # Detect if this is an HPC or Standard experiment BEFORE handling database
+    # This is critical: HPC experiments generate their own database on server startup
+    is_hpc = os.path.exists(os.path.join(new_folder, "server_config.json"))
+
     # Handle database copying first to get the correct db_uri
     new_db_name = ""
     new_db_uri = ""
 
     if db_type == "sqlite":
-        # Create a fresh SQLite database with clean schema (no data from source)
+        # Create database path
         new_db_path = os.path.join(new_folder, "database_server.db")
 
-        # Copy the clean database schema instead of the source database
-        clean_db_path = get_resource_path(
-            os.path.join("data_schema", "database_clean_server.db")
-        )
-        if os.path.exists(clean_db_path):
-            shutil.copy2(clean_db_path, new_db_path)
-        else:
-            # Create an empty database file
-            import sqlite3
+        # Only Standard experiments get a pre-created database
+        # HPC experiments: database is created automatically by the server on first startup
+        if not is_hpc:
+            # Copy the clean database schema for Standard experiments
+            clean_db_path = get_resource_path(
+                os.path.join("data_schema", "database_clean_server.db")
+            )
+            if os.path.exists(clean_db_path):
+                shutil.copy2(clean_db_path, new_db_path)
+            else:
+                # If clean DB doesn't exist, create an empty database file
+                import sqlite3
 
-            conn = sqlite3.connect(new_db_path)
-            conn.close()
+                conn = sqlite3.connect(new_db_path)
+                conn.close()
+        # For HPC: Do NOT create any database file - the HPC server will create it on startup
 
         new_db_name = f"experiments{os.sep}{new_uid}{os.sep}database_server.db"
 
@@ -4660,10 +4842,16 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
 
         admin_engine.dispose()
 
-    # Update config_server.json with new name, port, and database_uri
-    config_path = os.path.join(new_folder, "config_server.json")
+    # Update configuration file with new name, port, and database_uri
+    # is_hpc was already detected earlier (before database copying)
+    # Just need to determine the correct config path
+    if is_hpc:
+        config_path = os.path.join(new_folder, "server_config.json")
+    else:
+        config_path = os.path.join(new_folder, "config_server.json")
+    
     if not os.path.exists(config_path):
-        # Cleanup and return
+        # Config file doesn't exist - cleanup and return
         if os.path.exists(new_folder):
             shutil.rmtree(new_folder, ignore_errors=True)
         return False
@@ -4671,12 +4859,22 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     with open(config_path, "r") as f:
         config = json.load(f)
 
-    # Update all necessary fields
-    config["name"] = new_exp_name
-    config["port"] = suggested_port
-    config["database_uri"] = new_db_uri
-    # Add data_path so YServer knows where to write logs (e.g., _server.log)
-    config["data_path"] = new_folder + os.sep
+    # Update configuration fields based on experiment type
+    if is_hpc:
+        # HPC experiment configuration structure
+        config["experiment_name"] = new_exp_name
+        if "server" in config:
+            config["server"]["port"] = suggested_port
+        else:
+            config["server"] = {"port": suggested_port}
+        config["database_uri"] = new_db_uri
+    else:
+        # Standard experiment configuration structure
+        config["name"] = new_exp_name
+        config["port"] = suggested_port
+        config["database_uri"] = new_db_uri
+        # Add data_path so YServer knows where to write logs (e.g., _server.log)
+        config["data_path"] = new_folder + os.sep
 
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
@@ -4685,37 +4883,61 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     with open(config_path, "r") as f:
         verify_config = json.load(f)
 
-    if (
-        verify_config.get("port") != suggested_port
-        or verify_config.get("database_uri") != new_db_uri
-    ):
-        # Cleanup and return
-        if os.path.exists(new_folder):
-            shutil.rmtree(new_folder, ignore_errors=True)
-        return False
+    # Verify based on experiment type
+    if is_hpc:
+        if (
+            verify_config.get("experiment_name") != new_exp_name
+            or verify_config.get("server", {}).get("port") != suggested_port
+            or verify_config.get("database_uri") != new_db_uri
+        ):
+            # Cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
+    else:
+        if (
+            verify_config.get("port") != suggested_port
+            or verify_config.get("database_uri") != new_db_uri
+        ):
+            # Cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
 
     # Update all client configuration files with new port
-    # Client configs have the format: client_*.json
+    # Standard: client_*.json, HPC: {client_name}_config.json
+    # The is_hpc flag determines which config structure to update, not the filename pattern
+
     for item in os.listdir(new_folder):
-        if item.startswith("client") and item.endswith(".json"):
+        # Match Standard (client_*.json) OR HPC (*_config.json excluding server_config.json)
+        is_standard_client = item.startswith("client") and item.endswith(".json")
+        is_hpc_client = item.endswith("_config.json") and not item.startswith("server")
+
+        if is_standard_client or is_hpc_client:
             client_config_path = os.path.join(new_folder, item)
             try:
                 with open(client_config_path, "r") as f:
                     client_config = json.load(f)
 
-                # Update the API endpoint in servers section
-                if "servers" in client_config and "api" in client_config["servers"]:
-                    # Update the port in the API URL
-                    old_api = client_config["servers"]["api"]
-                    # Replace port in URL - handles both with and without trailing slash
-                    # Pattern matches :port/ or :port at end of string
-                    import re
+                # Update port based on experiment type
+                if is_hpc:
+                    # HPC client config format: "server": {"address": null, "port": null}
+                    if "server" in client_config:
+                        client_config["server"]["port"] = suggested_port
+                else:
+                    # Standard client config: "servers": {"api": "http://..."}
+                    if "servers" in client_config and "api" in client_config["servers"]:
+                        # Update the port in the API URL
+                        old_api = client_config["servers"]["api"]
+                        # Replace port in URL - handles both with and without trailing slash
+                        # Pattern matches :port/ or :port at end of string
+                        new_api = re.sub(
+                            r":(\d+)(/|$)", f":{suggested_port}\\2", old_api
+                        )
+                        client_config["servers"]["api"] = new_api
 
-                    new_api = re.sub(r":(\d+)(/|$)", f":{suggested_port}\\2", old_api)
-                    client_config["servers"]["api"] = new_api
-
-                    with open(client_config_path, "w") as f:
-                        json.dump(client_config, f, indent=4)
+                with open(client_config_path, "w") as f:
+                    json.dump(client_config, f, indent=4)
             except Exception as e:
                 # Continue anyway - this is not critical enough to fail the entire copy
                 current_app.logger.warning(
@@ -5447,8 +5669,11 @@ def start_schedule():
             exp.exp_status = "active"
             db.session.commit()
 
-            # Start the server
-            start_server(exp)
+            # Start the server (use appropriate function for HPC vs Standard)
+            if exp.simulator_type == "HPC":
+                start_hpc_server(exp)
+            else:
+                start_server(exp)
             started_count += 1
 
             # Wait for server to be ready
@@ -5734,7 +5959,12 @@ def check_schedule_progress():
             exp.running = 1
             exp.exp_status = "active"
             db.session.commit()
-            start_server(exp)
+            
+            # Start the server (use appropriate function for HPC vs Standard)
+            if exp.simulator_type == "HPC":
+                start_hpc_server(exp)
+            else:
+                start_server(exp)
 
             # Wait for server to be ready
             logs.append(f"Waiting for server '{exp.exp_name}' to be ready...")

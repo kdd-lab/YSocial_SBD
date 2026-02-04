@@ -2200,6 +2200,26 @@ def start_hpc_client(exp, cli, population):
     # Save the PID to the database for persistent tracking
     cli.pid = process.pid
     db.session.commit()
+    
+    # Initialize or get Client_Execution record for progress tracking
+    # This is essential for HPC clients to track simulation progress
+    client_exec = Client_Execution.query.filter_by(client_id=cli.id).first()
+    if not client_exec:
+        # Create new Client_Execution record
+        # For infinite clients (days = -1), set expected_duration_rounds to -1
+        expected_rounds = -1 if cli.days == -1 else cli.days * 24
+        client_exec = Client_Execution(
+            client_id=cli.id,
+            elapsed_time=0,
+            expected_duration_rounds=expected_rounds,
+            last_active_hour=-1,
+            last_active_day=-1,
+        )
+        db.session.add(client_exec)
+        db.session.commit()
+        print(f"Created Client_Execution record for HPC client {cli.name} (expected rounds: {expected_rounds})")
+    else:
+        print(f"Client_Execution record already exists for HPC client {cli.name}")
 
     return process
 
