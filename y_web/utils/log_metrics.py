@@ -997,6 +997,7 @@ def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path)
         bool: True if client is completed (shutdown message found), False otherwise
     """
     if not os.path.exists(execution_log_path):
+        print(f"[HPC Monitor] Execution log does not exist: {execution_log_path}")
         return False
     
     try:
@@ -1009,6 +1010,7 @@ def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path)
                 file_size = f.tell()
                 
                 if file_size == 0:
+                    print(f"[HPC Monitor] Execution log is empty: {execution_log_path}")
                     return False
                 
                 # Read up to 10KB from the end to find the last line
@@ -1018,10 +1020,13 @@ def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path)
                 lines = f.read().splitlines()
                 
                 if not lines:
+                    print(f"[HPC Monitor] No lines found in execution log: {execution_log_path}")
                     return False
                 
                 last_line = lines[-1].strip()
-            except Exception:
+                print(f"[HPC Monitor] Last line from {execution_log_path}: {last_line[:200]}...")
+            except Exception as e:
+                print(f"[HPC Monitor] Error seeking in file, using fallback: {e}")
                 # Fallback: read entire file if seeking fails
                 f.seek(0)
                 lines = f.readlines()
@@ -1031,21 +1036,28 @@ def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path)
         
         # Parse the last line as JSON
         if not last_line:
+            print(f"[HPC Monitor] Last line is empty")
             return False
         
         try:
             log_entry = json.loads(last_line)
-        except json.JSONDecodeError:
+            print(f"[HPC Monitor] Parsed JSON: {log_entry}")
+        except json.JSONDecodeError as e:
+            print(f"[HPC Monitor] Failed to parse JSON: {e}")
             return False
         
         # Check if the message indicates client shutdown complete
         message = log_entry.get("message", "")
+        print(f"[HPC Monitor] Message field: '{message}'")
+        
         if message == "Client shutdown complete":
+            print(f"[HPC Monitor] *** MATCH: Client shutdown complete message found! ***")
             logger.info(
                 f"HPC client {client_id} shutdown detected for experiment {exp_id}"
             )
             return True
         
+        print(f"[HPC Monitor] Message does not match 'Client shutdown complete'")
         return False
         
     except Exception as e:
@@ -1053,6 +1065,7 @@ def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path)
             f"Error checking execution log for client {client_id}: {e}",
             exc_info=True
         )
+        print(f"[HPC Monitor] Exception checking execution log: {e}")
         return False
 
 
@@ -1073,19 +1086,26 @@ def mark_hpc_client_as_completed(exp_id, client_id):
         bool: True if successfully marked as completed, False otherwise
     """
     try:
+        print(f"[HPC Monitor] Marking client {client_id} as completed...")
+        
         # Get client execution record
         client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
         if not client_exec:
             logger.warning(
                 f"No client_execution record found for client {client_id}"
             )
+            print(f"[HPC Monitor] No client_execution record found for client {client_id}")
             return False
         
         # Get the client to verify it exists
         client = Client.query.filter_by(id=client_id).first()
         if not client:
             logger.warning(f"Client {client_id} not found")
+            print(f"[HPC Monitor] Client {client_id} not found")
             return False
+        
+        print(f"[HPC Monitor] Client name: {client.name}, current status: {client.status}")
+        print(f"[HPC Monitor] Expected duration: {client_exec.expected_duration_rounds} rounds")
         
         # Calculate max day and hour from expected_duration_rounds
         # Since each experiment has its own database and the Rounds table is in db_exp,
@@ -1105,8 +1125,12 @@ def mark_hpc_client_as_completed(exp_id, client_id):
         client_exec.last_active_day = max_day
         client_exec.last_active_hour = max_hour
         
+        print(f"[HPC Monitor] Setting: elapsed_time={client_exec.elapsed_time}, last_active_day={max_day}, last_active_hour={max_hour}")
+        
         # Mark client as stopped (client is guaranteed to exist from earlier check)
         client.status = 0
+        print(f"[HPC Monitor] Setting client status to 0 (stopped)")
+        
         logger.info(
             f"Marked HPC client {client_id} as completed: "
             f"elapsed_time={client_exec.elapsed_time}, "
@@ -1114,7 +1138,9 @@ def mark_hpc_client_as_completed(exp_id, client_id):
         )
         
         # Commit changes
+        print(f"[HPC Monitor] Committing changes to database...")
         _commit_with_retry(db.session)
+        print(f"[HPC Monitor] *** Client {client.name} successfully marked as completed ***")
         return True
         
     except Exception as e:
@@ -1143,33 +1169,45 @@ def check_and_terminate_hpc_experiment(exp_id):
         # Get the experiment
         exp = Exps.query.filter_by(idexp=exp_id).first()
         if not exp:
+            print(f"[HPC Monitor] Experiment {exp_id} not found")
             return False
         
         # Only process HPC experiments that are running
         if exp.simulator_type != "HPC" or exp.running != 1:
+            print(f"[HPC Monitor] Experiment {exp.exp_name} is not HPC or not running (type={exp.simulator_type}, running={exp.running})")
             return False
         
         # Get all clients for this experiment
         clients = Client.query.filter_by(id_exp=exp_id).all()
         if not clients:
+            print(f"[HPC Monitor] No clients found for experiment {exp.exp_name}")
             return False
         
         # Check if all clients are completed (status = 0)
+        completed_count = sum(1 for client in clients if client.status == 0)
+        total_count = len(clients)
+        print(f"[HPC Monitor] Experiment {exp.exp_name}: {completed_count}/{total_count} clients completed")
+        
         all_completed = all(client.status == 0 for client in clients)
         
         if all_completed:
+            print(f"[HPC Monitor] *** ALL CLIENTS COMPLETED for {exp.exp_name} ***")
             logger.info(
                 f"All clients completed for HPC experiment {exp_id} ({exp.exp_name}). "
                 f"Terminating server..."
             )
             
             # Terminate the server process
+            print(f"[HPC Monitor] Calling stop_hpc_server for experiment {exp_id}...")
             stop_hpc_server(exp_id)
+            print(f"[HPC Monitor] stop_hpc_server completed")
             
             # Update experiment status
+            print(f"[HPC Monitor] Updating experiment status: setting running=0, exp_status='completed'")
             exp.running = 0
             exp.exp_status = "completed"
             _commit_with_retry(db.session)
+            print(f"[HPC Monitor] *** EXPERIMENT {exp.exp_name} STATUS UPDATED: running={exp.running}, status={exp.exp_status} ***")
             
             logger.info(f"HPC experiment {exp_id} terminated successfully")
             return True
@@ -1181,6 +1219,7 @@ def check_and_terminate_hpc_experiment(exp_id):
             f"Error checking/terminating HPC experiment {exp_id}: {e}",
             exc_info=True
         )
+        print(f"[HPC Monitor] Error checking/terminating experiment {exp_id}: {e}")
         db.session.rollback()
         return False
 
@@ -1195,7 +1234,7 @@ def monitor_hpc_client_execution_logs():
     3. If yes, mark client as completed and update client_execution table
     4. Check if all clients are completed and terminate server if so
     
-    This function should be called periodically (e.g., every 30 seconds).
+    This function should be called periodically (e.g., every 5 seconds).
     """
     from y_web.models import Exps
     from y_web.utils.path_utils import get_writable_path
@@ -1209,12 +1248,16 @@ def monitor_hpc_client_execution_logs():
         ).all()
         
         if not hpc_experiments:
+            print("[HPC Monitor] No active HPC experiments found")
             return
         
+        print(f"[HPC Monitor] Monitoring {len(hpc_experiments)} active HPC experiment(s)")
         logger.debug(f"Monitoring {len(hpc_experiments)} active HPC experiment(s)")
         
         for exp in hpc_experiments:
             try:
+                print(f"[HPC Monitor] Checking experiment: {exp.exp_name} (ID: {exp.idexp})")
+                
                 # Determine experiment folder path
                 db_name = exp.db_name
                 if db_name.startswith("experiments/") or db_name.startswith("experiments\\"):
@@ -1224,6 +1267,7 @@ def monitor_hpc_client_execution_logs():
                             BASE_DIR, f"y_web{os.sep}experiments{os.sep}{parts[1]}"
                         )
                     else:
+                        print(f"[HPC Monitor] Invalid db_name format: {db_name}")
                         continue
                 elif db_name.startswith("experiments_"):
                     uid = db_name.replace("experiments_", "")
@@ -1231,40 +1275,61 @@ def monitor_hpc_client_execution_logs():
                         BASE_DIR, f"y_web{os.sep}experiments{os.sep}{uid}"
                     )
                 else:
+                    print(f"[HPC Monitor] Unknown db_name format: {db_name}")
                     continue
+                
+                print(f"[HPC Monitor] Experiment folder: {exp_folder}")
                 
                 # Get all running clients for this experiment
                 clients = Client.query.filter_by(id_exp=exp.idexp, status=1).all()
+                print(f"[HPC Monitor] Found {len(clients)} running client(s)")
                 
                 for client in clients:
+                    print(f"[HPC Monitor] Checking client: {client.name} (ID: {client.id})")
+                    
                     # Check if execution log exists
                     execution_log_path = os.path.join(
                         exp_folder, f"{client.name}_execution.log"
                     )
                     
+                    print(f"[HPC Monitor] Looking for execution log: {execution_log_path}")
+                    
                     if not os.path.exists(execution_log_path):
+                        print(f"[HPC Monitor] Execution log not found for {client.name}")
                         continue
+                    
+                    print(f"[HPC Monitor] Execution log found, checking for shutdown message...")
                     
                     # Check if client has completed
                     if check_hpc_client_execution_completion(
                         exp.idexp, client.id, execution_log_path
                     ):
+                        print(f"[HPC Monitor] *** SHUTDOWN DETECTED for {client.name} ***")
                         # Mark client as completed
                         if mark_hpc_client_as_completed(exp.idexp, client.id):
+                            print(f"[HPC Monitor] Successfully marked {client.name} as completed")
                             logger.info(
                                 f"Successfully marked client {client.name} as completed "
                                 f"for experiment {exp.exp_name}"
                             )
+                        else:
+                            print(f"[HPC Monitor] Failed to mark {client.name} as completed")
+                    else:
+                        print(f"[HPC Monitor] No shutdown message found for {client.name}")
                 
                 # After processing all clients, check if experiment should be terminated
-                check_and_terminate_hpc_experiment(exp.idexp)
+                print(f"[HPC Monitor] Checking if all clients completed for experiment {exp.exp_name}")
+                if check_and_terminate_hpc_experiment(exp.idexp):
+                    print(f"[HPC Monitor] *** EXPERIMENT {exp.exp_name} TERMINATED ***")
                 
             except Exception as e:
                 logger.error(
                     f"Error monitoring HPC experiment {exp.exp_name}: {e}",
                     exc_info=True
                 )
+                print(f"[HPC Monitor] Error monitoring experiment {exp.exp_name}: {e}")
                 continue
     
     except Exception as e:
         logger.error(f"Error in HPC execution log monitoring: {e}", exc_info=True)
+        print(f"[HPC Monitor] Error in monitoring: {e}")

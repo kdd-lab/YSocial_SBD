@@ -123,15 +123,17 @@ class LogSyncScheduler:
                     # Monitor HPC client execution logs
                     from y_web.utils.log_metrics import monitor_hpc_client_execution_logs
                     
+                    print("[HPC Monitor] Checking for completed clients...")
                     monitor_hpc_client_execution_logs()
                     
-                    # Sleep for 30 seconds before next check
-                    self._stop_event.wait(30)
+                    # Sleep for 5 seconds before next check
+                    self._stop_event.wait(5)
 
             except Exception as e:
                 logger.error(f"Error in HPC execution log monitor: {e}", exc_info=True)
+                print(f"[HPC Monitor] ERROR: {e}")
                 # Sleep before retrying on error
-                self._stop_event.wait(30)
+                self._stop_event.wait(5)
 
     def _get_settings(self):
         """Get log sync settings from database with proper error handling."""
