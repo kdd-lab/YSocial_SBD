@@ -1287,9 +1287,9 @@ def monitor_hpc_client_execution_logs():
                 for client in clients:
                     print(f"[HPC Monitor] Checking client: {client.name} (ID: {client.id})")
                     
-                    # Check if execution log exists
+                    # Check if execution log exists (in logs/ subdirectory)
                     execution_log_path = os.path.join(
-                        exp_folder, f"{client.name}_execution.log"
+                        exp_folder, "logs", f"{client.name}_execution.log"
                     )
                     
                     print(f"[HPC Monitor] Looking for execution log: {execution_log_path}")
