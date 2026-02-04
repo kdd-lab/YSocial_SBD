@@ -1105,14 +1105,13 @@ def mark_hpc_client_as_completed(exp_id, client_id):
         client_exec.last_active_day = max_day
         client_exec.last_active_hour = max_hour
         
-        # Mark client as stopped
-        if client:
-            client.status = 0
-            logger.info(
-                f"Marked HPC client {client_id} as completed: "
-                f"elapsed_time={client_exec.elapsed_time}, "
-                f"last_active_day={max_day}, last_active_hour={max_hour}"
-            )
+        # Mark client as stopped (client is guaranteed to exist from earlier check)
+        client.status = 0
+        logger.info(
+            f"Marked HPC client {client_id} as completed: "
+            f"elapsed_time={client_exec.elapsed_time}, "
+            f"last_active_day={max_day}, last_active_hour={max_hour}"
+        )
         
         # Commit changes
         _commit_with_retry(db.session)
