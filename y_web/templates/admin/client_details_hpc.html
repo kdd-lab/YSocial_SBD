@@ -301,9 +301,32 @@
                                         <span class="right">
                                             <div class="select">
                                             <select name="recsys_type">
+                                                {% set uncategorized = [] %}
+                                                {% set categorized = {} %}
                                                 {% for recsys in crecsys %}
-                                                <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                    {% if recsys.category %}
+                                                        {% if recsys.category not in categorized %}
+                                                            {% set _ = categorized.update({recsys.category: []}) %}
+                                                        {% endif %}
+                                                        {% set _ = categorized[recsys.category].append(recsys) %}
+                                                    {% else %}
+                                                        {% set _ = uncategorized.append(recsys) %}
+                                                    {% endif %}
                                                 {% endfor %}
+                                                
+                                                {% for category, items in categorized.items() %}
+                                                <optgroup label="{{ category }}">
+                                                    {% for recsys in items %}
+                                                    <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                    {% endfor %}
+                                                </optgroup>
+                                                {% endfor %}
+                                                
+                                                {% if uncategorized %}
+                                                    {% for recsys in uncategorized %}
+                                                    <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                    {% endfor %}
+                                                {% endif %}
                                             </select>
                                         </div>
                                         </span>
@@ -315,9 +338,32 @@
                                             <div class="select">
                                                  <div class="select">
                                             <select name="frecsys_type">
+                                                {% set uncategorized = [] %}
+                                                {% set categorized = {} %}
                                                 {% for recsys in frecsys %}
-                                                <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                    {% if recsys.category %}
+                                                        {% if recsys.category not in categorized %}
+                                                            {% set _ = categorized.update({recsys.category: []}) %}
+                                                        {% endif %}
+                                                        {% set _ = categorized[recsys.category].append(recsys) %}
+                                                    {% else %}
+                                                        {% set _ = uncategorized.append(recsys) %}
+                                                    {% endif %}
                                                 {% endfor %}
+                                                
+                                                {% for category, items in categorized.items() %}
+                                                <optgroup label="{{ category }}">
+                                                    {% for recsys in items %}
+                                                    <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                    {% endfor %}
+                                                </optgroup>
+                                                {% endfor %}
+                                                
+                                                {% if uncategorized %}
+                                                    {% for recsys in uncategorized %}
+                                                    <option value="{{ recsys.name }}">{{ recsys.value }}</option>
+                                                    {% endfor %}
+                                                {% endif %}
                                             </select>
                                         </div>
                                             </div>
