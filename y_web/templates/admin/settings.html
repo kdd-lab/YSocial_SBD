@@ -1112,56 +1112,86 @@
     // Store active progress poll intervals
     const progressPollIntervals = {};
     
+    // Store experiment-level sync intervals (for updating Client_Execution from logs)
+    const experimentSyncIntervals = {};
+    
     // Function to fetch and display client progress for an experiment
     function fetchAndDisplayClientProgress(expId) {
         const progressSection = document.getElementById(`progress-section-${expId}`);
         if (!progressSection) return;
         
-        // Fetch client data for this experiment
-        fetch(`/admin/experiment_clients/${expId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error || !data.clients || data.clients.length === 0) {
-                    progressSection.style.display = 'none';
-                    return;
+        // Clear any existing experiment sync interval for this experiment
+        if (experimentSyncIntervals[expId]) {
+            clearInterval(experimentSyncIntervals[expId]);
+            delete experimentSyncIntervals[expId];
+        }
+        
+        // Function to fetch and update client data
+        const fetchClientData = () => {
+            const progressSection = document.getElementById(`progress-section-${expId}`);
+            if (!progressSection) {
+                // Progress section no longer exists, stop syncing
+                if (experimentSyncIntervals[expId]) {
+                    clearInterval(experimentSyncIntervals[expId]);
+                    delete experimentSyncIntervals[expId];
                 }
-                
-                progressSection.style.display = 'block';
-                let html = '';
-                
-                data.clients.forEach(client => {
-                    if (client.status === 1) {  // Only show running clients
-                        const progressId = `progress-${expId}-${client.id}`;
-                        html += `
-                            <div class="client-progress-item">
-                                <span class="client-name">${client.name}</span>
-                                <div class="sleek-progress-container">
-                                    <div id="${progressId}" class="sleek-progress-bar" style="width: 0%;">
-                                        <span>0%</span>
+                return;
+            }
+            
+            // Fetch client data for this experiment
+            // This endpoint updates Client_Execution from log files on the backend
+            fetch(`/admin/experiment_clients/${expId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error || !data.clients || data.clients.length === 0) {
+                        progressSection.style.display = 'none';
+                        return;
+                    }
+                    
+                    progressSection.style.display = 'block';
+                    let html = '';
+                    
+                    data.clients.forEach(client => {
+                        if (client.status === 1) {  // Only show running clients
+                            const progressId = `progress-${expId}-${client.id}`;
+                            html += `
+                                <div class="client-progress-item">
+                                    <span class="client-name">${client.name}</span>
+                                    <div class="sleek-progress-container">
+                                        <div id="${progressId}" class="sleek-progress-bar" style="width: 0%;">
+                                            <span>0%</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        `;
-                    }
-                });
-                
-                if (html) {
-                    progressSection.innerHTML = html;
-                    
-                    // Start polling for each running client
-                    data.clients.forEach(client => {
-                        if (client.status === 1) {
-                            pollClientProgress(expId, client.id);
+                            `;
                         }
                     });
-                } else {
+                    
+                    if (html) {
+                        progressSection.innerHTML = html;
+                        
+                        // Start polling for each running client
+                        data.clients.forEach(client => {
+                            if (client.status === 1) {
+                                pollClientProgress(expId, client.id);
+                            }
+                        });
+                    } else {
+                        progressSection.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching client data:', err);
                     progressSection.style.display = 'none';
-                }
-            })
-            .catch(err => {
-                console.error('Error fetching client data:', err);
-                progressSection.style.display = 'none';
-            });
+                });
+        };
+        
+        // Initial fetch
+        fetchClientData();
+        
+        // Set up interval to sync every 30 seconds
+        // This ensures Client_Execution table is updated regularly from log files
+        experimentSyncIntervals[expId] = setInterval(fetchClientData, 30000);
     }
     
     // Function to poll a single client's progress
@@ -1242,6 +1272,12 @@
         Object.keys(progressPollIntervals).forEach(key => {
             clearInterval(progressPollIntervals[key]);
             delete progressPollIntervals[key];
+        });
+        
+        // Clean up experiment sync intervals
+        Object.keys(experimentSyncIntervals).forEach(key => {
+            clearInterval(experimentSyncIntervals[key]);
+            delete experimentSyncIntervals[key];
         });
         
         createGroupedView('groups-active', EXP_STATUS.ACTIVE, 'box-active');
