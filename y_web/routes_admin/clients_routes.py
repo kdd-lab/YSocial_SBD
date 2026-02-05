@@ -2365,7 +2365,11 @@ def client_details(uid):
     llms = []
     if agents is not None:
         for agent in agents["agents"]:
-            llms.append(agent["type"])
+            # Skip page agents (is_page=1) as they don't have a type field
+            if not agent.get("is_page", 0):
+                agent_type = agent.get("type")
+                if agent_type:
+                    llms.append(agent_type)
 
     llms = ",".join(list(set(llms)))
 
@@ -2463,7 +2467,11 @@ def client_details_hpc(uid):
     llms = []
     if agents is not None:
         for agent in agents["agents"]:
-            llms.append(agent["type"])
+            # Skip page agents (is_page=1) as they don't have a type field
+            if not agent.get("is_page", 0):
+                agent_type = agent.get("type")
+                if agent_type:
+                    llms.append(agent_type)
 
     llms = ",".join(list(set(llms)))
 
