@@ -397,24 +397,35 @@ CREATE TABLE blog_posts (
 -- DATA INSERTIONS
 -- ================================================
 
-INSERT INTO content_recsys (name, value, enabled) VALUES
-  ('ContentRecSys', 'Random', 'HPC,Standard'),
-  ('ReverseChrono', '(RC) Reverse Chrono', 'HPC,Standard'),
-  ('ReverseChronoPopularity', '(RCP) Popularity', 'HPC,Standard'),
-  ('ReverseChronoFollowers', '(RCF) Followers', 'HPC,Standard'),
-  ('ReverseChronoFollowersPopularity', '(FP) Followers-Popularity', 'HPC,Standard'),
-  ('ReverseChronoComments', '(RCC) Reverse Chrono Comments', 'HPC,Standard'),
-  ('CommonInterests', '(CI) Common Interests', 'HPC,Standard'),
-  ('CommonUserInterests', '(CUI) Common User Interests', 'HPC,Standard'),
-  ('SimilarUsersReactions', '(SIR) Similar Users Reactions', 'HPC,Standard'),
-  ('SimilarUsersPosts', '(SIP) Similar Users Posts', 'HPC,Standard');
+INSERT INTO content_recsys (name, value, enabled, category) VALUES
+  ('ContentRecSys', 'Random', 'HPC,Standard', 'Global'),
+  ('ReverseChrono', '(RC) Reverse Chrono', 'HPC,Standard', 'Global'),
+  ('ReverseChronoPopularity', '(RCP) Popularity', 'HPC,Standard', 'Global'),
+  ('ReverseChronoFollowers', '(RCF) Followers', 'HPC,Standard', 'Social Timeline'),
+  ('ReverseChronoFollowersPopularity', '(FP) Followers-Popularity', 'HPC,Standard', 'Social Timeline'),
+  ('ReverseChronoComments', '(RCC) Reverse Chrono Comments', 'HPC,Standard', 'Global'),
+  ('CommonInterests', '(CI) Common Interests', 'HPC,Standard', 'Content-Based Filtering'),
+  ('CommonUserInterests', '(CUI) Common User Interests', 'HPC,Standard', 'Profile-Based User Similarity'),
+  ('SimilarUsersReactions', '(SIR) Similar Users Reactions', 'HPC,Standard', 'Behavioral User Modeling'),
+  ('SimilarUsersPosts', '(SIP) Similar Users Posts', 'HPC,Standard', 'Demographic-Based'),
+  ('ContentBasedFeatures', '(CBF) ContentBasedFeatures', 'HPC', 'Content-Based Filtering'),
+  ('ContentBasedVector', '(CBV) ContentBasedVector', 'HPC', 'Content-Based Filtering'),
+  ('CollaborativeUserUser', '(CUU) CollaborativeUserUser', 'HPC', 'Collaborative Filtering'),
+  ('CollaborativeItemItem', '(CII) CollaborativeItemItem', 'HPC', 'Collaborative Filtering');
 
-INSERT INTO follow_recsys (name, value, enabled) VALUES
-('FollowRecSys', 'Random', 'HPC,Standard'),
-('CommonNeighbors', 'Common Neighbors', 'HPC,Standard'),
-('Jaccard', 'Jaccard', 'HPC,Standard'),
-('AdamicAdar', 'Adamic Adar', 'HPC,Standard'),
-('PreferentialAttachment', 'Preferential Attachment', 'HPC,Standard');
+INSERT INTO follow_recsys (name, value, category, enabled) VALUES
+('FollowRecSys', 'Random', 'Baseline & Exploration', 'HPC,Standard'),
+('CommonNeighbors', 'Common Neighbors', 'Local Triadic Closure', 'HPC,Standard'),
+('Jaccard', 'Jaccard', 'Local Triadic Closure', 'HPC,Standard'),
+('AdamicAdar', 'Adamic Adar', 'Local Triadic Closure', 'HPC,Standard'),
+('PreferentialAttachment', 'Preferential Attachment', 'Popularity & Activity Bias', 'HPC,Standard'),
+('Activity', 'Activity', 'Popularity & Activity Bias', 'HPC'),
+('ResourceAllocation', 'ResourceAllocation', 'Local Triadic Closure', 'HPC'),
+('CosineSimilarity', 'CosineSimilarity', 'Profile & Attribute Homophily', 'HPC'),
+('CoEngagement', 'CoEngagement', 'Behavioral Homophily', 'HPC'),
+('RandomWalkRestart', 'RandomWalkRestart', 'Graph Proximity', 'HPC'),
+('ReactionsOnContent', 'ReactionsOnContent', 'Behavioral Homophily', 'HPC'),
+('TwoHopEgoSampling', 'TwoHopEgoSampling', 'Community Approximation', 'HPC');
 
 INSERT INTO leanings (leaning) VALUES
 ('democrat'),
