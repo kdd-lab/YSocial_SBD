@@ -2321,7 +2321,7 @@ def client_details(uid):
     
     # Redirect HPC clients to dedicated HPC client details page
     if experiment and hasattr(experiment, 'simulator_type') and experiment.simulator_type == "HPC":
-        return redirect(url_for("clients.client_details_hpc", uid=uid))
+        return redirect(url_for("clientsr.client_details_hpc", uid=uid))
 
     # get population for the client
     population = Population.query.filter_by(id=client.population_id).first()
