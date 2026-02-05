@@ -54,7 +54,7 @@ def migrate_sqlite(db_path):
             cursor.execute("ALTER TABLE content_recsys ADD COLUMN enabled TEXT")
             print("✓ Added enabled column to content_recsys in SQLite database")
             # Update existing records
-            cursor.execute("UPDATE content_recsys SET enabled = 'HPC,Standard' WHERE enabled IS NULL")
+            cursor.execute("UPDATE content_recsys SET enabled = 'HPC,Standard'")
             print("✓ Updated existing content_recsys records with 'HPC,Standard'")
         else:
             print("○ enabled column already exists in content_recsys SQLite table")
@@ -75,7 +75,7 @@ def migrate_sqlite(db_path):
             cursor.execute("ALTER TABLE follow_recsys ADD COLUMN enabled TEXT")
             print("✓ Added enabled column to follow_recsys in SQLite database")
             # Update existing records
-            cursor.execute("UPDATE follow_recsys SET enabled = 'HPC,Standard' WHERE enabled IS NULL")
+            cursor.execute("UPDATE follow_recsys SET enabled = 'HPC,Standard'")
             print("✓ Updated existing follow_recsys records with 'HPC,Standard'")
         else:
             print("○ enabled column already exists in follow_recsys SQLite table")
@@ -140,7 +140,7 @@ def migrate_postgresql(host, port, database, user, password):
             """)
             print("✓ Added enabled column to content_recsys in PostgreSQL database")
             # Update existing records
-            cursor.execute("UPDATE content_recsys SET enabled = 'HPC,Standard' WHERE enabled IS NULL")
+            cursor.execute("UPDATE content_recsys SET enabled = 'HPC,Standard'")
             print("✓ Updated existing content_recsys records with 'HPC,Standard'")
         else:
             print("○ enabled column already exists in content_recsys PostgreSQL table")
@@ -171,7 +171,7 @@ def migrate_postgresql(host, port, database, user, password):
             """)
             print("✓ Added enabled column to follow_recsys in PostgreSQL database")
             # Update existing records
-            cursor.execute("UPDATE follow_recsys SET enabled = 'HPC,Standard' WHERE enabled IS NULL")
+            cursor.execute("UPDATE follow_recsys SET enabled = 'HPC,Standard'")
             print("✓ Updated existing follow_recsys records with 'HPC,Standard'")
         else:
             print("○ enabled column already exists in follow_recsys PostgreSQL table")
