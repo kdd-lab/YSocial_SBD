@@ -251,15 +251,19 @@ CREATE TABLE client_execution (
 -- Recommendation systems
 -- -----------------------------
 CREATE TABLE content_recsys (
-    id    SERIAL PRIMARY KEY,
-    name  TEXT NOT NULL,
-    value TEXT NOT NULL
+    id       SERIAL PRIMARY KEY,
+    name     TEXT NOT NULL,
+    value    TEXT NOT NULL,
+    category TEXT,
+    enabled  TEXT
 );
 
 CREATE TABLE follow_recsys (
-    id    SERIAL PRIMARY KEY,
-    name  TEXT NOT NULL,
-    value TEXT NOT NULL
+    id       SERIAL PRIMARY KEY,
+    name     TEXT NOT NULL,
+    value    TEXT NOT NULL,
+    category TEXT,
+    enabled  TEXT
 );
 
 -- -----------------------------
@@ -360,7 +364,7 @@ CREATE TABLE jupyter_instances (
     port         INTEGER NOT NULL,
     notebook_dir VARCHAR(300) NOT NULL,
     process      INTEGER,
-    status       VARCHAR(10) NOT NULL DEFAULT 'active'
+    status       VARCHAR(10) NOT NULL DEFAULT 'stopped'
 );
 
 -- -----------------------------
@@ -393,24 +397,35 @@ CREATE TABLE blog_posts (
 -- DATA INSERTIONS
 -- ================================================
 
-INSERT INTO content_recsys (name, value) VALUES
-  ('ContentRecSys', 'Random'),
-  ('ReverseChrono', '(RC) Reverse Chrono'),
-  ('ReverseChronoPopularity', '(RCP) Popularity'),
-  ('ReverseChronoFollowers', '(RCF) Followers'),
-  ('ReverseChronoFollowersPopularity', '(FP) Followers-Popularity'),
-  ('ReverseChronoComments', '(RCC) Reverse Chrono Comments'),
-  ('CommonInterests', '(CI) Common Interests'),
-  ('CommonUserInterests', '(CUI) Common User Interests'),
-  ('SimilarUsersReactions', '(SIR) Similar Users Reactions'),
-  ('SimilarUsersPosts', '(SIP) Similar Users Posts');
+INSERT INTO content_recsys (name, value, enabled, category) VALUES
+  ('ContentRecSys', 'Random', 'HPC,Standard', 'Global'),
+  ('ReverseChrono', '(RC) Reverse Chrono', 'HPC,Standard', 'Global'),
+  ('ReverseChronoPopularity', '(RCP) Popularity', 'HPC,Standard', 'Global'),
+  ('ReverseChronoFollowers', '(RCF) Followers', 'HPC,Standard', 'Social Timeline'),
+  ('ReverseChronoFollowersPopularity', '(FP) Followers-Popularity', 'HPC,Standard', 'Social Timeline'),
+  ('ReverseChronoComments', '(RCC) Reverse Chrono Comments', 'HPC,Standard', 'Global'),
+  ('CommonInterests', '(CI) Common Interests', 'HPC,Standard', 'Content-Based Filtering'),
+  ('CommonUserInterests', '(CUI) Common User Interests', 'HPC,Standard', 'Profile-Based User Similarity'),
+  ('SimilarUsersReactions', '(SIR) Similar Users Reactions', 'HPC,Standard', 'Behavioral User Modeling'),
+  ('SimilarUsersPosts', '(SIP) Similar Users Posts', 'HPC,Standard', 'Demographic-Based'),
+  ('ContentBasedFeatures', '(CBF) ContentBasedFeatures', 'HPC', 'Content-Based Filtering'),
+  ('ContentBasedVector', '(CBV) ContentBasedVector', 'HPC', 'Content-Based Filtering'),
+  ('CollaborativeUserUser', '(CUU) CollaborativeUserUser', 'HPC', 'Collaborative Filtering'),
+  ('CollaborativeItemItem', '(CII) CollaborativeItemItem', 'HPC', 'Collaborative Filtering');
 
-INSERT INTO follow_recsys (name, value) VALUES
-('FollowRecSys', 'Random'),
-('CommonNeighbors', 'Common Neighbors'),
-('Jaccard', 'Jaccard'),
-('AdamicAdar', 'Adamic Adar'),
-('PreferentialAttachment', 'Preferential Attachment');
+INSERT INTO follow_recsys (name, value, category, enabled) VALUES
+('FollowRecSys', 'Random', 'Baseline & Exploration', 'HPC,Standard'),
+('CommonNeighbors', 'Common Neighbors', 'Local Triadic Closure', 'HPC,Standard'),
+('Jaccard', 'Jaccard', 'Local Triadic Closure', 'HPC,Standard'),
+('AdamicAdar', 'Adamic Adar', 'Local Triadic Closure', 'HPC,Standard'),
+('PreferentialAttachment', 'Preferential Attachment', 'Popularity & Activity Bias', 'HPC,Standard'),
+('Activity', 'Activity', 'Popularity & Activity Bias', 'HPC'),
+('ResourceAllocation', 'ResourceAllocation', 'Local Triadic Closure', 'HPC'),
+('CosineSimilarity', 'CosineSimilarity', 'Profile & Attribute Homophily', 'HPC'),
+('CoEngagement', 'CoEngagement', 'Behavioral Homophily', 'HPC'),
+('RandomWalkRestart', 'RandomWalkRestart', 'Graph Proximity', 'HPC'),
+('ReactionsOnContent', 'ReactionsOnContent', 'Behavioral Homophily', 'HPC'),
+('TwoHopEgoSampling', 'TwoHopEgoSampling', 'Community Approximation', 'HPC');
 
 INSERT INTO leanings (leaning) VALUES
 ('democrat'),

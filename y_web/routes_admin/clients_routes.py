@@ -545,9 +545,6 @@ def clients(idexp):
         else Population.query.all()
     )
 
-    crecsys = Content_Recsys.query.all()
-    frecsys = Follow_Recsys.query.all()
-
     # Get experiment topics
     topics = Exp_Topic.query.filter_by(exp_id=idexp).all()
     topics_ids = [t.topic_id for t in topics]
@@ -566,10 +563,20 @@ def clients(idexp):
         exp.simulator_type if hasattr(exp, "simulator_type") else "Standard"
     )
 
+    # Get all recsys and filter by enabled field based on simulator type
+    crecsys_all = Content_Recsys.query.all()
+    frecsys_all = Follow_Recsys.query.all()
+    
     if simulator_type == "HPC":
         template_name = "admin/clients_hpc.html"
+        # Filter for HPC - only show recsys with "HPC" in enabled field
+        crecsys = [r for r in crecsys_all if r.enabled and "HPC" in r.enabled]
+        frecsys = [r for r in frecsys_all if r.enabled and "HPC" in r.enabled]
     else:
         template_name = "admin/clients.html"
+        # Filter for Standard - only show recsys with "Standard" in enabled field
+        crecsys = [r for r in crecsys_all if r.enabled and "Standard" in r.enabled]
+        frecsys = [r for r in frecsys_all if r.enabled and "Standard" in r.enabled]
 
     return render_template(
         template_name,
@@ -2582,8 +2589,13 @@ def client_details(uid):
 
     llm_backend = llm_backend_status()
 
-    frecsys = Follow_Recsys.query.all()
-    crecsys = Content_Recsys.query.all()
+    # Get all recsys and filter by enabled field for Standard clients
+    frecsys_all = Follow_Recsys.query.all()
+    crecsys_all = Content_Recsys.query.all()
+    
+    # Filter recsys based on enabled field - Standard clients only get ones with "Standard" in enabled
+    frecsys = [r for r in frecsys_all if r.enabled and "Standard" in r.enabled]
+    crecsys = [r for r in crecsys_all if r.enabled and "Standard" in r.enabled]
 
     return render_template(
         "admin/client_details.html",
@@ -2706,8 +2718,13 @@ def client_details_hpc(uid):
 
     llm_backend = llm_backend_status()
 
-    frecsys = Follow_Recsys.query.all()
-    crecsys = Content_Recsys.query.all()
+    # Get all recsys and filter by enabled field for HPC clients
+    frecsys_all = Follow_Recsys.query.all()
+    crecsys_all = Content_Recsys.query.all()
+    
+    # Filter recsys based on enabled field - HPC clients only get ones with "HPC" in enabled
+    frecsys = [r for r in frecsys_all if r.enabled and "HPC" in r.enabled]
+    crecsys = [r for r in crecsys_all if r.enabled and "HPC" in r.enabled]
 
     return render_template(
         "admin/client_details_hpc.html",
