@@ -251,15 +251,19 @@ CREATE TABLE client_execution (
 -- Recommendation systems
 -- -----------------------------
 CREATE TABLE content_recsys (
-    id    SERIAL PRIMARY KEY,
-    name  TEXT NOT NULL,
-    value TEXT NOT NULL
+    id      SERIAL PRIMARY KEY,
+    name    TEXT NOT NULL,
+    value   TEXT NOT NULL,
+    "group" TEXT,
+    enabled TEXT
 );
 
 CREATE TABLE follow_recsys (
-    id    SERIAL PRIMARY KEY,
-    name  TEXT NOT NULL,
-    value TEXT NOT NULL
+    id      SERIAL PRIMARY KEY,
+    name    TEXT NOT NULL,
+    value   TEXT NOT NULL,
+    "group" TEXT,
+    enabled TEXT
 );
 
 -- -----------------------------
@@ -393,24 +397,24 @@ CREATE TABLE blog_posts (
 -- DATA INSERTIONS
 -- ================================================
 
-INSERT INTO content_recsys (name, value) VALUES
-  ('ContentRecSys', 'Random'),
-  ('ReverseChrono', '(RC) Reverse Chrono'),
-  ('ReverseChronoPopularity', '(RCP) Popularity'),
-  ('ReverseChronoFollowers', '(RCF) Followers'),
-  ('ReverseChronoFollowersPopularity', '(FP) Followers-Popularity'),
-  ('ReverseChronoComments', '(RCC) Reverse Chrono Comments'),
-  ('CommonInterests', '(CI) Common Interests'),
-  ('CommonUserInterests', '(CUI) Common User Interests'),
-  ('SimilarUsersReactions', '(SIR) Similar Users Reactions'),
-  ('SimilarUsersPosts', '(SIP) Similar Users Posts');
+INSERT INTO content_recsys (name, value, enabled) VALUES
+  ('ContentRecSys', 'Random', 'HPC,Standard'),
+  ('ReverseChrono', '(RC) Reverse Chrono', 'HPC,Standard'),
+  ('ReverseChronoPopularity', '(RCP) Popularity', 'HPC,Standard'),
+  ('ReverseChronoFollowers', '(RCF) Followers', 'HPC,Standard'),
+  ('ReverseChronoFollowersPopularity', '(FP) Followers-Popularity', 'HPC,Standard'),
+  ('ReverseChronoComments', '(RCC) Reverse Chrono Comments', 'HPC,Standard'),
+  ('CommonInterests', '(CI) Common Interests', 'HPC,Standard'),
+  ('CommonUserInterests', '(CUI) Common User Interests', 'HPC,Standard'),
+  ('SimilarUsersReactions', '(SIR) Similar Users Reactions', 'HPC,Standard'),
+  ('SimilarUsersPosts', '(SIP) Similar Users Posts', 'HPC,Standard');
 
-INSERT INTO follow_recsys (name, value) VALUES
-('FollowRecSys', 'Random'),
-('CommonNeighbors', 'Common Neighbors'),
-('Jaccard', 'Jaccard'),
-('AdamicAdar', 'Adamic Adar'),
-('PreferentialAttachment', 'Preferential Attachment');
+INSERT INTO follow_recsys (name, value, enabled) VALUES
+('FollowRecSys', 'Random', 'HPC,Standard'),
+('CommonNeighbors', 'Common Neighbors', 'HPC,Standard'),
+('Jaccard', 'Jaccard', 'HPC,Standard'),
+('AdamicAdar', 'Adamic Adar', 'HPC,Standard'),
+('PreferentialAttachment', 'Preferential Attachment', 'HPC,Standard');
 
 INSERT INTO leanings (leaning) VALUES
 ('democrat'),
