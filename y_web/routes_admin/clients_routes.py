@@ -284,10 +284,13 @@ def extend_simulation(id_client):
 
             # After resetting, immediately trigger re-parsing of existing log files
             # This populates the metrics with data from the original run
-            reparse_success = True
+            reparse_success_client = False
+            reparse_success_server = False
+            
             if reset_result_client or reset_result_server:
                 try:
-                    # Re-parse client log if it exists
+                    # Re-parse client log if it exists and client reset succeeded
+                    # Population is needed to construct the client log file name
                     if reset_result_client and population:
                         client_log_path = os.path.join(
                             log_folder_path, f"{client.name}_client.log"
@@ -296,45 +299,75 @@ def extend_simulation(id_client):
                             update_client_log_metrics(
                                 exp.idexp, id_client, client_log_path, is_hpc=True
                             )
+                            reparse_success_client = True
 
-                    # Re-parse server log if it exists
+                    # Re-parse server log if it exists and server reset succeeded
                     if reset_result_server:
                         server_log_path = os.path.join(log_folder_path, "_server.log")
                         if os.path.exists(server_log_path):
                             update_server_log_metrics(
                                 exp.idexp, server_log_path, is_hpc=True
                             )
+                            reparse_success_server = True
                 except Exception as e:
-                    reparse_success = False
                     flash(
                         f"Warning: Metrics reset but re-parsing failed: {str(e)}. Plots will update on next refresh.",
                         "warning",
                     )
 
-            # Provide user feedback based on results
-            if reset_result_client and reset_result_server and reparse_success:
-                flash(
-                    "Log metrics reset and re-parsed. Plots now show data from original run and will include extended data after client restart.",
-                    "success",
-                )
-            elif reset_result_client and reset_result_server and not reparse_success:
-                flash(
-                    "Log metrics reset. Plots will update with extended data on next refresh.",
-                    "success",
-                )
-            elif not reset_result_client and not reset_result_server:
+            # Provide comprehensive user feedback based on all possible outcomes
+            if reset_result_client and reset_result_server:
+                if reparse_success_client and reparse_success_server:
+                    flash(
+                        "Log metrics reset and re-parsed. Plots now show data from original run and will include extended data after client restart.",
+                        "success",
+                    )
+                elif reparse_success_client or reparse_success_server:
+                    # Partial re-parsing success
+                    if reparse_success_client and not reparse_success_server:
+                        flash(
+                            "Client metrics reset and re-parsed. Server metrics reset but not re-parsed yet. Plots will fully update on next refresh.",
+                            "success",
+                        )
+                    else:  # reparse_success_server and not reparse_success_client
+                        flash(
+                            "Server metrics reset and re-parsed. Client metrics reset but not re-parsed yet. Plots will fully update on next refresh.",
+                            "success",
+                        )
+                else:
+                    # Reset succeeded but re-parsing failed for both
+                    flash(
+                        "Log metrics reset. Plots will update with extended data on next refresh.",
+                        "success",
+                    )
+            elif reset_result_client:
+                # Only client reset succeeded
+                if reparse_success_client:
+                    flash(
+                        "Client log metrics reset and re-parsed. Server metrics unchanged. Client plots updated.",
+                        "success",
+                    )
+                else:
+                    flash(
+                        "Client log metrics reset. Server metrics unchanged. Client plots will update on next refresh.",
+                        "success",
+                    )
+            elif reset_result_server:
+                # Only server reset succeeded
+                if reparse_success_server:
+                    flash(
+                        "Server log metrics reset and re-parsed. Client metrics unchanged. Server plots updated.",
+                        "success",
+                    )
+                else:
+                    flash(
+                        "Server log metrics reset. Client metrics unchanged. Server plots will update on next refresh.",
+                        "success",
+                    )
+            else:
+                # Both resets failed
                 flash(
                     "Warning: Could not reset log metrics. Plots may not show extended data.",
-                    "warning",
-                )
-            elif not reset_result_client:
-                flash(
-                    "Warning: Could not reset client log metrics. Client plots may not show extended data.",
-                    "warning",
-                )
-            else:  # not reset_result_server
-                flash(
-                    "Warning: Could not reset server log metrics. Server trend plots may not show extended data.",
                     "warning",
                 )
         except Exception as e:
