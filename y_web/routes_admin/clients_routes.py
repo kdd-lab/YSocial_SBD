@@ -2318,6 +2318,10 @@ def client_details(uid):
     # get client details
     client = Client.query.filter_by(id=uid).first()
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    
+    # Redirect HPC clients to dedicated HPC client details page
+    if experiment and hasattr(experiment, 'simulator_type') and experiment.simulator_type == "HPC":
+        return redirect(url_for("clients.client_details_hpc", uid=uid))
 
     # get population for the client
     population = Population.query.filter_by(id=client.population_id).first()
@@ -2395,6 +2399,123 @@ def client_details(uid):
         frecsys=frecsys,
         crecsys=crecsys,
         llms=llms,
+    )
+
+
+@clientsr.route("/admin/client_details_hpc/<int:uid>")
+@login_required
+def client_details_hpc(uid):
+    """Handle HPC client details operation."""
+    check_privileges(current_user.username)
+
+    # get client details
+    client = Client.query.filter_by(id=uid).first()
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(url_for("experiments.settings"))
+    
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    # get population for the client
+    population = Population.query.filter_by(id=client.population_id).first()
+    # get the pages included to the population
+    pages = (
+        db.session.query(Page, Page_Population)
+        .join(Page_Population)
+        .filter(Page_Population.population_id == client.population_id)
+        .all()
+    )
+
+    # get the client configuration file
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
+
+    dbtypte = get_db_type()
+
+    if dbtypte == "sqlite":
+        exp_folder = experiment.db_name.split(os.sep)[1]
+    else:
+        exp_folder = experiment.db_name.removeprefix("experiments_")
+
+    # HPC clients use the same file naming pattern: client_{name}-{population}.json
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
+
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            config = json.load(f)
+    else:
+        config = None
+        flash("HPC client configuration file not found.", "warning")
+
+    # open the agent population file to get the number of agents
+    path_agents = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{population.name}.json"
+
+    if os.path.exists(path_agents):
+        with open(path_agents, "r") as f:
+            agents = json.load(f)
+    else:
+        agents = None
+
+    llms = []
+    if agents is not None:
+        for agent in agents["agents"]:
+            llms.append(agent["type"])
+
+    llms = ",".join(list(set(llms)))
+
+    # Extract activity data from HPC config structure
+    data = []
+    idx = []
+    activity = None
+    
+    if config and "simulation" in config and "hourly_activity" in config["simulation"]:
+        activity = config["simulation"]["hourly_activity"]
+        for x in range(0, 24):
+            idx.append(str(x))
+            data.append(activity.get(str(x), 0))
+    elif config and "simulation" in config and "activity_profiles" in config["simulation"]:
+        # If hourly_activity is not present but activity_profiles are, use first profile
+        profiles = config["simulation"]["activity_profiles"]
+        if profiles:
+            first_profile = list(profiles.values())[0]
+            activity = first_profile
+            for x in range(0, 24):
+                idx.append(str(x))
+                data.append(activity.get(str(x), 0))
+    
+    if not activity:
+        # Default to empty data
+        for x in range(0, 24):
+            idx.append(str(x))
+            data.append(0)
+        activity = {str(x): 0 for x in range(24)}
+
+    models = get_llm_models()  # Use generic function for any LLM server
+
+    llm_backend = llm_backend_status()
+
+    frecsys = Follow_Recsys.query.all()
+    crecsys = Content_Recsys.query.all()
+
+    return render_template(
+        "admin/client_details_hpc.html",
+        data=data,
+        idx=idx,
+        activity=activity,
+        client=client,
+        experiment=experiment,
+        population=population,
+        pages=pages,
+        models=models,
+        llm_backend=llm_backend,
+        frecsys=frecsys,
+        crecsys=crecsys,
+        llms=llms,
+        config=config,
     )
 
 
