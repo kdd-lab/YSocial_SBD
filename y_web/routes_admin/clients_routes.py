@@ -2434,9 +2434,9 @@ def client_details_hpc(uid):
 
     BASE = get_writable_path()
 
-    dbtypte = get_db_type()
+    dbtype = get_db_type()
 
-    if dbtypte == "sqlite":
+    if dbtype == "sqlite":
         exp_folder = experiment.db_name.split(os.sep)[1]
     else:
         exp_folder = experiment.db_name.removeprefix("experiments_")

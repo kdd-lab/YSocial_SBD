@@ -226,7 +226,7 @@
                                     <span class="right">{{ config.llm.temperature if config and config.llm else client.llm_temperature }}</span>
                                 </div>
                                 <hr>
-                                 <h3 class="title is-5 is-thin">LLLM (Image Transcription)</h3>
+                                 <h3 class="title is-5 is-thin">LLM (Image Transcription)</h3>
                                 <div class="box-line">
                                     <span class="left">LLM Model</span>
                                     <span class="right">{{ config.llm_v.model if config and config.llm_v and config.llm_v.model else (client.llm_v_agent if client.llm_v_agent else 'N/A') }}</span>
