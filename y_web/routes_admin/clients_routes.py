@@ -200,8 +200,19 @@ def extend_simulation(id_client):
 
             # Get population for the client
             population = Population.query.filter_by(id=client.population_id).first()
-            if population:
-                config_path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
+            if not population:
+                flash(
+                    "Warning: Could not find population record. Extension applied to database only.",
+                    "warning",
+                )
+            else:
+                config_path = os.path.join(
+                    BASE,
+                    "y_web",
+                    "experiments",
+                    exp_folder,
+                    f"client_{client.name}-{population.name}.json",
+                )
 
                 if os.path.exists(config_path):
                     # Read existing config
@@ -220,9 +231,14 @@ def extend_simulation(id_client):
                             f"Client configuration file updated with extended duration ({client.days} days).",
                             "success",
                         )
+                    else:
+                        flash(
+                            "Warning: Config file missing 'simulation' section. Extension applied to database only.",
+                            "warning",
+                        )
                 else:
                     flash(
-                        f"Warning: Client config file not found at {config_path}. Extension applied to database only.",
+                        f"Warning: Client config file not found. Extension applied to database only.",
                         "warning",
                     )
         except Exception as e:
