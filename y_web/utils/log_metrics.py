@@ -1454,7 +1454,12 @@ def check_and_terminate_hpc_experiment(exp_id):
                     client_id=client.id
                 ).first()
                 if client_exec and client_exec.expected_duration_rounds > 0:
-                    if client_exec.elapsed_time == client_exec.expected_duration_rounds:
+                    # Use >= instead of == to handle cases where client ran slightly longer
+                    # This can happen when:
+                    # 1. Client was extended and log parsing shows extra time
+                    # 2. Last log entry is from after the expected completion time
+                    # 3. Client ran one extra iteration before shutdown
+                    if client_exec.elapsed_time >= client_exec.expected_duration_rounds:
                         truly_completed_count += 1
                         print(
                             f"[HPC Monitor] Client {client.name} is truly completed (elapsed={client_exec.elapsed_time}, expected={client_exec.expected_duration_rounds})"
