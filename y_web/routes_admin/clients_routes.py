@@ -286,7 +286,7 @@ def extend_simulation(id_client):
             # This populates the metrics with data from the original run
             reparse_success_client = False
             reparse_success_server = False
-            
+
             if reset_result_client or reset_result_server:
                 try:
                     # Re-parse client log if it exists and client reset succeeded
@@ -2510,9 +2510,13 @@ def client_details(uid):
     # get client details
     client = Client.query.filter_by(id=uid).first()
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
-    
+
     # Redirect HPC clients to dedicated HPC client details page
-    if experiment and hasattr(experiment, 'simulator_type') and experiment.simulator_type == "HPC":
+    if (
+        experiment
+        and hasattr(experiment, "simulator_type")
+        and experiment.simulator_type == "HPC"
+    ):
         return redirect(url_for("clientsr.client_details_hpc", uid=uid))
 
     # get population for the client
@@ -2609,7 +2613,7 @@ def client_details_hpc(uid):
     if not client:
         flash("Client not found.", "error")
         return redirect(url_for("experiments.settings"))
-    
+
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
     if not experiment:
         flash("Experiment not found.", "error")
@@ -2671,13 +2675,17 @@ def client_details_hpc(uid):
     data = []
     idx = []
     activity = None
-    
+
     if config and "simulation" in config and "hourly_activity" in config["simulation"]:
         activity = config["simulation"]["hourly_activity"]
         for x in range(0, 24):
             idx.append(str(x))
             data.append(activity.get(str(x), 0))
-    elif config and "simulation" in config and "activity_profiles" in config["simulation"]:
+    elif (
+        config
+        and "simulation" in config
+        and "activity_profiles" in config["simulation"]
+    ):
         # If hourly_activity is not present but activity_profiles are, use first profile
         profiles = config["simulation"]["activity_profiles"]
         if profiles:
@@ -2686,7 +2694,7 @@ def client_details_hpc(uid):
             for x in range(0, 24):
                 idx.append(str(x))
                 data.append(activity.get(str(x), 0))
-    
+
     if not activity:
         # Default to empty data
         for x in range(0, 24):
