@@ -1069,6 +1069,121 @@ def check_hpc_client_execution_completion(exp_id, client_id, execution_log_path)
         return False
 
 
+def get_latest_hourly_summary_from_client_log(client_log_path):
+    """
+    Extract the latest hourly summary from a client log file.
+    
+    Reads the client log file and finds the most recent entry with
+    "summary_type": "hourly" to get the current execution progress.
+    
+    Args:
+        client_log_path: Full path to the {client_name}_client.log file
+    
+    Returns:
+        dict or None: Dictionary with keys 'day', 'slot', 'elapsed_time' if found, None otherwise
+    """
+    if not os.path.exists(client_log_path):
+        return None
+    
+    try:
+        latest_hourly = None
+        
+        with open(client_log_path, 'r') as f:
+            # Read all lines to find the latest hourly summary
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                try:
+                    log_entry = json.loads(line)
+                    
+                    # Check if this is an hourly summary
+                    if log_entry.get("summary_type") == "hourly":
+                        # Extract the relevant fields
+                        day = log_entry.get("day")
+                        slot = log_entry.get("slot")
+                        
+                        if day is not None and slot is not None:
+                            # Calculate elapsed_time: each day has 24 hours
+                            # If day=1, slot=20, that means we're in day 1, hour 20
+                            # elapsed_time = day * 24 + slot + 1 (adding 1 because we count from 1)
+                            elapsed_time = day * 24 + slot + 1
+                            
+                            latest_hourly = {
+                                'day': day,
+                                'slot': slot,
+                                'elapsed_time': elapsed_time
+                            }
+                            # Keep reading to find the LATEST one
+                            
+                except json.JSONDecodeError:
+                    # Skip lines that aren't valid JSON
+                    continue
+        
+        return latest_hourly
+        
+    except Exception as e:
+        logger.error(
+            f"Error reading client log file {client_log_path}: {e}",
+            exc_info=True
+        )
+        return None
+
+
+def update_client_execution_from_log(client_id, client_log_path):
+    """
+    Update client_execution table with latest progress from client log.
+    
+    Reads the latest hourly summary from the client log and updates
+    the client_execution record with the current day, hour, and elapsed time.
+    
+    Args:
+        client_id: Client ID
+        client_log_path: Full path to the {client_name}_client.log file
+    
+    Returns:
+        bool: True if updated successfully, False otherwise
+    """
+    try:
+        # Get the latest hourly summary
+        summary = get_latest_hourly_summary_from_client_log(client_log_path)
+        
+        if not summary:
+            print(f"[HPC Monitor] No hourly summary found in client log")
+            return False
+        
+        print(f"[HPC Monitor] Latest hourly summary: day={summary['day']}, slot={summary['slot']}, elapsed={summary['elapsed_time']}")
+        
+        # Get the client_execution record
+        client_exec = Client_Execution.query.filter_by(client_id=client_id).first()
+        
+        if not client_exec:
+            print(f"[HPC Monitor] No client_execution record found for client {client_id}")
+            return False
+        
+        # Update the fields
+        client_exec.last_active_day = summary['day']
+        client_exec.last_active_hour = summary['slot']
+        client_exec.elapsed_time = summary['elapsed_time']
+        
+        # Commit the changes
+        _commit_with_retry(db.session)
+        
+        print(f"[HPC Monitor] Updated client_execution: day={summary['day']}, hour={summary['slot']}, elapsed={summary['elapsed_time']}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(
+            f"Error updating client_execution from log for client {client_id}: {e}",
+            exc_info=True
+        )
+        print(f"[HPC Monitor] Error updating client_execution: {e}")
+        db.session.rollback()
+        return False
+
+
 def mark_hpc_client_as_completed(exp_id, client_id):
     """
     Mark an HPC client as completed in the client_execution table.
@@ -1327,6 +1442,19 @@ def monitor_hpc_client_execution_logs():
                 
                 for client in clients:
                     print(f"[HPC Monitor] Checking client: {client.name} (ID: {client.id})")
+                    
+                    # Update client execution progress from client log
+                    client_log_path = os.path.join(
+                        exp_folder, "logs", f"{client.name}_client.log"
+                    )
+                    
+                    print(f"[HPC Monitor] Looking for client log: {client_log_path}")
+                    
+                    if os.path.exists(client_log_path):
+                        print(f"[HPC Monitor] Client log found, updating execution progress...")
+                        update_client_execution_from_log(client.id, client_log_path)
+                    else:
+                        print(f"[HPC Monitor] Client log not found for {client.name}")
                     
                     # Check if execution log exists (in logs/ subdirectory)
                     execution_log_path = os.path.join(
