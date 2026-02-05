@@ -1183,14 +1183,48 @@ def check_and_terminate_hpc_experiment(exp_id):
             print(f"[HPC Monitor] No clients found for experiment {exp.exp_name}")
             return False
         
-        # Check if all clients are completed (status = 0)
-        completed_count = sum(1 for client in clients if client.status == 0)
+        # Check if all clients are properly completed
+        # A client is considered completed ONLY if:
+        # 1. It has status = 0 (stopped)
+        # 2. It has a client_execution record where elapsed_time == expected_duration_rounds
+        #    (which indicates it was marked as completed by the monitoring system)
+        truly_completed_count = 0
+        running_count = 0
+        not_started_count = 0
+        
+        for client in clients:
+            if client.status == 1:
+                running_count += 1
+            else:
+                # Check if this stopped client was properly completed
+                client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
+                if client_exec and client_exec.expected_duration_rounds > 0:
+                    if client_exec.elapsed_time == client_exec.expected_duration_rounds:
+                        truly_completed_count += 1
+                        print(f"[HPC Monitor] Client {client.name} is truly completed (elapsed={client_exec.elapsed_time}, expected={client_exec.expected_duration_rounds})")
+                    else:
+                        # Client is stopped but not completed - might not have started yet
+                        not_started_count += 1
+                        print(f"[HPC Monitor] Client {client.name} is stopped but not completed (elapsed={client_exec.elapsed_time}, expected={client_exec.expected_duration_rounds})")
+                else:
+                    # No execution record or no expected duration - not started
+                    not_started_count += 1
+                    print(f"[HPC Monitor] Client {client.name} has no execution record or expected duration")
+        
         total_count = len(clients)
-        print(f"[HPC Monitor] Experiment {exp.exp_name}: {completed_count}/{total_count} clients completed")
+        print(f"[HPC Monitor] Experiment {exp.exp_name}: {truly_completed_count} completed, {running_count} running, {not_started_count} not started (total: {total_count})")
         
-        all_completed = all(client.status == 0 for client in clients)
+        # Only terminate if:
+        # 1. There are no running clients
+        # 2. At least one client was truly completed (to avoid terminating when nothing has started)
+        # 3. All non-running clients are truly completed (not just stopped)
+        should_terminate = (
+            running_count == 0 and 
+            truly_completed_count > 0 and
+            truly_completed_count == (total_count - running_count)
+        )
         
-        if all_completed:
+        if should_terminate:
             print(f"[HPC Monitor] *** ALL CLIENTS COMPLETED for {exp.exp_name} ***")
             logger.info(
                 f"All clients completed for HPC experiment {exp_id} ({exp.exp_name}). "
@@ -1211,6 +1245,13 @@ def check_and_terminate_hpc_experiment(exp_id):
             
             logger.info(f"HPC experiment {exp_id} terminated successfully")
             return True
+        else:
+            if running_count > 0:
+                print(f"[HPC Monitor] Not terminating: {running_count} client(s) still running")
+            elif truly_completed_count == 0:
+                print(f"[HPC Monitor] Not terminating: no clients have been properly completed yet")
+            else:
+                print(f"[HPC Monitor] Not terminating: some stopped clients are not properly completed")
         
         return False
         
