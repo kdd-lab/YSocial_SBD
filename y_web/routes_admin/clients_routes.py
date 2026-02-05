@@ -566,7 +566,7 @@ def clients(idexp):
     # Get all recsys and filter by enabled field based on simulator type
     crecsys_all = Content_Recsys.query.all()
     frecsys_all = Follow_Recsys.query.all()
-    
+
     if simulator_type == "HPC":
         template_name = "admin/clients_hpc.html"
         # Filter for HPC - only show recsys with "HPC" in enabled field
@@ -2592,7 +2592,7 @@ def client_details(uid):
     # Get all recsys and filter by enabled field for Standard clients
     frecsys_all = Follow_Recsys.query.all()
     crecsys_all = Content_Recsys.query.all()
-    
+
     # Filter recsys based on enabled field - Standard clients only get ones with "Standard" in enabled
     frecsys = [r for r in frecsys_all if r.enabled and "Standard" in r.enabled]
     crecsys = [r for r in crecsys_all if r.enabled and "Standard" in r.enabled]
@@ -2721,7 +2721,7 @@ def client_details_hpc(uid):
     # Get all recsys and filter by enabled field for HPC clients
     frecsys_all = Follow_Recsys.query.all()
     crecsys_all = Content_Recsys.query.all()
-    
+
     # Filter recsys based on enabled field - HPC clients only get ones with "HPC" in enabled
     frecsys = [r for r in frecsys_all if r.enabled and "HPC" in r.enabled]
     crecsys = [r for r in crecsys_all if r.enabled and "HPC" in r.enabled]

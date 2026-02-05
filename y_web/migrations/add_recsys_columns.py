@@ -47,12 +47,16 @@ def migrate_sqlite(db_path):
             # Check if old 'group' column exists and needs to be renamed
             if "group" in content_columns:
                 # SQLite doesn't support column rename directly, need to recreate table
-                print("○ Renaming 'group' column to 'category' in content_recsys (requires table recreation)")
+                print(
+                    "○ Renaming 'group' column to 'category' in content_recsys (requires table recreation)"
+                )
                 # This is complex, so for now just add category column if group exists
                 # In production, data would need to be copied over
                 cursor.execute("ALTER TABLE content_recsys ADD COLUMN category TEXT")
-                cursor.execute("UPDATE content_recsys SET category = \"group\"")
-                print("✓ Added category column and copied data from group column in content_recsys")
+                cursor.execute('UPDATE content_recsys SET category = "group"')
+                print(
+                    "✓ Added category column and copied data from group column in content_recsys"
+                )
             else:
                 cursor.execute("ALTER TABLE content_recsys ADD COLUMN category TEXT")
                 print("✓ Added category column to content_recsys in SQLite database")
@@ -77,10 +81,14 @@ def migrate_sqlite(db_path):
         if "category" not in follow_columns:
             # Check if old 'group' column exists and needs to be renamed
             if "group" in follow_columns:
-                print("○ Renaming 'group' column to 'category' in follow_recsys (requires table recreation)")
+                print(
+                    "○ Renaming 'group' column to 'category' in follow_recsys (requires table recreation)"
+                )
                 cursor.execute("ALTER TABLE follow_recsys ADD COLUMN category TEXT")
-                cursor.execute("UPDATE follow_recsys SET category = \"group\"")
-                print("✓ Added category column and copied data from group column in follow_recsys")
+                cursor.execute('UPDATE follow_recsys SET category = "group"')
+                print(
+                    "✓ Added category column and copied data from group column in follow_recsys"
+                )
             else:
                 cursor.execute("ALTER TABLE follow_recsys ADD COLUMN category TEXT")
                 print("✓ Added category column to follow_recsys in SQLite database")
@@ -147,13 +155,17 @@ def migrate_postgresql(host, port, database, user, password):
                     ALTER TABLE content_recsys 
                     RENAME COLUMN "group" TO category
                 """)
-                print("✓ Renamed 'group' column to 'category' in content_recsys PostgreSQL table")
+                print(
+                    "✓ Renamed 'group' column to 'category' in content_recsys PostgreSQL table"
+                )
             else:
                 cursor.execute("""
                     ALTER TABLE content_recsys 
                     ADD COLUMN category TEXT
                 """)
-                print("✓ Added category column to content_recsys in PostgreSQL database")
+                print(
+                    "✓ Added category column to content_recsys in PostgreSQL database"
+                )
         else:
             print("○ category column already exists in content_recsys PostgreSQL table")
 
@@ -186,7 +198,9 @@ def migrate_postgresql(host, port, database, user, password):
                     ALTER TABLE follow_recsys 
                     RENAME COLUMN "group" TO category
                 """)
-                print("✓ Renamed 'group' column to 'category' in follow_recsys PostgreSQL table")
+                print(
+                    "✓ Renamed 'group' column to 'category' in follow_recsys PostgreSQL table"
+                )
             else:
                 cursor.execute("""
                     ALTER TABLE follow_recsys 
