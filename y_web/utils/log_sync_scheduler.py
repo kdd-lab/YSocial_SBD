@@ -2,7 +2,7 @@
 Background scheduler for HPC client execution monitoring.
 
 This module provides functionality to monitor HPC client execution logs
-for completion detection and progress updates. The monitor runs in a 
+for completion detection and progress updates. The monitor runs in a
 separate thread without blocking the main application.
 """
 
@@ -47,7 +47,9 @@ class LogSyncScheduler:
             return
 
         self._stop_event.clear()
-        self._hpc_monitor_thread = threading.Thread(target=self._run_hpc_monitor, daemon=True)
+        self._hpc_monitor_thread = threading.Thread(
+            target=self._run_hpc_monitor, daemon=True
+        )
         self._hpc_monitor_thread.start()
         self._started = True
         logger.info("HPC monitor started")
@@ -73,22 +75,24 @@ class LogSyncScheduler:
                 with self.app.app_context():
                     # Get HPC monitor settings
                     settings = self._get_hpc_monitor_settings()
-                    
+
                     # Check if monitoring is enabled
                     if not settings.enabled:
                         print("[HPC Monitor] Monitoring is disabled, waiting...")
                         self._stop_event.wait(30)  # Check again in 30 seconds
                         continue
-                    
+
                     # Monitor HPC client execution logs
-                    from y_web.utils.log_metrics import monitor_hpc_client_execution_logs
-                    
+                    from y_web.utils.log_metrics import (
+                        monitor_hpc_client_execution_logs,
+                    )
+
                     print("[HPC Monitor] Checking for completed clients...")
                     monitor_hpc_client_execution_logs()
-                    
+
                     # Update last check timestamp
                     self._update_hpc_monitor_last_check()
-                    
+
                     # Sleep for configured interval before next check
                     interval = settings.check_interval_seconds
                     print(f"[HPC Monitor] Next check in {interval} seconds...")

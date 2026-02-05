@@ -67,12 +67,20 @@ class TestHPCExecutionLogMonitoring:
         from y_web.utils.log_metrics import check_hpc_client_execution_completion
 
         # Create a temporary log file with shutdown message
-        with tempfile.NamedTemporaryFile(mode='w', suffix='_execution.log', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix="_execution.log", delete=False
+        ) as f:
             log_path = f.name
             # Write some log entries
-            f.write('{"timestamp": "2026-02-04T14:44:01.000000", "level": "INFO", "message": "Client starting"}\n')
-            f.write('{"timestamp": "2026-02-04T14:44:02.000000", "level": "INFO", "message": "Processing round 1"}\n')
-            f.write('{"timestamp": "2026-02-04T14:44:03.082126", "level": "INFO", "message": "Client shutdown complete", "module": "run_client", "function": "<module>", "line": 526}\n')
+            f.write(
+                '{"timestamp": "2026-02-04T14:44:01.000000", "level": "INFO", "message": "Client starting"}\n'
+            )
+            f.write(
+                '{"timestamp": "2026-02-04T14:44:02.000000", "level": "INFO", "message": "Processing round 1"}\n'
+            )
+            f.write(
+                '{"timestamp": "2026-02-04T14:44:03.082126", "level": "INFO", "message": "Client shutdown complete", "module": "run_client", "function": "<module>", "line": 526}\n'
+            )
 
         try:
             with app.app_context():
@@ -86,10 +94,16 @@ class TestHPCExecutionLogMonitoring:
         from y_web.utils.log_metrics import check_hpc_client_execution_completion
 
         # Create a temporary log file without shutdown message
-        with tempfile.NamedTemporaryFile(mode='w', suffix='_execution.log', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix="_execution.log", delete=False
+        ) as f:
             log_path = f.name
-            f.write('{"timestamp": "2026-02-04T14:44:01.000000", "level": "INFO", "message": "Client starting"}\n')
-            f.write('{"timestamp": "2026-02-04T14:44:02.000000", "level": "INFO", "message": "Processing round 1"}\n')
+            f.write(
+                '{"timestamp": "2026-02-04T14:44:01.000000", "level": "INFO", "message": "Client starting"}\n'
+            )
+            f.write(
+                '{"timestamp": "2026-02-04T14:44:02.000000", "level": "INFO", "message": "Processing round 1"}\n'
+            )
 
         try:
             with app.app_context():
@@ -103,7 +117,9 @@ class TestHPCExecutionLogMonitoring:
         from y_web.utils.log_metrics import check_hpc_client_execution_completion
 
         # Create an empty log file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='_execution.log', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix="_execution.log", delete=False
+        ) as f:
             log_path = f.name
 
         try:
@@ -118,10 +134,14 @@ class TestHPCExecutionLogMonitoring:
         from y_web.utils.log_metrics import check_hpc_client_execution_completion
 
         # Create a log file with invalid JSON
-        with tempfile.NamedTemporaryFile(mode='w', suffix='_execution.log', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix="_execution.log", delete=False
+        ) as f:
             log_path = f.name
-            f.write('{"timestamp": "2026-02-04T14:44:01.000000", "level": "INFO", "message": "Client starting"}\n')
-            f.write('This is not valid JSON\n')
+            f.write(
+                '{"timestamp": "2026-02-04T14:44:01.000000", "level": "INFO", "message": "Client starting"}\n'
+            )
+            f.write("This is not valid JSON\n")
 
         try:
             with app.app_context():
@@ -135,7 +155,9 @@ class TestHPCExecutionLogMonitoring:
         from y_web.utils.log_metrics import check_hpc_client_execution_completion
 
         with app.app_context():
-            result = check_hpc_client_execution_completion(1, 1, '/nonexistent/path/log.log')
+            result = check_hpc_client_execution_completion(
+                1, 1, "/nonexistent/path/log.log"
+            )
             assert result is False
 
     def test_mark_client_as_completed(self, app, db):
@@ -154,17 +176,13 @@ class TestHPCExecutionLogMonitoring:
                 running=1,
                 port=5000,
                 db_name="experiments_test",
-                simulator_type="HPC"
+                simulator_type="HPC",
             )
             db.session.add(exp)
             db.session.commit()
 
             # Create a population for the client (minimal required fields)
-            pop = Population(
-                name="test_pop",
-                descr="Test population",
-                size=10
-            )
+            pop = Population(name="test_pop", descr="Test population", size=10)
             db.session.add(pop)
             db.session.commit()
 
@@ -173,7 +191,7 @@ class TestHPCExecutionLogMonitoring:
                 descr="Test client",
                 id_exp=exp.idexp,
                 population_id=pop.id,
-                status=1
+                status=1,
             )
             db.session.add(client)
             db.session.commit()
@@ -183,7 +201,7 @@ class TestHPCExecutionLogMonitoring:
                 elapsed_time=10,
                 expected_duration_rounds=24,
                 last_active_day=0,
-                last_active_hour=9
+                last_active_hour=9,
             )
             db.session.add(client_exec)
             db.session.commit()
@@ -202,7 +220,7 @@ class TestHPCExecutionLogMonitoring:
             updated_client = Client.query.filter_by(id=client.id).first()
             assert updated_client.status == 0
 
-    @patch('y_web.utils.external_processes.stop_hpc_server')
+    @patch("y_web.utils.external_processes.stop_hpc_server")
     def test_check_and_terminate_all_clients_completed(self, mock_stop, app, db):
         """Test terminating experiment when all clients are completed."""
         from y_web.models import Client, Exps, Population
@@ -220,17 +238,13 @@ class TestHPCExecutionLogMonitoring:
                 port=5000,
                 db_name="experiments_test",
                 simulator_type="HPC",
-                exp_status="active"
+                exp_status="active",
             )
             db.session.add(exp)
             db.session.commit()
 
             # Create a population for the clients
-            pop = Population(
-                name="test_pop",
-                descr="Test population",
-                size=10
-            )
+            pop = Population(name="test_pop", descr="Test population", size=10)
             db.session.add(pop)
             db.session.commit()
 
@@ -241,7 +255,7 @@ class TestHPCExecutionLogMonitoring:
                     descr=f"Test client {i}",
                     id_exp=exp.idexp,
                     population_id=pop.id,
-                    status=0  # All completed
+                    status=0,  # All completed
                 )
                 db.session.add(client)
             db.session.commit()
@@ -256,7 +270,7 @@ class TestHPCExecutionLogMonitoring:
             assert updated_exp.exp_status == "completed"
             mock_stop.assert_called_once_with(exp.idexp)
 
-    @patch('y_web.utils.external_processes.stop_hpc_server')
+    @patch("y_web.utils.external_processes.stop_hpc_server")
     def test_check_and_terminate_some_clients_running(self, mock_stop, app, db):
         """Test that experiment is not terminated when some clients are still running."""
         from y_web.models import Client, Exps, Population
@@ -273,17 +287,13 @@ class TestHPCExecutionLogMonitoring:
                 running=1,
                 port=5000,
                 db_name="experiments_test",
-                simulator_type="HPC"
+                simulator_type="HPC",
             )
             db.session.add(exp)
             db.session.commit()
 
             # Create a population for the clients
-            pop = Population(
-                name="test_pop",
-                descr="Test population",
-                size=10
-            )
+            pop = Population(name="test_pop", descr="Test population", size=10)
             db.session.add(pop)
             db.session.commit()
 
@@ -294,7 +304,7 @@ class TestHPCExecutionLogMonitoring:
                     descr=f"Test client {i}",
                     id_exp=exp.idexp,
                     population_id=pop.id,
-                    status=0 if i < 2 else 1  # One still running
+                    status=0 if i < 2 else 1,  # One still running
                 )
                 db.session.add(client)
             db.session.commit()

@@ -71,7 +71,7 @@ def migrate_sqlite(db_path):
             "SELECT name FROM sqlite_master WHERE type='table' AND name='log_sync_settings'"
         )
         old_table_exists = cursor.fetchone() is not None
-        
+
         if old_table_exists:
             cursor.execute("DROP TABLE log_sync_settings")
             print("✓ Removed old log_sync_settings table from SQLite database")
@@ -147,7 +147,7 @@ def migrate_postgresql(host, port, database, user, password):
               AND table_name = 'log_sync_settings'
         """)
         old_table_exists = cursor.fetchone() is not None
-        
+
         if old_table_exists:
             cursor.execute("DROP TABLE log_sync_settings")
             print("✓ Removed old log_sync_settings table from PostgreSQL database")
