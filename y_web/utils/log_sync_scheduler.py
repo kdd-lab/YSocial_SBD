@@ -1,10 +1,9 @@
 """
-Background scheduler for automatic log synchronization.
+Background scheduler for HPC client execution monitoring.
 
-This module provides functionality to periodically read and update
-log metrics for active experiments without blocking the main thread.
-The scheduler runs in a separate thread and respects the user-configurable
-sync interval from the database.
+This module provides functionality to monitor HPC client execution logs
+for completion detection and progress updates. The monitor runs in a 
+separate thread without blocking the main application.
 """
 
 import logging
@@ -22,95 +21,47 @@ _scheduler_lock = threading.Lock()
 
 class LogSyncScheduler:
     """
-    Background scheduler for automatic log synchronization.
+    Background scheduler for HPC client execution monitoring.
 
-    Periodically reads logs from active experiments and updates
-    the database metrics tables. Runs in a daemon thread that
-    stops when the main application exits.
+    Monitors HPC client execution logs for completion detection and
+    real-time progress updates. Runs in a daemon thread that stops
+    when the main application exits.
     """
 
     def __init__(self, app):
         """
-        Initialize the log sync scheduler.
+        Initialize the HPC monitor scheduler.
 
         Args:
             app: Flask application instance
         """
         self.app = app
         self._stop_event = threading.Event()
-        self._thread = None
         self._hpc_monitor_thread = None
         self._started = False
 
     def start(self):
-        """Start the background scheduler thread."""
+        """Start the HPC monitor background thread."""
         if self._started:
-            logger.warning("Log sync scheduler already started")
+            logger.warning("HPC monitor already started")
             return
 
         self._stop_event.clear()
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
         self._hpc_monitor_thread = threading.Thread(target=self._run_hpc_monitor, daemon=True)
         self._hpc_monitor_thread.start()
         self._started = True
-        logger.info("Log sync scheduler and HPC monitor started")
+        logger.info("HPC monitor started")
 
     def stop(self):
-        """Stop the background scheduler thread."""
+        """Stop the HPC monitor background thread."""
         if not self._started:
             return
 
         self._stop_event.set()
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=5)
         if self._hpc_monitor_thread and self._hpc_monitor_thread.is_alive():
             self._hpc_monitor_thread.join(timeout=5)
         self._started = False
-        logger.info("Log sync scheduler and HPC monitor stopped")
-
-    def _run(self):
-        """Main scheduler loop running in background thread."""
-        # Wait a bit before first run to let the app fully start
-        time.sleep(5)
-
-        while not self._stop_event.is_set():
-            try:
-                with self.app.app_context():
-                    settings = self._get_settings()
-
-                    if settings and settings.enabled:
-                        interval_seconds = settings.sync_interval_minutes * 60
-
-                        # Check if enough time has passed since last sync
-                        should_sync = True
-                        if settings.last_sync:
-                            # Handle both naive and timezone-aware datetimes
-                            last_sync = settings.last_sync
-                            if last_sync.tzinfo is None:
-                                last_sync = last_sync.replace(tzinfo=timezone.utc)
-                            time_since_sync = (
-                                datetime.now(timezone.utc) - last_sync
-                            ).total_seconds()
-                            should_sync = time_since_sync >= interval_seconds
-
-                        if should_sync:
-                            logger.info("Starting automatic log sync...")
-                            self._sync_all_active_experiments()
-                            self._update_last_sync()
-                            logger.info("Automatic log sync completed")
-
-                        # Sleep for 1 minute before checking again
-                        # This allows for responsive setting changes
-                        self._stop_event.wait(60)
-                    else:
-                        # Sync is disabled, check again in 1 minute
-                        self._stop_event.wait(60)
-
-            except Exception as e:
-                logger.error(f"Error in log sync scheduler: {e}", exc_info=True)
-                # Sleep before retrying on error
-                self._stop_event.wait(60)
+        logger.info("HPC monitor stopped")
 
     def _run_hpc_monitor(self):
         """HPC execution log monitor loop running in background thread."""
@@ -183,168 +134,6 @@ class LogSyncScheduler:
             logger.warning(f"Failed to update last_check timestamp: {e}")
             db.session.rollback()
 
-    def _get_settings(self):
-        """Get log sync settings from database with proper error handling."""
-        from sqlalchemy.exc import IntegrityError
-
-        from y_web import db
-        from y_web.models import LogSyncSettings
-
-        settings = LogSyncSettings.query.first()
-        if not settings:
-            # Use get_or_create pattern with proper exception handling
-            try:
-                settings = LogSyncSettings(enabled=True, sync_interval_minutes=10)
-                db.session.add(settings)
-                db.session.commit()
-            except IntegrityError:
-                # Another thread created settings, rollback and fetch
-                db.session.rollback()
-                settings = LogSyncSettings.query.first()
-        return settings
-
-    def _update_last_sync(self):
-        """Update the last sync timestamp in database."""
-        from y_web import db
-        from y_web.models import LogSyncSettings
-
-        try:
-            settings = LogSyncSettings.query.first()
-            if settings:
-                settings.last_sync = datetime.now(timezone.utc)
-                db.session.commit()
-        except Exception as e:
-            logger.warning(f"Failed to update last_sync timestamp: {e}")
-            db.session.rollback()
-
-    def _safe_rollback(self, db):
-        """
-        Safely rollback the database session.
-
-        Catches and logs any exceptions to prevent rollback failures
-        from masking the original error.
-        """
-        try:
-            if db.session.is_active:
-                db.session.rollback()
-        except Exception as e:
-            logger.debug(f"Rollback exception (can be safely ignored): {e}")
-
-    def _sync_all_active_experiments(self):
-        """Sync logs for all running experiments."""
-        from y_web import db
-        from y_web.models import Client, Exps
-        from y_web.utils.log_metrics import (
-            has_server_log_files,
-            update_client_log_metrics,
-            update_server_log_metrics,
-        )
-        from y_web.utils.path_utils import get_writable_path
-
-        BASE_DIR = get_writable_path()
-
-        # Ensure session is in clean state before starting
-        self._safe_rollback(db)
-
-        # Get all running experiments
-        try:
-            running_exps = Exps.query.filter_by(running=1).all()
-        except Exception as e:
-            logger.error(f"Error querying running experiments: {e}")
-            self._safe_rollback(db)
-            return
-
-        for exp in running_exps:
-            # Clear session state before each experiment to prevent cascading failures
-            self._safe_rollback(db)
-
-            try:
-                # Determine experiment folder path
-                db_name = exp.db_name
-                if db_name.startswith("experiments/") or db_name.startswith(
-                    "experiments\\"
-                ):
-                    parts = db_name.split(os.sep)
-                    if len(parts) >= 2:
-                        exp_folder = os.path.join(
-                            BASE_DIR, f"y_web{os.sep}experiments{os.sep}{parts[1]}"
-                        )
-                    else:
-                        continue
-                elif db_name.startswith("experiments_"):
-                    uid = db_name.replace("experiments_", "")
-                    exp_folder = os.path.join(
-                        BASE_DIR, f"y_web{os.sep}experiments{os.sep}{uid}"
-                    )
-                else:
-                    continue
-
-                # Sync server logs with session cleanup
-                server_log_file = os.path.join(exp_folder, "_server.log")
-                if has_server_log_files(server_log_file):
-                    try:
-                        update_server_log_metrics(exp.idexp, server_log_file)
-                        logger.debug(
-                            f"Synced server logs for experiment {exp.exp_name}"
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            f"Error syncing server logs for experiment {exp.exp_name}: {e}"
-                        )
-                        # Ensure session is clean after error
-                        self._safe_rollback(db)
-
-                # Sync client logs for all running clients
-                try:
-                    clients = Client.query.filter_by(id_exp=exp.idexp, status=1).all()
-                except Exception as e:
-                    logger.warning(
-                        f"Error querying clients for experiment {exp.exp_name}: {e}"
-                    )
-                    self._safe_rollback(db)
-                    continue
-
-                for client in clients:
-                    client_log_file = os.path.join(
-                        exp_folder, f"{client.name}_client.log"
-                    )
-                    if os.path.exists(client_log_file):
-                        try:
-                            update_client_log_metrics(
-                                exp.idexp, client.id, client_log_file
-                            )
-                            logger.debug(
-                                f"Synced client logs for {client.name} in experiment {exp.exp_name}"
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                f"Error syncing client logs for {client.name}: {e}"
-                            )
-                            # Ensure session is clean after error
-                            self._safe_rollback(db)
-
-            except Exception as e:
-                logger.error(
-                    f"Error syncing logs for experiment {exp.exp_name}: {e}",
-                    exc_info=True,
-                )
-                # Ensure session is clean after error
-                self._safe_rollback(db)
-
-    def trigger_sync(self):
-        """Manually trigger a log sync (called from API)."""
-        if not self._started:
-            return False
-
-        try:
-            with self.app.app_context():
-                self._sync_all_active_experiments()
-                self._update_last_sync()
-                return True
-        except Exception as e:
-            logger.error(f"Error in manual log sync: {e}", exc_info=True)
-            return False
-
 
 def get_scheduler():
     """Get the global scheduler instance."""
@@ -353,7 +142,7 @@ def get_scheduler():
 
 def init_log_sync_scheduler(app):
     """
-    Initialize and start the log sync scheduler.
+    Initialize and start the HPC monitor scheduler.
 
     Should be called once during application startup.
 
@@ -364,7 +153,7 @@ def init_log_sync_scheduler(app):
 
     with _scheduler_lock:
         if _scheduler is not None:
-            logger.warning("Log sync scheduler already initialized")
+            logger.warning("HPC monitor scheduler already initialized")
             return _scheduler
 
         _scheduler = LogSyncScheduler(app)
@@ -373,7 +162,7 @@ def init_log_sync_scheduler(app):
 
 
 def stop_log_sync_scheduler():
-    """Stop the global log sync scheduler."""
+    """Stop the global HPC monitor scheduler."""
     global _scheduler
 
     with _scheduler_lock:
