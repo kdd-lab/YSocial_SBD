@@ -257,7 +257,7 @@ def extend_simulation(id_client):
 
             # Reset client metrics for this specific client
             reset_result_client = reset_hpc_client_metrics(exp.idexp, id_client)
-            
+
             # Reset server metrics for the entire experiment
             # This is needed because server logs also reflect the extended simulation
             reset_result_server = reset_hpc_server_metrics(exp.idexp)
@@ -267,12 +267,17 @@ def extend_simulation(id_client):
                     "Log metrics reset. Plots will update with extended data on next refresh.",
                     "success",
                 )
+            elif not reset_result_client and not reset_result_server:
+                flash(
+                    "Warning: Could not reset log metrics. Plots may not show extended data.",
+                    "warning",
+                )
             elif not reset_result_client:
                 flash(
                     "Warning: Could not reset client log metrics. Client plots may not show extended data.",
                     "warning",
                 )
-            elif not reset_result_server:
+            else:  # not reset_result_server
                 flash(
                     "Warning: Could not reset server log metrics. Server trend plots may not show extended data.",
                     "warning",
