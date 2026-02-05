@@ -49,6 +49,7 @@ from y_web.models import (
     ExperimentScheduleLog,
     ExperimentScheduleStatus,
     Exps,
+    HpcMonitorSettings,
     Jupyter_instances,
     Languages,
     Leanings,
@@ -4960,6 +4961,97 @@ def trigger_log_sync():
     except Exception as e:
         current_app.logger.error(f"Error triggering log sync: {e}", exc_info=True)
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@experiments.route("/admin/hpc_monitor_settings", methods=["GET"])
+@login_required
+def get_hpc_monitor_settings():
+    """
+    Get current HPC monitor settings.
+
+    Returns:
+        JSON with HPC monitor settings
+    """
+    check_privileges(current_user.username)
+
+    # Get or create default settings
+    settings = HpcMonitorSettings.query.first()
+    if not settings:
+        settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
+        db.session.add(settings)
+        db.session.commit()
+
+    return jsonify(
+        {
+            "enabled": settings.enabled,
+            "check_interval_seconds": settings.check_interval_seconds,
+            "last_check": (
+                settings.last_check.isoformat() + "Z" if settings.last_check else None
+            ),
+        }
+    )
+
+
+@experiments.route("/admin/hpc_monitor_settings", methods=["POST"])
+@login_required
+def update_hpc_monitor_settings():
+    """
+    Update HPC monitor settings.
+
+    Expects JSON body with:
+    - enabled (bool): Whether HPC monitoring is enabled
+    - check_interval_seconds (int): Check frequency in seconds (1-300)
+
+    Returns:
+        JSON with success status
+    """
+    check_privileges(current_user.username)
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"success": False, "message": "No data provided"}), 400
+
+    # Get or create settings
+    settings = HpcMonitorSettings.query.first()
+    if not settings:
+        settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
+        db.session.add(settings)
+
+    # Update enabled if provided
+    if "enabled" in data:
+        settings.enabled = bool(data["enabled"])
+
+    # Update check interval if provided
+    if "check_interval_seconds" in data:
+        try:
+            interval = int(data["check_interval_seconds"])
+            # Validate range: 1 second to 5 minutes (300 seconds)
+            if interval < 1 or interval > 300:
+                return (
+                    jsonify(
+                        {
+                            "success": False,
+                            "message": "Check interval must be between 1 and 300 seconds",
+                        }
+                    ),
+                    400,
+                )
+            settings.check_interval_seconds = interval
+        except (ValueError, TypeError):
+            return (
+                jsonify({"success": False, "message": "Invalid check interval value"}),
+                400,
+            )
+
+    db.session.commit()
+
+    return jsonify(
+        {
+            "success": True,
+            "enabled": settings.enabled,
+            "check_interval_seconds": settings.check_interval_seconds,
+        }
+    )
 
 
 # =====================================================

@@ -120,20 +120,68 @@ class LogSyncScheduler:
         while not self._stop_event.is_set():
             try:
                 with self.app.app_context():
+                    # Get HPC monitor settings
+                    settings = self._get_hpc_monitor_settings()
+                    
+                    # Check if monitoring is enabled
+                    if not settings.enabled:
+                        print("[HPC Monitor] Monitoring is disabled, waiting...")
+                        self._stop_event.wait(30)  # Check again in 30 seconds
+                        continue
+                    
                     # Monitor HPC client execution logs
                     from y_web.utils.log_metrics import monitor_hpc_client_execution_logs
                     
                     print("[HPC Monitor] Checking for completed clients...")
                     monitor_hpc_client_execution_logs()
                     
-                    # Sleep for 5 seconds before next check
-                    self._stop_event.wait(5)
+                    # Update last check timestamp
+                    self._update_hpc_monitor_last_check()
+                    
+                    # Sleep for configured interval before next check
+                    interval = settings.check_interval_seconds
+                    print(f"[HPC Monitor] Next check in {interval} seconds...")
+                    self._stop_event.wait(interval)
 
             except Exception as e:
                 logger.error(f"Error in HPC execution log monitor: {e}", exc_info=True)
                 print(f"[HPC Monitor] ERROR: {e}")
-                # Sleep before retrying on error
+                # Sleep before retrying on error (use default 5 seconds)
                 self._stop_event.wait(5)
+
+    def _get_hpc_monitor_settings(self):
+        """Get HPC monitor settings from database with proper error handling."""
+        from sqlalchemy.exc import IntegrityError
+
+        from y_web import db
+        from y_web.models import HpcMonitorSettings
+
+        settings = HpcMonitorSettings.query.first()
+        if not settings:
+            # Use get_or_create pattern with proper exception handling
+            try:
+                settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
+                db.session.add(settings)
+                db.session.commit()
+            except IntegrityError:
+                # Another thread created settings, rollback and fetch
+                db.session.rollback()
+                settings = HpcMonitorSettings.query.first()
+        return settings
+
+    def _update_hpc_monitor_last_check(self):
+        """Update the last check timestamp in database."""
+        from y_web import db
+        from y_web.models import HpcMonitorSettings
+
+        try:
+            settings = HpcMonitorSettings.query.first()
+            if settings:
+                settings.last_check = datetime.now(timezone.utc)
+                db.session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update last_check timestamp: {e}")
+            db.session.rollback()
 
     def _get_settings(self):
         """Get log sync settings from database with proper error handling."""

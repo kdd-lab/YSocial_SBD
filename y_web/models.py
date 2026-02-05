@@ -1119,6 +1119,25 @@ class LogSyncSettings(db.Model):
     last_sync = db.Column(db.DateTime, nullable=True)  # Last time sync was performed
 
 
+class HpcMonitorSettings(db.Model):
+    """
+    Settings for HPC client execution monitoring.
+
+    Stores configuration for the HPC monitor including whether it's enabled
+    and the check frequency in seconds.
+    Single-row table that is created on first access if it doesn't exist.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "hpc_monitor_settings"
+    id = db.Column(db.Integer, primary_key=True)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+    check_interval_seconds = db.Column(
+        db.Integer, nullable=False, default=5
+    )  # Default 5 seconds
+    last_check = db.Column(db.DateTime, nullable=True)  # Last time check was performed
+
+
 class WatchdogSettings(db.Model):
     """
     Settings for the process watchdog that monitors server/client processes.
