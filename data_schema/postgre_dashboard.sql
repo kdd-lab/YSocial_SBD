@@ -251,19 +251,19 @@ CREATE TABLE client_execution (
 -- Recommendation systems
 -- -----------------------------
 CREATE TABLE content_recsys (
-    id      SERIAL PRIMARY KEY,
-    name    TEXT NOT NULL,
-    value   TEXT NOT NULL,
-    "group" TEXT,
-    enabled TEXT
+    id       SERIAL PRIMARY KEY,
+    name     TEXT NOT NULL,
+    value    TEXT NOT NULL,
+    category TEXT,
+    enabled  TEXT
 );
 
 CREATE TABLE follow_recsys (
-    id      SERIAL PRIMARY KEY,
-    name    TEXT NOT NULL,
-    value   TEXT NOT NULL,
-    "group" TEXT,
-    enabled TEXT
+    id       SERIAL PRIMARY KEY,
+    name     TEXT NOT NULL,
+    value    TEXT NOT NULL,
+    category TEXT,
+    enabled  TEXT
 );
 
 -- -----------------------------

@@ -1,8 +1,8 @@
 """
-Database migration script to add group and enabled columns to recsys tables.
+Database migration script to add category and enabled columns to recsys tables.
 
 This script adds:
-- group: TEXT column for grouping recommendation systems
+- category: TEXT column for categorizing recommendation systems
 - enabled: TEXT column containing comma-separated list of clients (e.g., "HPC,Standard")
 
 Run this script to update existing YSocial installations.
@@ -22,7 +22,7 @@ except ImportError:
 
 def migrate_sqlite(db_path):
     """
-    Add group and enabled columns to recsys tables in SQLite database.
+    Add category and enabled columns to recsys tables in SQLite database.
 
     Args:
         db_path: Path to the SQLite database file
@@ -42,12 +42,22 @@ def migrate_sqlite(db_path):
         cursor.execute("PRAGMA table_info(content_recsys)")
         content_columns = [row[1] for row in cursor.fetchall()]
 
-        # Add group column to content_recsys if it doesn't exist
-        if "group" not in content_columns:
-            cursor.execute("ALTER TABLE content_recsys ADD COLUMN 'group' TEXT")
-            print("✓ Added group column to content_recsys in SQLite database")
+        # Add category column to content_recsys if it doesn't exist (check for both old 'group' name and new 'category' name)
+        if "category" not in content_columns:
+            # Check if old 'group' column exists and needs to be renamed
+            if "group" in content_columns:
+                # SQLite doesn't support column rename directly, need to recreate table
+                print("○ Renaming 'group' column to 'category' in content_recsys (requires table recreation)")
+                # This is complex, so for now just add category column if group exists
+                # In production, data would need to be copied over
+                cursor.execute("ALTER TABLE content_recsys ADD COLUMN category TEXT")
+                cursor.execute("UPDATE content_recsys SET category = \"group\"")
+                print("✓ Added category column and copied data from group column in content_recsys")
+            else:
+                cursor.execute("ALTER TABLE content_recsys ADD COLUMN category TEXT")
+                print("✓ Added category column to content_recsys in SQLite database")
         else:
-            print("○ group column already exists in content_recsys SQLite table")
+            print("○ category column already exists in content_recsys SQLite table")
 
         # Add enabled column to content_recsys if it doesn't exist
         if "enabled" not in content_columns:
@@ -63,12 +73,19 @@ def migrate_sqlite(db_path):
         cursor.execute("PRAGMA table_info(follow_recsys)")
         follow_columns = [row[1] for row in cursor.fetchall()]
 
-        # Add group column to follow_recsys if it doesn't exist
-        if "group" not in follow_columns:
-            cursor.execute("ALTER TABLE follow_recsys ADD COLUMN 'group' TEXT")
-            print("✓ Added group column to follow_recsys in SQLite database")
+        # Add category column to follow_recsys if it doesn't exist
+        if "category" not in follow_columns:
+            # Check if old 'group' column exists and needs to be renamed
+            if "group" in follow_columns:
+                print("○ Renaming 'group' column to 'category' in follow_recsys (requires table recreation)")
+                cursor.execute("ALTER TABLE follow_recsys ADD COLUMN category TEXT")
+                cursor.execute("UPDATE follow_recsys SET category = \"group\"")
+                print("✓ Added category column and copied data from group column in follow_recsys")
+            else:
+                cursor.execute("ALTER TABLE follow_recsys ADD COLUMN category TEXT")
+                print("✓ Added category column to follow_recsys in SQLite database")
         else:
-            print("○ group column already exists in follow_recsys SQLite table")
+            print("○ category column already exists in follow_recsys SQLite table")
 
         # Add enabled column to follow_recsys if it doesn't exist
         if "enabled" not in follow_columns:
@@ -91,7 +108,7 @@ def migrate_sqlite(db_path):
 
 def migrate_postgresql(host, port, database, user, password):
     """
-    Add group and enabled columns to recsys tables in PostgreSQL database.
+    Add category and enabled columns to recsys tables in PostgreSQL database.
 
     Args:
         host: PostgreSQL server host
@@ -122,15 +139,23 @@ def migrate_postgresql(host, port, database, user, password):
         """)
         content_columns = [row[0] for row in cursor.fetchall()]
 
-        # Add group column to content_recsys if it doesn't exist
-        if "group" not in content_columns:
-            cursor.execute("""
-                ALTER TABLE content_recsys 
-                ADD COLUMN "group" TEXT
-            """)
-            print("✓ Added group column to content_recsys in PostgreSQL database")
+        # Add category column to content_recsys if it doesn't exist (or rename from group)
+        if "category" not in content_columns:
+            if "group" in content_columns:
+                # Rename group to category
+                cursor.execute("""
+                    ALTER TABLE content_recsys 
+                    RENAME COLUMN "group" TO category
+                """)
+                print("✓ Renamed 'group' column to 'category' in content_recsys PostgreSQL table")
+            else:
+                cursor.execute("""
+                    ALTER TABLE content_recsys 
+                    ADD COLUMN category TEXT
+                """)
+                print("✓ Added category column to content_recsys in PostgreSQL database")
         else:
-            print("○ group column already exists in content_recsys PostgreSQL table")
+            print("○ category column already exists in content_recsys PostgreSQL table")
 
         # Add enabled column to content_recsys if it doesn't exist
         if "enabled" not in content_columns:
@@ -153,15 +178,23 @@ def migrate_postgresql(host, port, database, user, password):
         """)
         follow_columns = [row[0] for row in cursor.fetchall()]
 
-        # Add group column to follow_recsys if it doesn't exist
-        if "group" not in follow_columns:
-            cursor.execute("""
-                ALTER TABLE follow_recsys 
-                ADD COLUMN "group" TEXT
-            """)
-            print("✓ Added group column to follow_recsys in PostgreSQL database")
+        # Add category column to follow_recsys if it doesn't exist (or rename from group)
+        if "category" not in follow_columns:
+            if "group" in follow_columns:
+                # Rename group to category
+                cursor.execute("""
+                    ALTER TABLE follow_recsys 
+                    RENAME COLUMN "group" TO category
+                """)
+                print("✓ Renamed 'group' column to 'category' in follow_recsys PostgreSQL table")
+            else:
+                cursor.execute("""
+                    ALTER TABLE follow_recsys 
+                    ADD COLUMN category TEXT
+                """)
+                print("✓ Added category column to follow_recsys in PostgreSQL database")
         else:
-            print("○ group column already exists in follow_recsys PostgreSQL table")
+            print("○ category column already exists in follow_recsys PostgreSQL table")
 
         # Add enabled column to follow_recsys if it doesn't exist
         if "enabled" not in follow_columns:

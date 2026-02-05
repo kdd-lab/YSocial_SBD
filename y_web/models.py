@@ -846,7 +846,7 @@ class Content_Recsys(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     value = db.Column(db.String(500), nullable=False)
-    group = db.Column(db.String(100), nullable=True)
+    category = db.Column(db.String(100), nullable=True)
     enabled = db.Column(db.String(100), nullable=True)
 
 
@@ -858,7 +858,7 @@ class Follow_Recsys(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     value = db.Column(db.String(500), nullable=False)
-    group = db.Column(db.String(100), nullable=True)
+    category = db.Column(db.String(100), nullable=True)
     enabled = db.Column(db.String(100), nullable=True)
 
 
