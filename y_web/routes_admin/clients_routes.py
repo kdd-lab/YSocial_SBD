@@ -184,6 +184,53 @@ def extend_simulation(id_client):
             "info",
         )
 
+    # Update the client config JSON file for HPC experiments
+    # This ensures the client uses the extended duration when restarted
+    if exp and exp.simulator_type == "HPC":
+        try:
+            from y_web.utils.path_utils import get_writable_path
+
+            BASE = get_writable_path()
+            dbtype = get_db_type()
+
+            if dbtype == "sqlite":
+                exp_folder = exp.db_name.split(os.sep)[1]
+            else:
+                exp_folder = exp.db_name.removeprefix("experiments_")
+
+            # Get population for the client
+            population = Population.query.filter_by(id=client.population_id).first()
+            if population:
+                config_path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
+
+                if os.path.exists(config_path):
+                    # Read existing config
+                    with open(config_path, "r") as f:
+                        config = json.load(f)
+
+                    # Update num_days in simulation config
+                    if "simulation" in config:
+                        config["simulation"]["num_days"] = int(client.days)
+
+                        # Write updated config back to file
+                        with open(config_path, "w") as f:
+                            json.dump(config, f, indent=2)
+
+                        flash(
+                            f"Client configuration file updated with extended duration ({client.days} days).",
+                            "success",
+                        )
+                else:
+                    flash(
+                        f"Warning: Client config file not found at {config_path}. Extension applied to database only.",
+                        "warning",
+                    )
+        except Exception as e:
+            flash(
+                f"Warning: Could not update client config file: {str(e)}. Extension applied to database only.",
+                "warning",
+            )
+
     return redirect(request.referrer)
 
 
