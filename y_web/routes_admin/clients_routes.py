@@ -247,6 +247,42 @@ def extend_simulation(id_client):
                 "warning",
             )
 
+        # Reset log metrics for HPC experiments to force re-parsing
+        # This ensures plots (both client and server trends) show extended data
+        try:
+            from y_web.utils.log_metrics import (
+                reset_hpc_client_metrics,
+                reset_hpc_server_metrics,
+            )
+
+            # Reset client metrics for this specific client
+            reset_result_client = reset_hpc_client_metrics(exp.idexp, id_client)
+            
+            # Reset server metrics for the entire experiment
+            # This is needed because server logs also reflect the extended simulation
+            reset_result_server = reset_hpc_server_metrics(exp.idexp)
+
+            if reset_result_client and reset_result_server:
+                flash(
+                    "Log metrics reset. Plots will update with extended data on next refresh.",
+                    "success",
+                )
+            elif not reset_result_client:
+                flash(
+                    "Warning: Could not reset client log metrics. Client plots may not show extended data.",
+                    "warning",
+                )
+            elif not reset_result_server:
+                flash(
+                    "Warning: Could not reset server log metrics. Server trend plots may not show extended data.",
+                    "warning",
+                )
+        except Exception as e:
+            flash(
+                f"Warning: Could not reset log metrics: {str(e)}. Plots may not show extended data.",
+                "warning",
+            )
+
     return redirect(request.referrer)
 
 
