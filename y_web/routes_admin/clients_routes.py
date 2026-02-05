@@ -221,7 +221,7 @@ def extend_simulation(id_client):
 
                     # Update num_days in simulation config
                     if "simulation" in config:
-                        config["simulation"]["num_days"] = int(client.days)
+                        config["simulation"]["num_days"] = days  # int(client.days)
 
                         # Write updated config back to file
                         with open(config_path, "w") as f:
