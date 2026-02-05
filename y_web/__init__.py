@@ -662,18 +662,18 @@ def create_app(db_type="sqlite", desktop_mode=False):
             print(f"Failed to run log metrics tables migration: {e}")
 
         try:
-            # Run migration to add log sync settings table if needed
+            # Run migration to add HPC monitor settings table and remove log sync settings
             if db_type == "sqlite":
-                from y_web.migrations.add_log_sync_settings import (
-                    migrate_sqlite as migrate_log_sync_sqlite,
+                from y_web.migrations.add_hpc_monitor_settings import (
+                    migrate_sqlite as migrate_hpc_monitor_sqlite,
                 )
 
                 dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
                 if dashboard_db_path:
-                    migrate_log_sync_sqlite(dashboard_db_path)
+                    migrate_hpc_monitor_sqlite(dashboard_db_path)
             elif db_type == "postgresql":
-                from y_web.migrations.add_log_sync_settings import (
-                    migrate_postgresql as migrate_log_sync_postgresql,
+                from y_web.migrations.add_hpc_monitor_settings import (
+                    migrate_postgresql as migrate_hpc_monitor_postgresql,
                 )
 
                 # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
@@ -683,11 +683,11 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 pg_user = os.getenv("PG_USER", "postgres")
                 pg_password = os.getenv("PG_PASSWORD", "")
                 if pg_password:
-                    migrate_log_sync_postgresql(
+                    migrate_hpc_monitor_postgresql(
                         pg_host, pg_port, pg_database, pg_user, pg_password
                     )
         except Exception as e:
-            print(f"Failed to run log sync settings migration: {e}")
+            print(f"Failed to run HPC monitor settings migration: {e}")
 
         try:
             # Run migration to add exp_status column to exps table if needed

@@ -49,11 +49,11 @@ from y_web.models import (
     ExperimentScheduleLog,
     ExperimentScheduleStatus,
     Exps,
+    HpcMonitorSettings,
     Jupyter_instances,
     Languages,
     Leanings,
     LogFileOffset,
-    LogSyncSettings,
     Nationalities,
     Ollama_Pull,
     OpinionDistribution,
@@ -5065,44 +5065,44 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     return True
 
 
-@experiments.route("/admin/log_sync_settings", methods=["GET"])
+@experiments.route("/admin/hpc_monitor_settings", methods=["GET"])
 @login_required
-def get_log_sync_settings():
+def get_hpc_monitor_settings():
     """
-    Get current log sync settings.
+    Get current HPC monitor settings.
 
     Returns:
-        JSON with log sync settings
+        JSON with HPC monitor settings
     """
     check_privileges(current_user.username)
 
     # Get or create default settings
-    settings = LogSyncSettings.query.first()
+    settings = HpcMonitorSettings.query.first()
     if not settings:
-        settings = LogSyncSettings(enabled=True, sync_interval_minutes=10)
+        settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
         db.session.add(settings)
         db.session.commit()
 
     return jsonify(
         {
             "enabled": settings.enabled,
-            "sync_interval_minutes": settings.sync_interval_minutes,
-            "last_sync": (
-                settings.last_sync.isoformat() + "Z" if settings.last_sync else None
+            "check_interval_seconds": settings.check_interval_seconds,
+            "last_check": (
+                settings.last_check.isoformat() + "Z" if settings.last_check else None
             ),
         }
     )
 
 
-@experiments.route("/admin/log_sync_settings", methods=["POST"])
+@experiments.route("/admin/hpc_monitor_settings", methods=["POST"])
 @login_required
-def update_log_sync_settings():
+def update_hpc_monitor_settings():
     """
-    Update log sync settings.
+    Update HPC monitor settings.
 
     Expects JSON body with:
-    - enabled (bool): Whether automatic log sync is enabled
-    - sync_interval_minutes (int): Sync frequency in minutes (1-1440)
+    - enabled (bool): Whether HPC monitoring is enabled
+    - check_interval_seconds (int): Check frequency in seconds (1-300)
 
     Returns:
         JSON with success status
@@ -5114,34 +5114,34 @@ def update_log_sync_settings():
         return jsonify({"success": False, "message": "No data provided"}), 400
 
     # Get or create settings
-    settings = LogSyncSettings.query.first()
+    settings = HpcMonitorSettings.query.first()
     if not settings:
-        settings = LogSyncSettings(enabled=True, sync_interval_minutes=10)
+        settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
         db.session.add(settings)
 
     # Update enabled if provided
     if "enabled" in data:
         settings.enabled = bool(data["enabled"])
 
-    # Update sync interval if provided
-    if "sync_interval_minutes" in data:
+    # Update check interval if provided
+    if "check_interval_seconds" in data:
         try:
-            interval = int(data["sync_interval_minutes"])
-            # Validate range: 1 minute to 24 hours
-            if interval < 1 or interval > 1440:
+            interval = int(data["check_interval_seconds"])
+            # Validate range: 1 second to 5 minutes (300 seconds)
+            if interval < 1 or interval > 300:
                 return (
                     jsonify(
                         {
                             "success": False,
-                            "message": "Sync interval must be between 1 and 1440 minutes",
+                            "message": "Check interval must be between 1 and 300 seconds",
                         }
                     ),
                     400,
                 )
-            settings.sync_interval_minutes = interval
+            settings.check_interval_seconds = interval
         except (ValueError, TypeError):
             return (
-                jsonify({"success": False, "message": "Invalid sync interval value"}),
+                jsonify({"success": False, "message": "Invalid check interval value"}),
                 400,
             )
 
@@ -5151,47 +5151,9 @@ def update_log_sync_settings():
         {
             "success": True,
             "enabled": settings.enabled,
-            "sync_interval_minutes": settings.sync_interval_minutes,
+            "check_interval_seconds": settings.check_interval_seconds,
         }
     )
-
-
-@experiments.route("/admin/log_sync_trigger", methods=["POST"])
-@login_required
-def trigger_log_sync():
-    """
-    Manually trigger a log sync for all running experiments.
-
-    Returns:
-        JSON with success status
-    """
-    check_privileges(current_user.username)
-
-    try:
-        from y_web.utils.log_sync_scheduler import get_scheduler
-
-        scheduler = get_scheduler()
-        if scheduler:
-            success = scheduler.trigger_sync()
-            if success:
-                return jsonify(
-                    {"success": True, "message": "Log sync triggered successfully"}
-                )
-            else:
-                return (
-                    jsonify({"success": False, "message": "Log sync failed"}),
-                    500,
-                )
-        else:
-            return (
-                jsonify(
-                    {"success": False, "message": "Log sync scheduler not running"}
-                ),
-                503,
-            )
-    except Exception as e:
-        current_app.logger.error(f"Error triggering log sync: {e}", exc_info=True)
-        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # =====================================================

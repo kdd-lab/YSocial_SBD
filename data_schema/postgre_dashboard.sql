@@ -727,13 +727,13 @@ CREATE TABLE client_log_metrics (
 CREATE INDEX idx_client_log_metrics_lookup ON client_log_metrics(exp_id, client_id, aggregation_level, day, hour, method_name);
 
 -- -----------------------------
--- Log Sync Settings
+-- HPC Monitor Settings
 -- -----------------------------
-CREATE TABLE log_sync_settings (
-    id                    SERIAL PRIMARY KEY,
-    enabled               BOOLEAN NOT NULL DEFAULT TRUE,
-    sync_interval_minutes INTEGER NOT NULL DEFAULT 10,
-    last_sync             TIMESTAMP DEFAULT NULL
+CREATE TABLE hpc_monitor_settings (
+    id                       SERIAL PRIMARY KEY,
+    enabled                  BOOLEAN NOT NULL DEFAULT TRUE,
+    check_interval_seconds   INTEGER NOT NULL DEFAULT 5,
+    last_check               TIMESTAMP DEFAULT NULL
 );
 
 -- -----------------------------
