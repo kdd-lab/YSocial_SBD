@@ -364,7 +364,7 @@ CREATE TABLE jupyter_instances (
     port         INTEGER NOT NULL,
     notebook_dir VARCHAR(300) NOT NULL,
     process      INTEGER,
-    status       VARCHAR(10) NOT NULL DEFAULT 'active'
+    status       VARCHAR(10) NOT NULL DEFAULT 'stopped'
 );
 
 -- -----------------------------
