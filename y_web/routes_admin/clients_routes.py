@@ -184,6 +184,198 @@ def extend_simulation(id_client):
             "info",
         )
 
+    # Update the client config JSON file for HPC experiments
+    # This ensures the client uses the extended duration when restarted
+    if exp and exp.simulator_type == "HPC":
+        try:
+            from y_web.utils.path_utils import get_writable_path
+
+            BASE = get_writable_path()
+            dbtype = get_db_type()
+
+            if dbtype == "sqlite":
+                exp_folder = exp.db_name.split(os.sep)[1]
+            else:
+                exp_folder = exp.db_name.removeprefix("experiments_")
+
+            # Get population for the client
+            population = Population.query.filter_by(id=client.population_id).first()
+            if not population:
+                flash(
+                    "Warning: Could not find population record. Extension applied to database only.",
+                    "warning",
+                )
+            else:
+                config_path = os.path.join(
+                    BASE,
+                    "y_web",
+                    "experiments",
+                    exp_folder,
+                    f"client_{client.name}-{population.name}.json",
+                )
+
+                if os.path.exists(config_path):
+                    # Read existing config
+                    with open(config_path, "r") as f:
+                        config = json.load(f)
+
+                    # Update num_days in simulation config
+                    if "simulation" in config:
+                        config["simulation"]["num_days"] = days  # int(client.days)
+
+                        # Write updated config back to file
+                        with open(config_path, "w") as f:
+                            json.dump(config, f, indent=2)
+
+                        flash(
+                            f"Client configuration file updated with extended duration ({client.days} days).",
+                            "success",
+                        )
+                    else:
+                        flash(
+                            "Warning: Config file missing 'simulation' section. Extension applied to database only.",
+                            "warning",
+                        )
+                else:
+                    flash(
+                        f"Warning: Client config file not found. Extension applied to database only.",
+                        "warning",
+                    )
+        except Exception as e:
+            flash(
+                f"Warning: Could not update client config file: {str(e)}. Extension applied to database only.",
+                "warning",
+            )
+
+        # Reset log metrics for HPC experiments to force re-parsing
+        # This ensures plots (both client and server trends) show extended data
+        try:
+            from y_web.utils.log_metrics import (
+                reset_hpc_client_metrics,
+                reset_hpc_server_metrics,
+                update_client_log_metrics,
+                update_server_log_metrics,
+            )
+            from y_web.utils.path_utils import get_writable_path
+
+            BASE = get_writable_path()
+
+            # Get experiment folder for log files
+            exp_uid = None
+            if dbtype == "sqlite":
+                exp_uid = exp.db_name.split(os.sep)[1]
+            else:
+                exp_uid = exp.db_name.removeprefix("experiments_")
+
+            exp_folder_path = os.path.join(BASE, "y_web", "experiments", exp_uid)
+
+            # For HPC experiments, logs are in /logs subfolder
+            if exp.simulator_type == "HPC":
+                log_folder_path = os.path.join(exp_folder_path, "logs")
+            else:
+                log_folder_path = exp_folder_path
+
+            # Reset client metrics for this specific client
+            reset_result_client = reset_hpc_client_metrics(exp.idexp, id_client)
+
+            # Reset server metrics for the entire experiment
+            # This is needed because server logs also reflect the extended simulation
+            reset_result_server = reset_hpc_server_metrics(exp.idexp)
+
+            # After resetting, immediately trigger re-parsing of existing log files
+            # This populates the metrics with data from the original run
+            reparse_success_client = False
+            reparse_success_server = False
+
+            if reset_result_client or reset_result_server:
+                try:
+                    # Re-parse client log if it exists and client reset succeeded
+                    # Population is needed to construct the client log file name
+                    if reset_result_client and population:
+                        client_log_path = os.path.join(
+                            log_folder_path, f"{client.name}_client.log"
+                        )
+                        if os.path.exists(client_log_path):
+                            update_client_log_metrics(
+                                exp.idexp, id_client, client_log_path, is_hpc=True
+                            )
+                            reparse_success_client = True
+
+                    # Re-parse server log if it exists and server reset succeeded
+                    if reset_result_server:
+                        server_log_path = os.path.join(log_folder_path, "_server.log")
+                        if os.path.exists(server_log_path):
+                            update_server_log_metrics(
+                                exp.idexp, server_log_path, is_hpc=True
+                            )
+                            reparse_success_server = True
+                except Exception as e:
+                    flash(
+                        f"Warning: Metrics reset but re-parsing failed: {str(e)}. Plots will update on next refresh.",
+                        "warning",
+                    )
+
+            # Provide comprehensive user feedback based on all possible outcomes
+            if reset_result_client and reset_result_server:
+                if reparse_success_client and reparse_success_server:
+                    flash(
+                        "Log metrics reset and re-parsed. Plots now show data from original run and will include extended data after client restart.",
+                        "success",
+                    )
+                elif reparse_success_client or reparse_success_server:
+                    # Partial re-parsing success
+                    if reparse_success_client and not reparse_success_server:
+                        flash(
+                            "Client metrics reset and re-parsed. Server metrics reset but not re-parsed yet. Plots will fully update on next refresh.",
+                            "success",
+                        )
+                    else:  # reparse_success_server and not reparse_success_client
+                        flash(
+                            "Server metrics reset and re-parsed. Client metrics reset but not re-parsed yet. Plots will fully update on next refresh.",
+                            "success",
+                        )
+                else:
+                    # Reset succeeded but re-parsing failed for both
+                    flash(
+                        "Log metrics reset. Plots will update with extended data on next refresh.",
+                        "success",
+                    )
+            elif reset_result_client:
+                # Only client reset succeeded
+                if reparse_success_client:
+                    flash(
+                        "Client log metrics reset and re-parsed. Server metrics unchanged. Client plots updated.",
+                        "success",
+                    )
+                else:
+                    flash(
+                        "Client log metrics reset. Server metrics unchanged. Client plots will update on next refresh.",
+                        "success",
+                    )
+            elif reset_result_server:
+                # Only server reset succeeded
+                if reparse_success_server:
+                    flash(
+                        "Server log metrics reset and re-parsed. Client metrics unchanged. Server plots updated.",
+                        "success",
+                    )
+                else:
+                    flash(
+                        "Server log metrics reset. Client metrics unchanged. Server plots will update on next refresh.",
+                        "success",
+                    )
+            else:
+                # Both resets failed
+                flash(
+                    "Warning: Could not reset log metrics. Plots may not show extended data.",
+                    "warning",
+                )
+        except Exception as e:
+            flash(
+                f"Warning: Could not reset log metrics: {str(e)}. Plots may not show extended data.",
+                "warning",
+            )
+
     return redirect(request.referrer)
 
 
@@ -2319,6 +2511,14 @@ def client_details(uid):
     client = Client.query.filter_by(id=uid).first()
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
 
+    # Redirect HPC clients to dedicated HPC client details page
+    if (
+        experiment
+        and hasattr(experiment, "simulator_type")
+        and experiment.simulator_type == "HPC"
+    ):
+        return redirect(url_for("clientsr.client_details_hpc", uid=uid))
+
     # get population for the client
     population = Population.query.filter_by(id=client.population_id).first()
     # get the pages included to the population
@@ -2361,7 +2561,11 @@ def client_details(uid):
     llms = []
     if agents is not None:
         for agent in agents["agents"]:
-            llms.append(agent["type"])
+            # Skip page agents (is_page=1) as they don't have a type field
+            if not agent.get("is_page", 0):
+                agent_type = agent.get("type")
+                if agent_type:
+                    llms.append(agent_type)
 
     llms = ",".join(list(set(llms)))
 
@@ -2395,6 +2599,131 @@ def client_details(uid):
         frecsys=frecsys,
         crecsys=crecsys,
         llms=llms,
+    )
+
+
+@clientsr.route("/admin/client_details_hpc/<int:uid>")
+@login_required
+def client_details_hpc(uid):
+    """Handle HPC client details operation."""
+    check_privileges(current_user.username)
+
+    # get client details
+    client = Client.query.filter_by(id=uid).first()
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    # get population for the client
+    population = Population.query.filter_by(id=client.population_id).first()
+    # get the pages included to the population
+    pages = (
+        db.session.query(Page, Page_Population)
+        .join(Page_Population)
+        .filter(Page_Population.population_id == client.population_id)
+        .all()
+    )
+
+    # get the client configuration file
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE = get_writable_path()
+
+    dbtype = get_db_type()
+
+    if dbtype == "sqlite":
+        exp_folder = experiment.db_name.split(os.sep)[1]
+    else:
+        exp_folder = experiment.db_name.removeprefix("experiments_")
+
+    # HPC clients use the same file naming pattern: client_{name}-{population}.json
+    path = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}client_{client.name}-{population.name}.json"
+
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            config = json.load(f)
+    else:
+        config = None
+        flash("HPC client configuration file not found.", "warning")
+
+    # open the agent population file to get the number of agents
+    path_agents = f"{BASE}{os.sep}y_web{os.sep}experiments{os.sep}{exp_folder}{os.sep}{population.name}.json"
+
+    if os.path.exists(path_agents):
+        with open(path_agents, "r") as f:
+            agents = json.load(f)
+    else:
+        agents = None
+
+    llms = []
+    if agents is not None:
+        for agent in agents["agents"]:
+            # Skip page agents (is_page=1) as they don't have a type field
+            if not agent.get("is_page", 0):
+                agent_type = agent.get("type")
+                if agent_type:
+                    llms.append(agent_type)
+
+    llms = ",".join(list(set(llms)))
+
+    # Extract activity data from HPC config structure
+    data = []
+    idx = []
+    activity = None
+
+    if config and "simulation" in config and "hourly_activity" in config["simulation"]:
+        activity = config["simulation"]["hourly_activity"]
+        for x in range(0, 24):
+            idx.append(str(x))
+            data.append(activity.get(str(x), 0))
+    elif (
+        config
+        and "simulation" in config
+        and "activity_profiles" in config["simulation"]
+    ):
+        # If hourly_activity is not present but activity_profiles are, use first profile
+        profiles = config["simulation"]["activity_profiles"]
+        if profiles:
+            first_profile = list(profiles.values())[0]
+            activity = first_profile
+            for x in range(0, 24):
+                idx.append(str(x))
+                data.append(activity.get(str(x), 0))
+
+    if not activity:
+        # Default to empty data
+        for x in range(0, 24):
+            idx.append(str(x))
+            data.append(0)
+        activity = {str(x): 0 for x in range(24)}
+
+    models = get_llm_models()  # Use generic function for any LLM server
+
+    llm_backend = llm_backend_status()
+
+    frecsys = Follow_Recsys.query.all()
+    crecsys = Content_Recsys.query.all()
+
+    return render_template(
+        "admin/client_details_hpc.html",
+        data=data,
+        idx=idx,
+        activity=activity,
+        client=client,
+        experiment=experiment,
+        population=population,
+        pages=pages,
+        models=models,
+        llm_backend=llm_backend,
+        frecsys=frecsys,
+        crecsys=crecsys,
+        llms=llms,
+        config=config,
     )
 
 
