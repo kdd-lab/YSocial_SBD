@@ -253,7 +253,27 @@ def extend_simulation(id_client):
             from y_web.utils.log_metrics import (
                 reset_hpc_client_metrics,
                 reset_hpc_server_metrics,
+                update_client_log_metrics,
+                update_server_log_metrics,
             )
+            from y_web.utils.path_utils import get_writable_path
+
+            BASE = get_writable_path()
+
+            # Get experiment folder for log files
+            exp_uid = None
+            if dbtype == "sqlite":
+                exp_uid = exp.db_name.split(os.sep)[1]
+            else:
+                exp_uid = exp.db_name.removeprefix("experiments_")
+
+            exp_folder_path = os.path.join(BASE, "y_web", "experiments", exp_uid)
+
+            # For HPC experiments, logs are in /logs subfolder
+            if exp.simulator_type == "HPC":
+                log_folder_path = os.path.join(exp_folder_path, "logs")
+            else:
+                log_folder_path = exp_folder_path
 
             # Reset client metrics for this specific client
             reset_result_client = reset_hpc_client_metrics(exp.idexp, id_client)
@@ -262,7 +282,42 @@ def extend_simulation(id_client):
             # This is needed because server logs also reflect the extended simulation
             reset_result_server = reset_hpc_server_metrics(exp.idexp)
 
-            if reset_result_client and reset_result_server:
+            # After resetting, immediately trigger re-parsing of existing log files
+            # This populates the metrics with data from the original run
+            reparse_success = True
+            if reset_result_client or reset_result_server:
+                try:
+                    # Re-parse client log if it exists
+                    if reset_result_client and population:
+                        client_log_path = os.path.join(
+                            log_folder_path, f"{client.name}_client.log"
+                        )
+                        if os.path.exists(client_log_path):
+                            update_client_log_metrics(
+                                exp.idexp, id_client, client_log_path, is_hpc=True
+                            )
+
+                    # Re-parse server log if it exists
+                    if reset_result_server:
+                        server_log_path = os.path.join(log_folder_path, "_server.log")
+                        if os.path.exists(server_log_path):
+                            update_server_log_metrics(
+                                exp.idexp, server_log_path, is_hpc=True
+                            )
+                except Exception as e:
+                    reparse_success = False
+                    flash(
+                        f"Warning: Metrics reset but re-parsing failed: {str(e)}. Plots will update on next refresh.",
+                        "warning",
+                    )
+
+            # Provide user feedback based on results
+            if reset_result_client and reset_result_server and reparse_success:
+                flash(
+                    "Log metrics reset and re-parsed. Plots now show data from original run and will include extended data after client restart.",
+                    "success",
+                )
+            elif reset_result_client and reset_result_server and not reparse_success:
                 flash(
                     "Log metrics reset. Plots will update with extended data on next refresh.",
                     "success",
