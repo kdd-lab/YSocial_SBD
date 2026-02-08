@@ -159,7 +159,7 @@ def extend_simulation(id_client):
         return redirect(request.referrer)
 
     # get the days from the form
-    days = request.form.get("days")
+    days = int(request.form.get("days"))
 
     # get the client execution
     client_execution = Client_Execution.query.filter_by(client_id=id_client).first()
@@ -721,6 +721,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         "llm_backend", "ollama"
     )  # Changed default from vllm to ollama for HPC
 
+    llm = request.form.get("llm")
+
     # Check if LLM agents are enabled
     llm_agents_enabled = (
         bool(exp.llm_agents_enabled) if hasattr(exp, "llm_agents_enabled") else True
@@ -730,7 +732,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     if not llm_agents_enabled:
         # LLM agents not enabled - use Ollama defaults for consistency
         llm_config = {
-            "address": "localhost",
+            "address": llm,
             "port": 11434,
             "model": "llama3.2",
             "temperature": 0.9,
@@ -738,7 +740,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "llm_max_tokens": -1,
         }
         llm_v_config = {
-            "address": "localhost",
+            "address": llm,
             "port": 11434,
             "model": "minicpm-v",
             "temperature": 0.5,
@@ -775,14 +777,21 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         }
     else:  # ollama
         llm_config = {
-            "address": "localhost",
+            "address": llm,
             "port": 11434,
             "model": form_data.get("user_type", "llama3.2"),
             "temperature": float(form_data.get("llm_temperature", "0.7")),
             "llm_api_key": "NULL",
             "llm_max_tokens": -1,
         }
-        llm_v_config = {}
+        llm_v_config = {
+            "address": llm,
+            "port": 11434,
+            "model": "minicpm-v",
+            "temperature": 0.5,
+            "llm_api_key": "NULL",
+            "llm_max_tokens": 300,
+        }
 
     # Get activity profiles for population
     activity_profiles = (
