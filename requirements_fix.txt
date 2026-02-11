@@ -7,7 +7,6 @@ Flask-SQLAlchemy==2.5.1
 SQLAlchemy==1.4.31
 Flask-WTF==1.2.2
 Jinja2>=3.1.2
-Werkzeug>=2.2.3
 MarkupSafe>=2.1.1
 email_validator
 bs4
@@ -24,6 +23,7 @@ pyOpenSSL>=22.0.0
 pycparser>=2.21
 pygments
 pywebview
+Werkzeug==2.1.2
 
 # --------------------
 # AI Stack - Let Dockerfile handle the GPU-heavy vLLM/OpenAI
