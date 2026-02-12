@@ -1152,6 +1152,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "is_page": 1,
             "feed_url": page.feed,
             "activity_profile": activity_profile_name,
+            "llm": bool(exp.llm_agents_enabled),
         }
         population_data["agents"].append(page_data)
 
