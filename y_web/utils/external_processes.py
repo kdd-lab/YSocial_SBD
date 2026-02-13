@@ -2714,7 +2714,7 @@ def get_llm_models(llm_url=None):
     )
 
     try:
-        response = requests.get(models_url, timeout=5)
+        response = requests.get(models_url, timeout=15)
         if response.status_code == 200:
             data = response.json()
             # OpenAI-compatible format

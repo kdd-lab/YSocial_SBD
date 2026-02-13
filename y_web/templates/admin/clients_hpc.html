@@ -61,16 +61,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="box-line">
-                                        <span class="left">Batch Size</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="batch_size"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="100"
-                                                                                       required></span>
-                                    </div>
                                     <div id="section-simulation-params" class="tutorial-section">
                                     <div class="form-section-header">Simulation Parameters</div>
                                     <div class="form-section-description">
@@ -145,128 +135,150 @@
                                                                                        value="0"
                                                                                        required></span>
                                     </div>
+
+                                    <!-- Advanced Parameters Toggle -->
                                     <div class="box-line">
-                                        <span class="left">Thread Context Length</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="max_length_thread_reading"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="5"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Timeline Follower Ratio</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="reading_from_follower_ratio"
-                                                                                       class="input"
-                                                                                       min="0"
-                                                                                       max="1"
-                                                                                       step="0.01"
-                                                                                       value="0.6"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Probability Daily Follow</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="probability_of_daily_follow"
-                                                                                       class="input"
-                                                                                       min="0"
-                                                                                       max="1"
-                                                                                       step="0.01"
-                                                                                       value="0.1"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Probability Secondary Follow</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="probability_of_secondary_follow"
-                                                                                       class="input"
-                                                                                       min="0"
-                                                                                       max="1"
-                                                                                       step="0.01"
-                                                                                       value="0.0"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Follow Action Decay</span>
+                                        <span class="left">Show Advanced Parameters</span>
                                         <span class="right" style="width: 70%;">
-                                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
-                                                <input type="checkbox" id="follow_decay_enabled" name="follow_decay_enabled" style="cursor: pointer;">
-                                                <span>Enable follow probability decay over time</span>
-                                            </label>
+                                            <input type="checkbox" id="show_simulation_advanced_params" onchange="toggleSimulationAdvancedParams()">
                                         </span>
                                     </div>
-                                    <div id="follow_decay_params" style="display: none; margin-left: 20px; border-left: 3px solid #e8e8e8; padding-left: 15px;">
+
+                                    <!-- Advanced Parameters Fields (hidden by default) -->
+                                    <div id="simulation_advanced_params_fields" style="display: none; margin-left: 20px; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 10px;">
                                         <div class="box-line">
-                                            <span class="left">Decay Function</span>
-                                            <div class="select">
-                                                <select name="follow_decay_function" id="follow_decay_function">
-                                                    <option value="exponential" selected>Exponential</option>
-                                                    <option value="linear">Linear</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Half-life Rounds</span>
+                                            <span class="left">Ray Agents Batch Size</span>
                                             <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="follow_decay_half_life"
+                                                                                           name="batch_size"
                                                                                            class="input"
                                                                                            min="1"
                                                                                            step="1"
-                                                                                           value="168"></span>
+                                                                                           value="500"
+                                                                                           required></span>
                                         </div>
                                         <div class="box-line">
-                                            <span class="left">Decay Rate</span>
+                                            <span class="left">Thread Context Length</span>
                                             <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="follow_decay_rate"
+                                                                                           name="max_length_thread_reading"
                                                                                            class="input"
-                                                                                           min="0"
-                                                                                           max="1"
-                                                                                           step="0.001"
-                                                                                           value="0.01"></span>
+                                                                                           min="1"
+                                                                                           step="1"
+                                                                                           value="5"
+                                                                                           required></span>
                                         </div>
                                         <div class="box-line">
-                                            <span class="left">Min Probability Ratio</span>
+                                            <span class="left">Timeline Follower Ratio</span>
                                             <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="follow_decay_min_ratio"
+                                                                                           name="reading_from_follower_ratio"
                                                                                            class="input"
                                                                                            min="0"
                                                                                            max="1"
                                                                                            step="0.01"
-                                                                                           value="0.1"></span>
+                                                                                           value="0.6"
+                                                                                           required></span>
                                         </div>
-                                    </div>
-                                    <script>
-                                        // Toggle follow decay parameters visibility
-                                        document.getElementById('follow_decay_enabled').addEventListener('change', function() {
-                                            const paramsDiv = document.getElementById('follow_decay_params');
-                                            if (this.checked) {
-                                                paramsDiv.style.display = 'block';
-                                            } else {
-                                                paramsDiv.style.display = 'none';
-                                            }
-                                        });
-                                    </script>
-                                    <div class="box-line">
-                                        <span class="left">Agents' Memory (hours)</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="attention_window"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="336"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Content Visibility (hours)</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="visibility_rounds"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="36"
-                                                                                       required></span>
+                                        <div class="box-line">
+                                            <span class="left">Probability Daily Follow</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="probability_of_daily_follow"
+                                                                                           class="input"
+                                                                                           min="0"
+                                                                                           max="1"
+                                                                                           step="0.01"
+                                                                                           value="0"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Probability Secondary Follow</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="probability_of_secondary_follow"
+                                                                                           class="input"
+                                                                                           min="0"
+                                                                                           max="1"
+                                                                                           step="0.01"
+                                                                                           value="0.05"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Follow Action Decay</span>
+                                            <span class="right" style="width: 70%;">
+                                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                                    <input type="checkbox" id="follow_decay_enabled" name="follow_decay_enabled" style="cursor: pointer;">
+                                                    <span>Enable follow probability decay over time</span>
+                                                </label>
+                                            </span>
+                                        </div>
+                                        <div id="follow_decay_params" style="display: none; margin-left: 20px; border-left: 3px solid #e8e8e8; padding-left: 15px;">
+                                            <div class="box-line">
+                                                <span class="left">Decay Function</span>
+                                                <div class="select">
+                                                    <select name="follow_decay_function" id="follow_decay_function">
+                                                        <option value="exponential" selected>Exponential</option>
+                                                        <option value="linear">Linear</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Half-life Rounds</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="follow_decay_half_life"
+                                                                                               class="input"
+                                                                                               min="1"
+                                                                                               step="1"
+                                                                                               value="168"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Decay Rate</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="follow_decay_rate"
+                                                                                               class="input"
+                                                                                               min="0"
+                                                                                               max="1"
+                                                                                               step="0.001"
+                                                                                               value="0.01"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Min Probability Ratio</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="follow_decay_min_ratio"
+                                                                                               class="input"
+                                                                                               min="0"
+                                                                                               max="1"
+                                                                                               step="0.01"
+                                                                                               value="0.1"></span>
+                                            </div>
+                                        </div>
+                                        <script>
+                                            // Toggle follow decay parameters visibility
+                                            document.getElementById('follow_decay_enabled').addEventListener('change', function() {
+                                                const paramsDiv = document.getElementById('follow_decay_params');
+                                                if (this.checked) {
+                                                    paramsDiv.style.display = 'block';
+                                                } else {
+                                                    paramsDiv.style.display = 'none';
+                                                }
+                                            });
+                                        </script>
+                                        <div class="box-line">
+                                            <span class="left">Agents' Memory (hours)</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="attention_window"
+                                                                                           class="input"
+                                                                                           min="1"
+                                                                                           step="1"
+                                                                                           value="336"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Content Visibility (hours)</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="visibility_rounds"
+                                                                                           class="input"
+                                                                                           min="1"
+                                                                                           step="1"
+                                                                                           value="36"
+                                                                                           required></span>
+                                        </div>
                                     </div>
                                     </div><!-- End section-simulation-params -->
                                     <div id="section-actions-relevance" class="tutorial-section">
@@ -537,7 +549,7 @@
                                         <span class="left">LLM Backend</span>
                                         <div class="select">
                                             <select name="llm_backend" id="llm_backend" onchange="toggleLLMFields()">
-                                                <option value="ollama" selected>Ollama</option>
+                                                <option value="ollama" selected>LLM Service</option>
                                                 <option value="vllm">vLLM</option>
                                             </select>
                                         </div>
@@ -552,120 +564,145 @@
                                                                                            class="input"
                                                                                            value="AMead10/Llama-3.2-3B-Instruct-AWQ"></span>
                                         </div>
+
+                                        <!-- Advanced Settings Toggle -->
                                         <div class="box-line">
-                                            <span class="left">Temperature</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_temperature"
-                                                                                           class="input"
-                                                                                           step="0.1"
-                                                                                           value="0.9"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Max Tokens</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_max_tokens"
-                                                                                           class="input"
-                                                                                           value="256"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Max Model Length</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_max_model_len"
-                                                                                           class="input"
-                                                                                           value="4096"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Tensor Parallel Size</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_tensor_parallel_size"
-                                                                                           class="input"
-                                                                                           value="1"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">GPU Memory Utilization</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_gpu_memory_utilization"
-                                                                                           class="input"
-                                                                                           step="0.01"
-                                                                                           value="0.15"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Enable FlashAttention</span>
+                                            <span class="left">Advanced Settings</span>
                                             <span class="right" style="width: 70%;">
-                                                <input type="checkbox" name="llm_enable_flashattention" value="true">
+                                                <input type="checkbox" id="show_advanced_settings" onchange="toggleAdvancedSettings()">
                                             </span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Number of Actors</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_num_actors"
-                                                                                           class="input"
-                                                                                           value="1"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">GPU per Actor</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_gpu_per_actor"
-                                                                                           class="input"
-                                                                                           step="0.01"
-                                                                                           value="1"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Reuse Actors</span>
-                                            <span class="right" style="width: 70%;">
-                                                <input type="checkbox" name="llm_reuse_actors" value="true">
-                                            </span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Actor Name Prefix</span>
-                                            <span class="right" style="width: 70%;"><input type="text"
-                                                                                           name="llm_actor_name_prefix"
-                                                                                           class="input"
-                                                                                           value="ysim_llm"></span>
                                         </div>
 
-                                        <!-- Vision Model -->
-                                        <div class="form-section-header">Large Language Models (Image Transcription)</div>
-                                        <div class="form-section-description">
-                                            Configure the vision model for image content analysis and transcription.
+                                        <!-- Advanced Settings Fields (hidden by default) -->
+                                        <div id="advanced_settings_fields" style="display: none; margin-left: 20px; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 10px;">
+                                            <div class="box-line">
+                                                <span class="left">Temperature</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_temperature"
+                                                                                               class="input"
+                                                                                               step="0.1"
+                                                                                               value="0.9"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Max Tokens</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_max_tokens"
+                                                                                               class="input"
+                                                                                               value="256"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Max Model Length</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_max_model_len"
+                                                                                               class="input"
+                                                                                               value="4096"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Tensor Parallel Size</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_tensor_parallel_size"
+                                                                                               class="input"
+                                                                                               value="1"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">GPU Memory Utilization</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_gpu_memory_utilization"
+                                                                                               class="input"
+                                                                                               step="0.01"
+                                                                                               value="0.15"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Enable FlashAttention</span>
+                                                <span class="right" style="width: 70%;">
+                                                    <input type="checkbox" name="llm_enable_flashattention" value="true">
+                                                </span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Number of Actors</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_num_actors"
+                                                                                               class="input"
+                                                                                               value="1"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">GPU per Actor</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_gpu_per_actor"
+                                                                                               class="input"
+                                                                                               step="0.01"
+                                                                                               value="1"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Reuse Actors</span>
+                                                <span class="right" style="width: 70%;">
+                                                    <input type="checkbox" name="llm_reuse_actors" value="true">
+                                                </span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Actor Name Prefix</span>
+                                                <span class="right" style="width: 70%;"><input type="text"
+                                                                                               name="llm_actor_name_prefix"
+                                                                                               class="input"
+                                                                                               value="ysim_llm"></span>
+                                            </div>
                                         </div>
+
+                                        <!-- Image Transcription Toggle -->
                                         <div class="box-line">
-                                            <span class="left">Model</span>
-                                            <span class="right" style="width: 70%;"><input type="text"
-                                                                                           name="llm_v_model"
-                                                                                           class="input"
-                                                                                           value="openbmb/MiniCPM-V-2_6-int4"></span>
+                                            <span class="left">Enable Image Transcription</span>
+                                            <span class="right" style="width: 70%;">
+                                                <input type="checkbox" id="enable_image_transcription" name="enable_image_transcription" value="true" onchange="toggleImageTranscription()">
+                                            </span>
                                         </div>
-                                        <div class="box-line">
-                                            <span class="left">Temperature</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_v_temperature"
-                                                                                           class="input"
-                                                                                           step="0.1"
-                                                                                           value="0.5"></span>
+
+                                        <!-- Image Transcription Fields (hidden by default) -->
+                                        <div id="image_transcription_fields" style="display: none; margin-left: 20px; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 10px;">
+                                            <div class="box-line">
+                                                <span class="left">Vision Model</span>
+                                                <span class="right" style="width: 70%;"><input type="text"
+                                                                                               name="llm_v_model"
+                                                                                               id="llm_v_model"
+                                                                                               class="input"
+                                                                                               value="openbmb/MiniCPM-V-2_6-int4"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision Temperature</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_temperature"
+                                                                                               id="llm_v_temperature"
+                                                                                               class="input"
+                                                                                               step="0.1"
+                                                                                               value="0.5"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision Max Tokens</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_max_tokens"
+                                                                                               id="llm_v_max_tokens"
+                                                                                               class="input"
+                                                                                               value="300"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision Max Model Length</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_max_model_len"
+                                                                                               id="llm_v_max_model_len"
+                                                                                               class="input"
+                                                                                               value="4096"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision GPU Memory Utilization</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_gpu_memory_utilization"
+                                                                                               id="llm_v_gpu_memory_utilization"
+                                                                                               class="input"
+                                                                                               step="0.01"
+                                                                                               value="0.15"></span>
+                                            </div>
                                         </div>
-                                        <div class="box-line">
-                                            <span class="left">Max Tokens</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_v_max_tokens"
-                                                                                           class="input"
-                                                                                           value="300"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">Max Model Length</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_v_max_model_len"
-                                                                                           class="input"
-                                                                                           value="4096"></span>
-                                        </div>
-                                        <div class="box-line">
-                                            <span class="left">GPU Memory Utilization</span>
-                                            <span class="right" style="width: 70%;"><input type="number"
-                                                                                           name="llm_v_gpu_memory_utilization"
-                                                                                           class="input"
-                                                                                           step="0.01"
-                                                                                           value="0.15"></span>
-                                        </div>
+
+
                                     </div>
 
                                     <!-- Ollama Fields (hidden by default) -->
@@ -767,25 +804,95 @@
 
                                     <script>
                                         function toggleLLMFields() {
-                                            const backend = document.getElementById('llm_backend').value;
+                                            const backendElement = document.getElementById('llm_backend');
                                             const vllmFields = document.getElementById('vllm_fields');
                                             const ollamaFields = document.getElementById('ollama_fields');
+                                            const imageTranscriptionCheckbox = document.getElementById('enable_image_transcription');
+                                            
+                                            if (!backendElement) return;
+                                            const backend = backendElement.value;
                                             
                                             if (backend === 'vllm') {
                                                 vllmFields.style.display = 'block';
                                                 ollamaFields.style.display = 'none';
                                                 // vLLM doesn't need model fetching, enable submit button
                                                 updateFormButtonStateForBackend('vllm');
+                                                
+                                                // Enable "Share and comment an Image" only if Image Transcription is enabled
+                                                if (imageTranscriptionCheckbox && imageTranscriptionCheckbox.checked) {
+                                                    enableImageAction();
+                                                } else {
+                                                    disableImageAction();
+                                                }
                                             } else {
                                                 vllmFields.style.display = 'none';
                                                 ollamaFields.style.display = 'block';
                                                 // Ollama requires model fetching
                                                 updateFormButtonStateForBackend('ollama');
+                                                // When not vLLM, disable Image action (since Ollama handles it differently)
+                                                disableImageAction();
                                             }
                                         }
+
+                                        function toggleAdvancedSettings() {
+                                            const checkbox = document.getElementById('show_advanced_settings');
+                                            const fields = document.getElementById('advanced_settings_fields');
+                                            
+                                            if (checkbox.checked) {
+                                                fields.style.display = 'block';
+                                            } else {
+                                                fields.style.display = 'none';
+                                            }
+                                        }
+
+                                        function toggleImageTranscription() {
+                                            const checkbox = document.getElementById('enable_image_transcription');
+                                            const fields = document.getElementById('image_transcription_fields');
+                                            const backendElement = document.getElementById('llm_backend');
+                                            
+                                            if (!checkbox || !fields) return;
+                                            
+                                            const inputs = fields.querySelectorAll('input');
+                                            const backend = backendElement ? backendElement.value : null;
+                                            
+                                            if (checkbox.checked) {
+                                                fields.style.display = 'block';
+                                                // Enable the input fields when checked
+                                                inputs.forEach(input => {
+                                                    input.disabled = false;
+                                                });
+                                                
+                                                // Enable "Share and comment an Image" action when vLLM is selected and Image Transcription is enabled
+                                                if (backend === 'vllm') {
+                                                    enableImageAction();
+                                                }
+                                            } else {
+                                                fields.style.display = 'none';
+                                                // Disable the input fields when unchecked so they don't get submitted
+                                                inputs.forEach(input => {
+                                                    input.disabled = true;
+                                                });
+                                                
+                                                // Disable "Share and comment an Image" action when Image Transcription is disabled
+                                                disableImageAction();
+                                            }
+                                        }
+
+                                        function toggleSimulationAdvancedParams() {
+                                            const checkbox = document.getElementById('show_simulation_advanced_params');
+                                            const fields = document.getElementById('simulation_advanced_params_fields');
+                                            
+                                            if (checkbox && fields) {
+                                                fields.style.display = checkbox.checked ? 'block' : 'none';
+                                            }
+                                        }
+
                                         // Initialize on page load
                                         document.addEventListener('DOMContentLoaded', function() {
                                             toggleLLMFields();
+                                            toggleAdvancedSettings();
+                                            toggleImageTranscription();
+                                            toggleSimulationAdvancedParams();
                                         });
                                     </script>
                                     {% endif %}
@@ -1950,8 +2057,6 @@ function validateImageLLMModel() {
                     validationStatus.value = 'false';
                     disableImageAction();
                     alert('The minicpm-v:latest model is not available on the specified server. Image sharing/commenting functionality will remain disabled.');
-                    // Set llm_v to empty/None to signal model unavailability
-                    llmVUrlInput.value = '';
                 }
             }
         })

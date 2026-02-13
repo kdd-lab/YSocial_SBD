@@ -331,7 +331,51 @@ def get_users_per_hour(population, agents, session):
 
     hours_to_users = defaultdict(list)
     for ag in agents:
-        profile = activity_profiles[ag.activity_profile]
+        # Check if agent has activity_profile attribute
+        if not hasattr(ag, "activity_profile"):
+            print(
+                f"Warning: Agent {ag.name} (is_page={getattr(ag, 'is_page', 'unknown')}) missing activity_profile attribute",
+                file=sys.stderr,
+            )
+            continue
+
+        if ag.activity_profile is None:
+            print(
+                f"Warning: Agent {ag.name} (is_page={getattr(ag, 'is_page', 'unknown')}) has None activity_profile",
+                file=sys.stderr,
+            )
+            continue
+
+        # Use get with default to handle missing profiles gracefully
+        profile = activity_profiles.get(ag.activity_profile)
+        if profile is None:
+            # If profile not found, try to fetch it directly from database
+            try:
+                profile_obj = (
+                    session.query(ActivityProfile)
+                    .filter(ActivityProfile.id == ag.activity_profile)
+                    .first()
+                )
+                if profile_obj:
+                    profile = [int(x) for x in profile_obj.hours.split(",")]
+                    activity_profiles[ag.activity_profile] = profile
+                    print(
+                        f"Info: Loaded activity profile {ag.activity_profile} for agent {ag.name} (is_page={getattr(ag, 'is_page', 'unknown')})",
+                        file=sys.stderr,
+                    )
+                else:
+                    # Profile doesn't exist, skip this agent
+                    print(
+                        f"Warning: Activity profile {ag.activity_profile} not found in database for agent {ag.name} (is_page={getattr(ag, 'is_page', 'unknown')})",
+                        file=sys.stderr,
+                    )
+                    continue
+            except Exception as e:
+                print(
+                    f"Warning: Error fetching activity profile for agent {ag.name}: {e}",
+                    file=sys.stderr,
+                )
+                continue
 
         for h in profile:
             hours_to_users[h].append(ag)
@@ -416,6 +460,8 @@ def ensure_agents_have_archetype(agents, archetypes):
     If archetypes are enabled and an agent doesn't have an archetype,
     assign a default based on the archetype distribution.
 
+    Pages are excluded from archetype assignment as they don't use the archetype system.
+
     :param agents: List of agent objects
     :param archetypes: Archetype configuration dict
     """
@@ -426,6 +472,10 @@ def ensure_agents_have_archetype(agents, archetypes):
         archetype_weights = list(distribution.values())
 
         for agent in agents:
+            # Skip pages - they don't use archetypes
+            if hasattr(agent, "is_page") and agent.is_page == 1:
+                continue
+
             if not hasattr(agent, "archetype") or agent.archetype is None:
                 # Assign archetype based on distribution
                 agent.archetype = random.choices(
@@ -478,7 +528,7 @@ def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
         # Get a random integer within g.round_actions.
         # If g.is_page == 1, then rounds = 0 (the page does not perform actions)
         if g.is_page == 1:
-            rounds = 0
+            rounds = 1
         else:
             lower = max(int(g.round_actions) - 2, 1)
             rounds = local_random.randint(lower, int(g.round_actions))
@@ -588,13 +638,12 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if platform_type == "microblogging":
                 # pages post all the time their activity profile is active
                 for page in active_pages:
-                    page.select_action_lite(
+                    page.select_action(
                         tid=tid,
-                        actions=[],
-                        max_length_thread_reading=cl.max_length_thread_reading,
+                        actions=None,
                     )
 
-                # check whether there are agents left
+            # check whether there are agents left
             if len(cl.agents.agents) == 0:
                 break
 
