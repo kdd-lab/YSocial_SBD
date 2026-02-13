@@ -2057,8 +2057,6 @@ function validateImageLLMModel() {
                     validationStatus.value = 'false';
                     disableImageAction();
                     alert('The minicpm-v:latest model is not available on the specified server. Image sharing/commenting functionality will remain disabled.');
-                    // Set llm_v to empty/None to signal model unavailability
-                    llmVUrlInput.value = '';
                 }
             }
         })
