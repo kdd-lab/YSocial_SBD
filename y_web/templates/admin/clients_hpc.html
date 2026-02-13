@@ -807,17 +807,27 @@
                                             const backend = document.getElementById('llm_backend').value;
                                             const vllmFields = document.getElementById('vllm_fields');
                                             const ollamaFields = document.getElementById('ollama_fields');
+                                            const imageTranscriptionCheckbox = document.getElementById('enable_image_transcription');
                                             
                                             if (backend === 'vllm') {
                                                 vllmFields.style.display = 'block';
                                                 ollamaFields.style.display = 'none';
                                                 // vLLM doesn't need model fetching, enable submit button
                                                 updateFormButtonStateForBackend('vllm');
+                                                
+                                                // Enable "Share and comment an Image" only if Image Transcription is enabled
+                                                if (imageTranscriptionCheckbox && imageTranscriptionCheckbox.checked) {
+                                                    enableImageAction();
+                                                } else {
+                                                    disableImageAction();
+                                                }
                                             } else {
                                                 vllmFields.style.display = 'none';
                                                 ollamaFields.style.display = 'block';
                                                 // Ollama requires model fetching
                                                 updateFormButtonStateForBackend('ollama');
+                                                // When not vLLM, disable Image action (since Ollama handles it differently)
+                                                disableImageAction();
                                             }
                                         }
 
@@ -836,6 +846,7 @@
                                             const checkbox = document.getElementById('enable_image_transcription');
                                             const fields = document.getElementById('image_transcription_fields');
                                             const inputs = fields.querySelectorAll('input');
+                                            const backend = document.getElementById('llm_backend').value;
                                             
                                             if (checkbox.checked) {
                                                 fields.style.display = 'block';
@@ -843,12 +854,20 @@
                                                 inputs.forEach(input => {
                                                     input.disabled = false;
                                                 });
+                                                
+                                                // Enable "Share and comment an Image" action when vLLM is selected and Image Transcription is enabled
+                                                if (backend === 'vllm') {
+                                                    enableImageAction();
+                                                }
                                             } else {
                                                 fields.style.display = 'none';
                                                 // Disable the input fields when unchecked so they don't get submitted
                                                 inputs.forEach(input => {
                                                     input.disabled = true;
                                                 });
+                                                
+                                                // Disable "Share and comment an Image" action when Image Transcription is disabled
+                                                disableImageAction();
                                             }
                                         }
 
