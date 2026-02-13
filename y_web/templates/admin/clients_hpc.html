@@ -553,60 +553,6 @@
                                                                                            value="AMead10/Llama-3.2-3B-Instruct-AWQ"></span>
                                         </div>
 
-                                        <!-- Image Transcription Toggle -->
-                                        <div class="box-line">
-                                            <span class="left">Enable Image Transcription</span>
-                                            <span class="right" style="width: 70%;">
-                                                <input type="checkbox" id="enable_image_transcription" name="enable_image_transcription" value="true" onchange="toggleImageTranscription()">
-                                            </span>
-                                        </div>
-
-                                        <!-- Image Transcription Fields (hidden by default) -->
-                                        <div id="image_transcription_fields" style="display: none; margin-left: 20px; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 10px;">
-                                            <div class="box-line">
-                                                <span class="left">Vision Model</span>
-                                                <span class="right" style="width: 70%;"><input type="text"
-                                                                                               name="llm_v_model"
-                                                                                               id="llm_v_model"
-                                                                                               class="input"
-                                                                                               value="openbmb/MiniCPM-V-2_6-int4"></span>
-                                            </div>
-                                            <div class="box-line">
-                                                <span class="left">Vision Temperature</span>
-                                                <span class="right" style="width: 70%;"><input type="number"
-                                                                                               name="llm_v_temperature"
-                                                                                               id="llm_v_temperature"
-                                                                                               class="input"
-                                                                                               step="0.1"
-                                                                                               value="0.5"></span>
-                                            </div>
-                                            <div class="box-line">
-                                                <span class="left">Vision Max Tokens</span>
-                                                <span class="right" style="width: 70%;"><input type="number"
-                                                                                               name="llm_v_max_tokens"
-                                                                                               id="llm_v_max_tokens"
-                                                                                               class="input"
-                                                                                               value="300"></span>
-                                            </div>
-                                            <div class="box-line">
-                                                <span class="left">Vision Max Model Length</span>
-                                                <span class="right" style="width: 70%;"><input type="number"
-                                                                                               name="llm_v_max_model_len"
-                                                                                               id="llm_v_max_model_len"
-                                                                                               class="input"
-                                                                                               value="4096"></span>
-                                            </div>
-                                            <div class="box-line">
-                                                <span class="left">Vision GPU Memory Utilization</span>
-                                                <span class="right" style="width: 70%;"><input type="number"
-                                                                                               name="llm_v_gpu_memory_utilization"
-                                                                                               id="llm_v_gpu_memory_utilization"
-                                                                                               class="input"
-                                                                                               step="0.01"
-                                                                                               value="0.15"></span>
-                                            </div>
-                                        </div>
-
                                         <!-- Advanced Settings -->
                                         <details style="margin: 15px 0;">
                                             <summary style="cursor: pointer; font-weight: 500; font-size: 0.95em; padding: 12px 16px; color: #374151; list-style: none; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb; transition: all 0.2s;">
@@ -691,6 +637,62 @@
                                                 </div>
                                             </div>
                                         </details>
+
+                                        <!-- Image Transcription Toggle -->
+                                        <div class="box-line">
+                                            <span class="left">Enable Image Transcription</span>
+                                            <span class="right" style="width: 70%;">
+                                                <input type="checkbox" id="enable_image_transcription" name="enable_image_transcription" value="true" onchange="toggleImageTranscription()">
+                                            </span>
+                                        </div>
+
+                                        <!-- Image Transcription Fields (hidden by default) -->
+                                        <div id="image_transcription_fields" style="display: none; margin-left: 20px; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 10px;">
+                                            <div class="box-line">
+                                                <span class="left">Vision Model</span>
+                                                <span class="right" style="width: 70%;"><input type="text"
+                                                                                               name="llm_v_model"
+                                                                                               id="llm_v_model"
+                                                                                               class="input"
+                                                                                               value="openbmb/MiniCPM-V-2_6-int4"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision Temperature</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_temperature"
+                                                                                               id="llm_v_temperature"
+                                                                                               class="input"
+                                                                                               step="0.1"
+                                                                                               value="0.5"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision Max Tokens</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_max_tokens"
+                                                                                               id="llm_v_max_tokens"
+                                                                                               class="input"
+                                                                                               value="300"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision Max Model Length</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_max_model_len"
+                                                                                               id="llm_v_max_model_len"
+                                                                                               class="input"
+                                                                                               value="4096"></span>
+                                            </div>
+                                            <div class="box-line">
+                                                <span class="left">Vision GPU Memory Utilization</span>
+                                                <span class="right" style="width: 70%;"><input type="number"
+                                                                                               name="llm_v_gpu_memory_utilization"
+                                                                                               id="llm_v_gpu_memory_utilization"
+                                                                                               class="input"
+                                                                                               step="0.01"
+                                                                                               value="0.15"></span>
+                                            </div>
+                                        </div>
+
+
                                     </div>
 
                                     <!-- Ollama Fields (hidden by default) -->
