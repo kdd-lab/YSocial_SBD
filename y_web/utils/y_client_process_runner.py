@@ -585,16 +585,15 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             # get active pages at this hour
             active_pages = hour_to_page[h]
 
-            if platform_type == "microblogging":
-                # pages post all the time their activity profile is active
-                for page in active_pages:
-                    page.select_action_lite(
-                        tid=tid,
-                        actions=[],
-                        max_length_thread_reading=cl.max_length_thread_reading,
-                    )
+            # pages post all the time their activity profile is active
+            for page in active_pages:
+                page.select_action_lite(
+                    tid=tid,
+                    actions=[],
+                    max_length_thread_reading=cl.max_length_thread_reading,
+                )
 
-                # check whether there are agents left
+            # check whether there are agents left
             if len(cl.agents.agents) == 0:
                 break
 
