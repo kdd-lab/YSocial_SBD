@@ -511,7 +511,7 @@ def process_agent(g, archetypes, cl, exp, tid, FakeAgent, local_random):
         # Get a random integer within g.round_actions.
         # If g.is_page == 1, then rounds = 0 (the page does not perform actions)
         if g.is_page == 1:
-            rounds = 0
+            rounds = 1
         else:
             lower = max(int(g.round_actions) - 2, 1)
             rounds = local_random.randint(lower, int(g.round_actions))
@@ -621,10 +621,9 @@ def run_simulation(cl, cli_id, agent_file, exp, population, db_type):
             if platform_type == "microblogging":
                 # pages post all the time their activity profile is active
                 for page in active_pages:
-                    page.select_action_lite(
+                    page.select_action(
                         tid=tid,
-                        actions=[],
-                        max_length_thread_reading=cl.max_length_thread_reading,
+                        actions=None,
                     )
 
             # check whether there are agents left
