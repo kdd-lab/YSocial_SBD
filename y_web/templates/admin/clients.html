@@ -134,68 +134,80 @@
                                                                                        value="0"
                                                                                        required></span>
                                     </div>
+
+                                    <!-- Advanced Parameters Toggle -->
                                     <div class="box-line">
-                                        <span class="left">Thread Context Length</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="max_length_thread_reading"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="5"
-                                                                                       required></span>
+                                        <span class="left">Show Advanced Parameters</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="checkbox" id="show_simulation_advanced_params" onchange="toggleSimulationAdvancedParams()">
+                                        </span>
                                     </div>
-                                    <div class="box-line">
-                                        <span class="left">Timeline Follower Ratio</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="reading_from_follower_ratio"
-                                                                                       class="input"
-                                                                                       min="0"
-                                                                                       max="1"
-                                                                                       step="0.01"
-                                                                                       value="0.6"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Probability Daily Follow</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="probability_of_daily_follow"
-                                                                                       class="input"
-                                                                                       min="0"
-                                                                                       max="1"
-                                                                                       step="0.01"
-                                                                                       value="0.1"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Probability Secondary Follow</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="probability_of_secondary_follow"
-                                                                                       class="input"
-                                                                                       min="0"
-                                                                                       max="1"
-                                                                                       step="0.01"
-                                                                                       value="0.0"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Agents' Memory (hours)</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="attention_window"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="336"
-                                                                                       required></span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Content Visibility (hours)</span>
-                                        <span class="right" style="width: 70%;"><input type="number"
-                                                                                       name="visibility_rounds"
-                                                                                       class="input"
-                                                                                       min="1"
-                                                                                       step="1"
-                                                                                       value="36"
-                                                                                       required></span>
+
+                                    <!-- Advanced Parameters Fields (hidden by default) -->
+                                    <div id="simulation_advanced_params_fields" style="display: none; margin-left: 20px; padding: 10px; background: #f9fafb; border-radius: 4px; margin-bottom: 10px;">
+                                        <div class="box-line">
+                                            <span class="left">Thread Context Length</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="max_length_thread_reading"
+                                                                                           class="input"
+                                                                                           min="1"
+                                                                                           step="1"
+                                                                                           value="5"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Timeline Follower Ratio</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="reading_from_follower_ratio"
+                                                                                           class="input"
+                                                                                           min="0"
+                                                                                           max="1"
+                                                                                           step="0.01"
+                                                                                           value="0.6"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Probability Daily Follow</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="probability_of_daily_follow"
+                                                                                           class="input"
+                                                                                           min="0"
+                                                                                           max="1"
+                                                                                           step="0.01"
+                                                                                           value="0.1"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Probability Secondary Follow</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="probability_of_secondary_follow"
+                                                                                           class="input"
+                                                                                           min="0"
+                                                                                           max="1"
+                                                                                           step="0.01"
+                                                                                           value="0.0"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Agents' Memory (hours)</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="attention_window"
+                                                                                           class="input"
+                                                                                           min="1"
+                                                                                           step="1"
+                                                                                           value="336"
+                                                                                           required></span>
+                                        </div>
+                                        <div class="box-line">
+                                            <span class="left">Content Visibility (hours)</span>
+                                            <span class="right" style="width: 70%;"><input type="number"
+                                                                                           name="visibility_rounds"
+                                                                                           class="input"
+                                                                                           min="1"
+                                                                                           step="1"
+                                                                                           value="36"
+                                                                                           required></span>
+                                        </div>
                                     </div>
                                     </div><!-- End section-simulation-params -->
                                     <div id="section-actions-relevance" class="tutorial-section">
@@ -1817,6 +1829,15 @@ function displayNetworkFileNameCreate(input) {
     updateNetworkInputStates();
 }
 
+function toggleSimulationAdvancedParams() {
+    const checkbox = document.getElementById('show_simulation_advanced_params');
+    const fields = document.getElementById('simulation_advanced_params_fields');
+    
+    if (checkbox && fields) {
+        fields.style.display = checkbox.checked ? 'block' : 'none';
+    }
+}
+
 // On page load, disable image action by default and setup form validation
 document.addEventListener('DOMContentLoaded', function() {
     {% if llm_agents_enabled %}
@@ -1892,6 +1913,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initial state
         updateArchetypeToggle();
     }
+    
+    // Initialize simulation advanced params state
+    toggleSimulationAdvancedParams();
 });
                                             </script>
 {% include "admin/tutorials/clients_tutorial.html" %}
