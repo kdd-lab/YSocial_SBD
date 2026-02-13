@@ -804,10 +804,13 @@
 
                                     <script>
                                         function toggleLLMFields() {
-                                            const backend = document.getElementById('llm_backend').value;
+                                            const backendElement = document.getElementById('llm_backend');
                                             const vllmFields = document.getElementById('vllm_fields');
                                             const ollamaFields = document.getElementById('ollama_fields');
                                             const imageTranscriptionCheckbox = document.getElementById('enable_image_transcription');
+                                            
+                                            if (!backendElement) return;
+                                            const backend = backendElement.value;
                                             
                                             if (backend === 'vllm') {
                                                 vllmFields.style.display = 'block';
@@ -845,8 +848,12 @@
                                         function toggleImageTranscription() {
                                             const checkbox = document.getElementById('enable_image_transcription');
                                             const fields = document.getElementById('image_transcription_fields');
+                                            const backendElement = document.getElementById('llm_backend');
+                                            
+                                            if (!checkbox || !fields) return;
+                                            
                                             const inputs = fields.querySelectorAll('input');
-                                            const backend = document.getElementById('llm_backend').value;
+                                            const backend = backendElement ? backendElement.value : null;
                                             
                                             if (checkbox.checked) {
                                                 fields.style.display = 'block';
