@@ -1642,7 +1642,7 @@ def start_hpc_server(exp):
     base_path = get_base_path()
     yserver_path = base_path
     sys.path.append(
-        os.path.join(yserver_path, "external", "YClient_v2")
+        os.path.join(yserver_path, "external", "YSimulator")
     )  # @todo: update with the real name YSimulator
 
     # Get writable path for experiments directory
@@ -1664,7 +1664,7 @@ def start_hpc_server(exp):
     if exp.platform_type == "microblogging":
         server_dir = os.path.join(yserver_path, "external", "YServer")
         script_path = os.path.join(
-            yserver_path, "external", "YClient_v2", "run_server.py"
+            yserver_path, "external", "YSimulator", "run_server.py"
         )
     else:
         raise NotImplementedError(f"Unsupported platform {exp.platform_type}")
@@ -2056,7 +2056,7 @@ def start_hpc_client(exp, cli, population):
     Start an HPC client using subprocess.Popen.
 
     This function launches an HPC client process for an experiment using the
-    run_client.py script from the external/YClient_v2 folder. The process PID
+    run_client.py script from the external/YSimulator folder. The process PID
     is stored in the database for later management and graceful termination.
 
     Args:
@@ -2105,7 +2105,7 @@ def start_hpc_client(exp, cli, population):
 
     # Determine the script path based on platform type
     if exp.platform_type == "microblogging":
-        script_path = os.path.join(base_path, "external", "YClient_v2", "run_client.py")
+        script_path = os.path.join(base_path, "external", "YSimulator", "run_client.py")
     else:
         raise NotImplementedError(f"Unsupported platform {exp.platform_type}")
 
@@ -2120,7 +2120,7 @@ def start_hpc_client(exp, cli, population):
     ):
         raise FileNotFoundError(
             f"Client script not found: {script_path}\n"
-            f"Please ensure the YClient_v2 submodule is initialized.\n"
+            f"Please ensure the YSimulator submodule is initialized.\n"
             f"Run: git submodule update --init --recursive"
         )
 

@@ -77,3 +77,6 @@ pytest-cov>=4.0.0
 black>=23.0.0
 isort>=5.12.0
 zipp>=3.8.0
+
+nvidia-ml-py
+torch-c-dlpack-ext
