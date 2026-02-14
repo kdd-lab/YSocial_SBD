@@ -619,11 +619,15 @@ def generate_hpc_client_config(
         "namespace": namespace,
         "server": {"address": server_address, "port": server_port},
         "llm": llm_config,
-        "llm_v": llm_v_config,
         "simulation": simulation_config,
         "agents": agents_config,
         "logging": logging_config,
     }
+    
+    # Only include llm_v in config if it's not None (i.e., when Image Transcription is enabled for VLLM)
+    if llm_v_config is not None:
+        config["llm_v"] = llm_v_config
+    
     return config
 
 
@@ -728,6 +732,9 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         bool(exp.llm_agents_enabled) if hasattr(exp, "llm_agents_enabled") else True
     )
 
+    # Check if Image Transcription is enabled
+    enable_image_transcription = form_data.get("enable_image_transcription") == "true"
+
     # Build LLM config based on backend and LLM agents enabled status
     if not llm_agents_enabled:
         # LLM agents not enabled - use Ollama defaults for consistency
@@ -766,15 +773,19 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
         }
 
-        llm_v_config = {
-            "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
-            "temperature": float(form_data.get("llm_v_temperature", "0.5")),
-            "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
-            "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
-            "gpu_memory_utilization": float(
-                form_data.get("llm_v_gpu_memory_utilization", "0.15")
-            ),
-        }
+        # Only include llm_v_config if Image Transcription is enabled
+        if enable_image_transcription:
+            llm_v_config = {
+                "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
+                "temperature": float(form_data.get("llm_v_temperature", "0.5")),
+                "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
+                "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
+                "gpu_memory_utilization": float(
+                    form_data.get("llm_v_gpu_memory_utilization", "0.15")
+                ),
+            }
+        else:
+            llm_v_config = None
     else:  # ollama
         llm_config = {
             "address": llm,
