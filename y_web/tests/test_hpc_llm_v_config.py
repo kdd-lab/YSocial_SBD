@@ -1,5 +1,5 @@
 """
-Test for HPC client llm_v config conditional inclusion.
+Tests for HPC client llm_v config conditional inclusion.
 
 Verifies that llm_v config is only included when VLLM is selected
 and Image Transcription is enabled.
