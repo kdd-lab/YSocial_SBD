@@ -8,7 +8,7 @@
   },
   "generate_post": {
     "system_template": "{persona}. Generate {toxicity} confrontational language contents. Respond ONLY with the post text itself - no explanations, no meta-commentary.",
-    "user_template": "Write a social media Tweet. {topic_instruction}. Be authentic to your persona. You can use #hashtags to categorize your post. Output ONLY the post text."
+    "user_template": "Write a shoart social media Tweet. {topic_instruction}. Be authentic to your persona. You can use up to 5 #hashtags to categorize your post. Output ONLY the post text."
   },
   "decide_reaction": {
     "system_template": "{persona}",
