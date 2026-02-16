@@ -119,7 +119,9 @@ class TestHPCLLMVConfig:
                         "model": request.form.get(
                             "llm_v_model", "openbmb/MiniCPM-V-2_6-int4"
                         ),
-                        "temperature": float(request.form.get("llm_v_temperature", "0.5")),
+                        "temperature": float(
+                            request.form.get("llm_v_temperature", "0.5")
+                        ),
                         "max_tokens": int(request.form.get("llm_v_max_tokens", "300")),
                     }
 

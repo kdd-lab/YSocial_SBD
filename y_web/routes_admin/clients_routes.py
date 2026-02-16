@@ -623,11 +623,11 @@ def generate_hpc_client_config(
         "agents": agents_config,
         "logging": logging_config,
     }
-    
+
     # Only include llm_v in config if it's provided (VLLM: when Image Transcription is enabled; Ollama: always included)
     if llm_v_config is not None:
         config["llm_v"] = llm_v_config
-    
+
     return config
 
 
