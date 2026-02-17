@@ -280,6 +280,24 @@
                                                                                            required></span>
                                         </div>
                                     </div>
+
+                                    <script>
+                                        // Toggle simulation advanced parameters visibility
+                                        function toggleSimulationAdvancedParams() {
+                                            const checkbox = document.getElementById('show_simulation_advanced_params');
+                                            const fields = document.getElementById('simulation_advanced_params_fields');
+                                            
+                                            if (checkbox && fields) {
+                                                fields.style.display = checkbox.checked ? 'block' : 'none';
+                                            }
+                                        }
+
+                                        // Initialize on page load
+                                        document.addEventListener('DOMContentLoaded', function() {
+                                            toggleSimulationAdvancedParams();
+                                        });
+                                    </script>
+
                                     </div><!-- End section-simulation-params -->
                                     <div id="section-actions-relevance" class="tutorial-section">
                                     <div class="form-section-header">Agents' Actions Relevance</div>
@@ -878,21 +896,11 @@
                                             }
                                         }
 
-                                        function toggleSimulationAdvancedParams() {
-                                            const checkbox = document.getElementById('show_simulation_advanced_params');
-                                            const fields = document.getElementById('simulation_advanced_params_fields');
-                                            
-                                            if (checkbox && fields) {
-                                                fields.style.display = checkbox.checked ? 'block' : 'none';
-                                            }
-                                        }
-
                                         // Initialize on page load
                                         document.addEventListener('DOMContentLoaded', function() {
                                             toggleLLMFields();
                                             toggleAdvancedSettings();
                                             toggleImageTranscription();
-                                            toggleSimulationAdvancedParams();
                                         });
                                     </script>
                                     {% endif %}
