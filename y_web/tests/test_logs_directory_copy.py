@@ -48,7 +48,6 @@ def test_logs_directory_created_empty():
             f.write('{}')
         
         # Simulate copy logic
-        import re
         log_pattern = re.compile(r"\.log(\.\d+)?$")
         
         for item in os.listdir(source_dir):
@@ -105,7 +104,6 @@ def test_logs_directory_with_nested_structure():
             f.write("old log")
         
         # Simulate copy logic
-        import re
         log_pattern = re.compile(r"\.log(\.\d+)?$")
         
         for item in os.listdir(source_dir):
@@ -151,7 +149,6 @@ def test_other_directories_still_copied():
             f.write('{"data": true}')
         
         # Simulate copy logic
-        import re
         log_pattern = re.compile(r"\.log(\.\d+)?$")
         
         for item in os.listdir(source_dir):
@@ -206,7 +203,6 @@ def test_logs_directory_case_sensitive():
             f.write("text")
         
         # Simulate copy logic
-        import re
         log_pattern = re.compile(r"\.log(\.\d+)?$")
         
         for item in os.listdir(source_dir):
@@ -254,7 +250,6 @@ def test_no_logs_directory_in_source():
             f.write("data")
         
         # Simulate copy logic
-        import re
         log_pattern = re.compile(r"\.log(\.\d+)?$")
         
         for item in os.listdir(source_dir):
