@@ -285,5 +285,77 @@ def test_combined_exclusions():
                 f"{filename} should be copied"
 
 
+def test_logs_subdirectory_created_empty():
+    """Test that logs subdirectory is created but empty (no log files copied)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        source_dir = os.path.join(tmpdir, "source")
+        dest_dir = os.path.join(tmpdir, "dest")
+        os.makedirs(source_dir)
+        os.makedirs(dest_dir)
+        
+        # Create HPC experiment
+        with open(os.path.join(source_dir, "server_config.json"), "w") as f:
+            f.write('{}')
+        
+        # Create logs subdirectory with log files
+        logs_dir = os.path.join(source_dir, "logs")
+        os.makedirs(logs_dir)
+        
+        log_files_in_subdir = [
+            "server.log",
+            "client.log",
+            "server.log.1",
+            "error.log",
+        ]
+        
+        for log_file in log_files_in_subdir:
+            with open(os.path.join(logs_dir, log_file), "w") as f:
+                f.write("log content")
+        
+        # Create other files to be copied
+        with open(os.path.join(source_dir, "config.json"), "w") as f:
+            f.write('{}')
+        
+        # Copy with exclusions (including logs subdirectory special handling)
+        is_hpc = os.path.exists(os.path.join(source_dir, "server_config.json"))
+        log_pattern = re.compile(r"\.log(\.\d+)?$")
+        
+        for item in os.listdir(source_dir):
+            if log_pattern.search(item):
+                continue
+            
+            if is_hpc:
+                if item == "database_server.db" or (item.startswith("database_") and item.endswith(".db")):
+                    continue
+                if item == "ray_config.temp":
+                    continue
+            
+            source_item = os.path.join(source_dir, item)
+            dest_item = os.path.join(dest_dir, item)
+            
+            if os.path.isfile(source_item):
+                shutil.copy2(source_item, dest_item)
+            elif os.path.isdir(source_item):
+                # Special handling for logs directory
+                if item == "logs":
+                    os.makedirs(dest_item, exist_ok=True)
+                else:
+                    shutil.copytree(source_item, dest_item)
+        
+        # Verify logs directory exists but is empty
+        dest_logs = os.path.join(dest_dir, "logs")
+        assert os.path.exists(dest_logs), "logs subdirectory should be created"
+        assert os.path.isdir(dest_logs), "logs should be a directory"
+        
+        # Verify logs directory is empty (no log files copied)
+        logs_contents = os.listdir(dest_logs)
+        assert len(logs_contents) == 0, \
+            f"logs subdirectory should be empty, but contains: {logs_contents}"
+        
+        # Verify other files are copied
+        assert os.path.exists(os.path.join(dest_dir, "config.json")), \
+            "config.json should be copied"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

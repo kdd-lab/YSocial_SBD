@@ -4733,7 +4733,11 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         if os.path.isfile(source_item):
             shutil.copy2(source_item, dest_item)
         elif os.path.isdir(source_item):
-            shutil.copytree(source_item, dest_item)
+            # Special handling for logs directory: create empty directory without copying contents
+            if item == "logs":
+                os.makedirs(dest_item, exist_ok=True)
+            else:
+                shutil.copytree(source_item, dest_item)
 
     # Get suggested port for new experiment
     suggested_port = get_suggested_port()
