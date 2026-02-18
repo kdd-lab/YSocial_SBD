@@ -2128,6 +2128,31 @@ def start_hpc_client(exp, cli, population):
                 f"Please wait and try again, or check the server logs for errors."
             )
             raise FileNotFoundError(error_msg)
+    
+    # Remove completion log entries from actor log if restarting
+    # Actor logs are in logs/{client_name}_actor.log
+    logs_folder = os.path.join(exp_folder, "logs")
+    actor_log_path = os.path.join(logs_folder, f"{cli.name}_actor.log")
+    
+    if os.path.exists(actor_log_path):
+        try:
+            # Read all lines from the actor log
+            with open(actor_log_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            
+            # Remove the last two lines if they exist
+            # These are the completion messages that should be cleared on restart
+            if len(lines) >= 2:
+                lines = lines[:-2]
+                
+                # Write back the modified content
+                with open(actor_log_path, "w", encoding="utf-8") as f:
+                    f.writelines(lines)
+                
+                print(f"Removed completion log entries from {actor_log_path}")
+        except Exception as e:
+            # Log the error but don't fail the client start
+            print(f"Warning: Could not clean actor log {actor_log_path}: {e}")
 
     # Determine the script path based on platform type
     if exp.platform_type == "microblogging":
