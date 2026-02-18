@@ -11,10 +11,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
+# Maximum number of HPC experiments allowed per schedule group
+# This constant matches the one in y_web/routes_admin/experiments_routes.py
+MAX_HPC_PER_GROUP = 4
+
 
 def test_hpc_experiment_group_limit():
     """Test that up to 4 HPC experiments can be added to a group."""
-    MAX_HPC_PER_GROUP = 4
     
     # Simulate adding HPC experiments to a group
     hpc_count = 0
@@ -62,7 +65,6 @@ def test_hpc_standard_experiment_mixing():
 
 def test_auto_composition_hpc_batching():
     """Test that auto composition correctly batches HPC experiments into groups of up to 4."""
-    MAX_HPC_PER_GROUP = 4
     
     # Simulate 10 HPC experiments
     hpc_exps = [MagicMock(simulator_type="HPC", idexp=i) for i in range(10)]
@@ -102,7 +104,6 @@ def test_auto_composition_standard_batching():
 
 def test_mixed_experiments_auto_composition():
     """Test auto composition with both HPC and Standard experiments."""
-    MAX_HPC_PER_GROUP = 4
     experiments_per_group = 2
     
     # Simulate 6 HPC and 5 Standard experiments

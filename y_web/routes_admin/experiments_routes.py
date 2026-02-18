@@ -97,6 +97,7 @@ experiments = Blueprint("experiments", __name__)
 
 # Configuration constants
 OPINION_CACHE_EXPIRY_MINUTES = 5  # Cache expiry time for opinion evolution statistics
+MAX_HPC_PER_GROUP = 4  # Maximum number of HPC experiments allowed per schedule group
 
 
 def get_experiment_uid_from_db_name(db_name):
@@ -5333,7 +5334,6 @@ def add_experiment_to_group(group_id):
     # HPC experiment validation: Allow up to 4 HPC experiments per group
     # Check if this is an HPC experiment or if the group already has experiments
     is_hpc = exp.simulator_type == "HPC"
-    MAX_HPC_PER_GROUP = 4
 
     if is_hpc:
         # Check how many HPC experiments are already in this group
@@ -6258,7 +6258,6 @@ def auto_create_groups():
     # Create groups and assign experiments
     created_groups = []
     group_num = 1
-    MAX_HPC_PER_GROUP = 4
 
     # First, create groups for HPC experiments (up to 4 per group)
     for i in range(0, len(hpc_exps), MAX_HPC_PER_GROUP):
