@@ -399,7 +399,7 @@ def run_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    
+
     try:
         if exp.simulator_type == "HPC":
             start_hpc_client(exp, client, population)
@@ -446,7 +446,7 @@ def resume_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    
+
     try:
         if exp.simulator_type == "HPC":
             start_hpc_client(exp, client, population)

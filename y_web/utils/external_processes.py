@@ -2102,17 +2102,17 @@ def start_hpc_client(exp, cli, population):
                 f"{file_name.capitalize()} file not found: {file_path}\n"
                 f"Please ensure the HPC experiment is properly configured."
             )
-    
+
     # Validate ray_config.temp exists (required for HPC client startup)
     # Wait up to 60 seconds (6 attempts x 10 seconds) for the file to appear
     ray_config_path = os.path.join(exp_folder, "ray_config.temp")
     max_attempts = 6
     wait_seconds = 10
-    
+
     for attempt in range(1, max_attempts + 1):
         if Path(ray_config_path).exists():
             break
-        
+
         if attempt < max_attempts:
             print(
                 f"ray_config.temp not found (attempt {attempt}/{max_attempts}). "
@@ -2128,27 +2128,27 @@ def start_hpc_client(exp, cli, population):
                 f"Please wait and try again, or check the server logs for errors."
             )
             raise FileNotFoundError(error_msg)
-    
+
     # Remove completion log entries from actor log if restarting
     # Actor logs are in logs/{client_name}_actor.log
     logs_folder = os.path.join(exp_folder, "logs")
     actor_log_path = os.path.join(logs_folder, f"{cli.name}_actor.log")
-    
+
     if os.path.exists(actor_log_path):
         try:
             # Read all lines from the actor log
             with open(actor_log_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
-            
+
             # Remove the last two lines if they exist
             # These are the completion messages that should be cleared on restart
             if len(lines) >= 2:
                 lines = lines[:-2]
-                
+
                 # Write back the modified content
                 with open(actor_log_path, "w", encoding="utf-8") as f:
                     f.writelines(lines)
-                
+
                 print(f"Removed completion log entries from {actor_log_path}")
         except Exception as e:
             # Log the error but don't fail the client start
