@@ -69,7 +69,7 @@ def test_auto_composition_hpc_batching():
     # Simulate 10 HPC experiments
     hpc_exps = [MagicMock(simulator_type="HPC", idexp=i) for i in range(10)]
     
-    # Batch them into groups
+    # Batch them into groups (default max of 4)
     groups = []
     for i in range(0, len(hpc_exps), MAX_HPC_PER_GROUP):
         group_hpc_exps = hpc_exps[i : i + MAX_HPC_PER_GROUP]
@@ -77,6 +77,53 @@ def test_auto_composition_hpc_batching():
     
     # Verify batching
     assert len(groups) == 3, "10 HPC experiments should create 3 groups (4+4+2)"
+    assert len(groups[0]) == 4, "First group should have 4 experiments"
+    assert len(groups[1]) == 4, "Second group should have 4 experiments"
+    assert len(groups[2]) == 2, "Third group should have 2 experiments"
+
+
+def test_auto_composition_hpc_respects_user_limit():
+    """Test that HPC batching respects user-specified limit when less than 4."""
+    experiments_per_group = 2  # User specifies 2
+    
+    # Simulate 10 HPC experiments
+    hpc_exps = [MagicMock(simulator_type="HPC", idexp=i) for i in range(10)]
+    
+    # Calculate HPC per group: min(4, 2) = 2
+    hpc_per_group = min(MAX_HPC_PER_GROUP, experiments_per_group)
+    assert hpc_per_group == 2, "Should use user's value when less than 4"
+    
+    # Batch them into groups
+    groups = []
+    for i in range(0, len(hpc_exps), hpc_per_group):
+        group_hpc_exps = hpc_exps[i : i + hpc_per_group]
+        groups.append(group_hpc_exps)
+    
+    # Verify batching with user's limit
+    assert len(groups) == 5, "10 HPC experiments with limit 2 should create 5 groups (2+2+2+2+2)"
+    for i, group in enumerate(groups):
+        assert len(group) == 2, f"Group {i} should have 2 experiments"
+
+
+def test_auto_composition_hpc_caps_at_max():
+    """Test that HPC batching caps at MAX_HPC_PER_GROUP even if user specifies more."""
+    experiments_per_group = 6  # User specifies 6
+    
+    # Simulate 10 HPC experiments
+    hpc_exps = [MagicMock(simulator_type="HPC", idexp=i) for i in range(10)]
+    
+    # Calculate HPC per group: min(4, 6) = 4 (capped at max)
+    hpc_per_group = min(MAX_HPC_PER_GROUP, experiments_per_group)
+    assert hpc_per_group == 4, "Should cap at MAX_HPC_PER_GROUP (4) when user specifies more"
+    
+    # Batch them into groups
+    groups = []
+    for i in range(0, len(hpc_exps), hpc_per_group):
+        group_hpc_exps = hpc_exps[i : i + hpc_per_group]
+        groups.append(group_hpc_exps)
+    
+    # Verify batching capped at max
+    assert len(groups) == 3, "10 HPC experiments capped at 4 should create 3 groups (4+4+2)"
     assert len(groups[0]) == 4, "First group should have 4 experiments"
     assert len(groups[1]) == 4, "Second group should have 4 experiments"
     assert len(groups[2]) == 2, "Third group should have 2 experiments"
@@ -110,10 +157,13 @@ def test_mixed_experiments_auto_composition():
     hpc_exps = [MagicMock(simulator_type="HPC", idexp=i) for i in range(6)]
     standard_exps = [MagicMock(simulator_type="Standard", idexp=i+10) for i in range(5)]
     
-    # Separate and batch HPC experiments
+    # Calculate HPC per group: min(4, 2) = 2
+    hpc_per_group = min(MAX_HPC_PER_GROUP, experiments_per_group)
+    
+    # Separate and batch HPC experiments (respecting user limit)
     hpc_groups = []
-    for i in range(0, len(hpc_exps), MAX_HPC_PER_GROUP):
-        group_hpc_exps = hpc_exps[i : i + MAX_HPC_PER_GROUP]
+    for i in range(0, len(hpc_exps), hpc_per_group):
+        group_hpc_exps = hpc_exps[i : i + hpc_per_group]
         hpc_groups.append(group_hpc_exps)
     
     # Batch Standard experiments
@@ -122,10 +172,11 @@ def test_mixed_experiments_auto_composition():
         group_exps = standard_exps[i : i + experiments_per_group]
         standard_groups.append(group_exps)
     
-    # Verify HPC batching
-    assert len(hpc_groups) == 2, "6 HPC experiments should create 2 groups (4+2)"
-    assert len(hpc_groups[0]) == 4, "First HPC group should have 4 experiments"
+    # Verify HPC batching (should use user's value of 2)
+    assert len(hpc_groups) == 3, "6 HPC experiments with limit 2 should create 3 groups (2+2+2)"
+    assert len(hpc_groups[0]) == 2, "First HPC group should have 2 experiments"
     assert len(hpc_groups[1]) == 2, "Second HPC group should have 2 experiments"
+    assert len(hpc_groups[2]) == 2, "Third HPC group should have 2 experiments"
     
     # Verify Standard batching
     assert len(standard_groups) == 3, "5 Standard experiments with groups of 2 should create 3 groups (2+2+1)"

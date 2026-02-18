@@ -6272,9 +6272,12 @@ def auto_create_groups():
     created_groups = []
     group_num = 1
 
-    # First, create groups for HPC experiments (up to 4 per group)
-    for i in range(0, len(hpc_exps), MAX_HPC_PER_GROUP):
-        group_hpc_exps = hpc_exps[i : i + MAX_HPC_PER_GROUP]
+    # Calculate HPC experiments per group: min of MAX_HPC_PER_GROUP and user-specified value
+    hpc_per_group = min(MAX_HPC_PER_GROUP, experiments_per_group)
+
+    # First, create groups for HPC experiments (respecting user input, capped at 4)
+    for i in range(0, len(hpc_exps), hpc_per_group):
+        group_hpc_exps = hpc_exps[i : i + hpc_per_group]
         
         group = ExperimentScheduleGroup(
             name=f"Auto Group {max_order + group_num} (HPC)",
