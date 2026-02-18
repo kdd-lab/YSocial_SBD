@@ -5330,21 +5330,49 @@ def add_experiment_to_group(group_id):
             400,
         )
 
-    # HPC experiment validation: HPC experiments cannot run in parallel
+    # HPC experiment validation: Allow up to 4 HPC experiments per group
     # Check if this is an HPC experiment or if the group already has experiments
     is_hpc = exp.simulator_type == "HPC"
+    MAX_HPC_PER_GROUP = 4
 
     if is_hpc:
-        # HPC experiments must be alone in their group
-        existing_count = ExperimentScheduleItem.query.filter_by(
-            group_id=group_id
-        ).count()
-        if existing_count > 0:
+        # Check how many HPC experiments are already in this group
+        hpc_count = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type == "HPC",
+            )
+            .count()
+        )
+        if hpc_count >= MAX_HPC_PER_GROUP:
             return (
                 jsonify(
                     {
                         "success": False,
-                        "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group.",
+                        "message": f"Maximum {MAX_HPC_PER_GROUP} HPC experiments allowed per group. This group already has {hpc_count} HPC experiments.",
+                    }
+                ),
+                400,
+            )
+        
+        # Check if there are any non-HPC (Standard) experiments in this group
+        standard_count = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type != "HPC",
+            )
+            .count()
+        )
+        if standard_count > 0:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot mix HPC experiments with Standard experiments in the same group.",
                     }
                 ),
                 400,
@@ -5365,7 +5393,7 @@ def add_experiment_to_group(group_id):
                 jsonify(
                     {
                         "success": False,
-                        "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group.",
+                        "message": "Cannot mix Standard experiments with HPC experiments in the same group.",
                     }
                 ),
                 400,
@@ -6218,7 +6246,7 @@ def auto_create_groups():
         )
 
     # Separate HPC and Standard experiments
-    # HPC experiments must be alone in their own groups
+    # HPC experiments can be grouped up to 4 per group
     hpc_exps = [exp for exp in available_exps if exp.simulator_type == "HPC"]
     standard_exps = [exp for exp in available_exps if exp.simulator_type != "HPC"]
 
@@ -6230,9 +6258,12 @@ def auto_create_groups():
     # Create groups and assign experiments
     created_groups = []
     group_num = 1
+    MAX_HPC_PER_GROUP = 4
 
-    # First, create individual groups for each HPC experiment
-    for exp in hpc_exps:
+    # First, create groups for HPC experiments (up to 4 per group)
+    for i in range(0, len(hpc_exps), MAX_HPC_PER_GROUP):
+        group_hpc_exps = hpc_exps[i : i + MAX_HPC_PER_GROUP]
+        
         group = ExperimentScheduleGroup(
             name=f"Auto Group {max_order + group_num} (HPC)",
             order_index=max_order + group_num,
@@ -6241,18 +6272,19 @@ def auto_create_groups():
         db.session.add(group)
         db.session.commit()
 
-        # Add HPC experiment to its own group
-        item = ExperimentScheduleItem(
-            group_id=group.id, experiment_id=exp.idexp, order_index=0
-        )
-        db.session.add(item)
+        # Add HPC experiments to the group
+        for idx, exp in enumerate(group_hpc_exps):
+            item = ExperimentScheduleItem(
+                group_id=group.id, experiment_id=exp.idexp, order_index=idx
+            )
+            db.session.add(item)
         db.session.commit()
 
         created_groups.append(
             {
                 "id": group.id,
                 "name": group.name,
-                "experiment_count": 1,
+                "experiment_count": len(group_hpc_exps),
             }
         )
         group_num += 1
