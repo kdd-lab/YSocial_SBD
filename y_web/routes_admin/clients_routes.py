@@ -383,7 +383,6 @@ def extend_simulation(id_client):
 @login_required
 def run_client(uid, idexp):
     """Handle run client operation."""
-    from flask import flash
     from .experiments_routes import experiment_details
 
     check_privileges(current_user.username)
@@ -431,7 +430,6 @@ def run_client(uid, idexp):
 @login_required
 def resume_client(uid, idexp):
     """Handle resume client operation."""
-    from flask import flash
     from .experiments_routes import experiment_details
 
     check_privileges(current_user.username)
