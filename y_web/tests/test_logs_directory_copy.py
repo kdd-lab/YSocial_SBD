@@ -7,8 +7,9 @@ Verifies that:
 """
 
 import os
-import tempfile
+import re
 import shutil
+import tempfile
 
 import pytest
 
