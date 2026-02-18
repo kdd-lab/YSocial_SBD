@@ -399,21 +399,29 @@ def run_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    if exp.simulator_type == "HPC":
-        start_hpc_client(exp, client, population)
-    else:
-        start_client(exp, client, population, resume=True)
+    
+    try:
+        if exp.simulator_type == "HPC":
+            start_hpc_client(exp, client, population)
+        else:
+            start_client(exp, client, population, resume=True)
 
-    # set the client running status
-    db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
-    db.session.commit()
-
-    # For remote experiments, set experiment to running when first client starts
-    if exp.is_remote == 1 and exp.running == 0:
-        db.session.query(Exps).filter_by(idexp=idexp).update(
-            {Exps.running: 1, Exps.exp_status: "active"}
-        )
+        # set the client running status
+        db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
         db.session.commit()
+
+        # For remote experiments, set experiment to running when first client starts
+        if exp.is_remote == 1 and exp.running == 0:
+            db.session.query(Exps).filter_by(idexp=idexp).update(
+                {Exps.running: 1, Exps.exp_status: "active"}
+            )
+            db.session.commit()
+    except FileNotFoundError as e:
+        # Display the error message to the user
+        flash(f"Error starting client: {str(e)}", "error")
+    except Exception as e:
+        # Catch any other errors
+        flash(f"Unexpected error starting client: {str(e)}", "error")
 
     return experiment_details(idexp)
 
@@ -422,6 +430,8 @@ def run_client(uid, idexp):
 @login_required
 def resume_client(uid, idexp):
     """Handle resume client operation."""
+    from .experiments_routes import experiment_details
+
     check_privileges(current_user.username)
 
     # get experiment
@@ -436,23 +446,31 @@ def resume_client(uid, idexp):
 
     # get population of the experiment
     population = Population.query.filter_by(id=client.population_id).first()
-    if exp.simulator_type == "HPC":
-        start_hpc_client(exp, client, population)
-    else:
-        start_client(exp, client, population, resume=True)
+    
+    try:
+        if exp.simulator_type == "HPC":
+            start_hpc_client(exp, client, population)
+        else:
+            start_client(exp, client, population, resume=True)
 
-    # set the client running status
-    db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
-    db.session.commit()
-
-    # For remote experiments, set experiment to running when first client starts
-    if exp.is_remote == 1 and exp.running == 0:
-        db.session.query(Exps).filter_by(idexp=idexp).update(
-            {Exps.running: 1, Exps.exp_status: "active"}
-        )
+        # set the client running status
+        db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
         db.session.commit()
 
-    return redirect(request.referrer)
+        # For remote experiments, set experiment to running when first client starts
+        if exp.is_remote == 1 and exp.running == 0:
+            db.session.query(Exps).filter_by(idexp=idexp).update(
+                {Exps.running: 1, Exps.exp_status: "active"}
+            )
+            db.session.commit()
+    except FileNotFoundError as e:
+        # Display the error message to the user
+        flash(f"Error starting client: {str(e)}", "error")
+    except Exception as e:
+        # Catch any other errors
+        flash(f"Unexpected error starting client: {str(e)}", "error")
+
+    return experiment_details(idexp)
 
 
 @clientsr.route("/admin/pause_client/<int:uid>/<int:idexp>")

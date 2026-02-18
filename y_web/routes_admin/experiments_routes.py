@@ -97,6 +97,7 @@ experiments = Blueprint("experiments", __name__)
 
 # Configuration constants
 OPINION_CACHE_EXPIRY_MINUTES = 5  # Cache expiry time for opinion evolution statistics
+MAX_HPC_PER_GROUP = 4  # Maximum number of HPC experiments allowed per schedule group
 
 
 def get_experiment_uid_from_db_name(db_name):
@@ -3161,6 +3162,32 @@ def stop_experiment(uid):
         {Exps.running: 0, Exps.exp_status: final_status}
     )
     db.session.commit()
+    
+    # Step 5: Handle scheduled experiments - remove from running group to unblock schedule
+    # Check if there's an active schedule and if this experiment is part of it
+    schedule_status = ExperimentScheduleStatus.query.first()
+    if schedule_status and schedule_status.is_running and schedule_status.current_group_id:
+        # Check if this experiment is in the current running group
+        schedule_item = ExperimentScheduleItem.query.filter_by(
+            experiment_id=uid,
+            group_id=schedule_status.current_group_id
+        ).first()
+        
+        if schedule_item:
+            # This experiment is part of the running schedule group
+            # Remove it from the schedule to unblock subsequent groups
+            group = ExperimentScheduleGroup.query.get(schedule_status.current_group_id)
+            group_name = group.name if group else "Unknown"
+            
+            # Log the removal
+            log_msg = f"Experiment '{exp.exp_name}' was manually stopped and removed from schedule group '{group_name}'"
+            db.session.add(ExperimentScheduleLog(message=log_msg, log_type="warning"))
+            
+            # Remove the schedule item
+            db.session.delete(schedule_item)
+            db.session.commit()
+            
+            print(f"Removed stopped experiment {exp.exp_name} (ID: {uid}) from schedule group {group_name}")
 
     return experiment_details(uid)
 
@@ -4703,7 +4730,11 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     # Create new experiment folder and copy all files
     pathlib.Path(new_folder).mkdir(parents=True, exist_ok=True)
 
-    # Copy all files from source to new folder, excluding log files
+    # Detect if this is an HPC or Standard experiment BEFORE copying files
+    # This is critical: HPC experiments have different file handling requirements
+    is_hpc = os.path.exists(os.path.join(source_folder, "server_config.json"))
+
+    # Copy all files from source to new folder, excluding log files and HPC-specific files
     import re
 
     log_pattern = re.compile(r"\.log(\.\d+)?$")  # Matches .log, .log.1, .log.2, etc.
@@ -4712,6 +4743,15 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         # Skip log files (server logs and client logs) including rotated logs
         if log_pattern.search(item):
             continue
+        
+        # For HPC experiments, skip additional files:
+        # - database files (HPC generates its own on server startup)
+        # - ray_config.temp (temporary Ray configuration file)
+        if is_hpc:
+            if item == "database_server.db" or item.startswith("database_") and item.endswith(".db"):
+                continue
+            if item == "ray_config.temp":
+                continue
 
         source_item = os.path.join(source_folder, item)
         dest_item = os.path.join(new_folder, item)
@@ -4719,7 +4759,11 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         if os.path.isfile(source_item):
             shutil.copy2(source_item, dest_item)
         elif os.path.isdir(source_item):
-            shutil.copytree(source_item, dest_item)
+            # Special handling for logs directory: create empty directory without copying contents
+            if item == "logs":
+                os.makedirs(dest_item, exist_ok=True)
+            else:
+                shutil.copytree(source_item, dest_item)
 
     # Get suggested port for new experiment
     suggested_port = get_suggested_port()
@@ -4730,10 +4774,6 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         )
         shutil.rmtree(new_folder, ignore_errors=True)
         return False
-
-    # Detect if this is an HPC or Standard experiment BEFORE handling database
-    # This is critical: HPC experiments generate their own database on server startup
-    is_hpc = os.path.exists(os.path.join(new_folder, "server_config.json"))
 
     # Handle database copying first to get the correct db_uri
     new_db_name = ""
@@ -5330,21 +5370,48 @@ def add_experiment_to_group(group_id):
             400,
         )
 
-    # HPC experiment validation: HPC experiments cannot run in parallel
+    # HPC experiment validation: Allow up to 4 HPC experiments per group
     # Check if this is an HPC experiment or if the group already has experiments
     is_hpc = exp.simulator_type == "HPC"
 
     if is_hpc:
-        # HPC experiments must be alone in their group
-        existing_count = ExperimentScheduleItem.query.filter_by(
-            group_id=group_id
-        ).count()
-        if existing_count > 0:
+        # Check how many HPC experiments are already in this group
+        hpc_count = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type == "HPC",
+            )
+            .count()
+        )
+        if hpc_count >= MAX_HPC_PER_GROUP:
             return (
                 jsonify(
                     {
                         "success": False,
-                        "message": "HPC experiments cannot run in parallel. This HPC experiment must be in its own group.",
+                        "message": f"Maximum {MAX_HPC_PER_GROUP} HPC experiments allowed per group. This group already has {hpc_count} HPC experiments.",
+                    }
+                ),
+                400,
+            )
+        
+        # Check if there are any non-HPC (Standard) experiments in this group
+        standard_count = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type != "HPC",
+            )
+            .count()
+        )
+        if standard_count > 0:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot mix HPC experiments with Standard experiments in the same group.",
                     }
                 ),
                 400,
@@ -5365,7 +5432,7 @@ def add_experiment_to_group(group_id):
                 jsonify(
                     {
                         "success": False,
-                        "message": "This group contains an HPC experiment which cannot run in parallel. HPC experiments must be in their own group.",
+                        "message": "Cannot mix Standard experiments with HPC experiments in the same group.",
                     }
                 ),
                 400,
@@ -6218,7 +6285,7 @@ def auto_create_groups():
         )
 
     # Separate HPC and Standard experiments
-    # HPC experiments must be alone in their own groups
+    # HPC experiments can be grouped up to 4 per group
     hpc_exps = [exp for exp in available_exps if exp.simulator_type == "HPC"]
     standard_exps = [exp for exp in available_exps if exp.simulator_type != "HPC"]
 
@@ -6231,8 +6298,13 @@ def auto_create_groups():
     created_groups = []
     group_num = 1
 
-    # First, create individual groups for each HPC experiment
-    for exp in hpc_exps:
+    # Calculate HPC experiments per group: min of MAX_HPC_PER_GROUP and user-specified value
+    hpc_per_group = min(MAX_HPC_PER_GROUP, experiments_per_group)
+
+    # First, create groups for HPC experiments (respecting user input, capped at 4)
+    for i in range(0, len(hpc_exps), hpc_per_group):
+        group_hpc_exps = hpc_exps[i : i + hpc_per_group]
+        
         group = ExperimentScheduleGroup(
             name=f"Auto Group {max_order + group_num} (HPC)",
             order_index=max_order + group_num,
@@ -6241,18 +6313,19 @@ def auto_create_groups():
         db.session.add(group)
         db.session.commit()
 
-        # Add HPC experiment to its own group
-        item = ExperimentScheduleItem(
-            group_id=group.id, experiment_id=exp.idexp, order_index=0
-        )
-        db.session.add(item)
+        # Add HPC experiments to the group
+        for idx, exp in enumerate(group_hpc_exps):
+            item = ExperimentScheduleItem(
+                group_id=group.id, experiment_id=exp.idexp, order_index=idx
+            )
+            db.session.add(item)
         db.session.commit()
 
         created_groups.append(
             {
                 "id": group.id,
                 "name": group.name,
-                "experiment_count": 1,
+                "experiment_count": len(group_hpc_exps),
             }
         )
         group_num += 1
