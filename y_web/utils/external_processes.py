@@ -2102,6 +2102,32 @@ def start_hpc_client(exp, cli, population):
                 f"{file_name.capitalize()} file not found: {file_path}\n"
                 f"Please ensure the HPC experiment is properly configured."
             )
+    
+    # Validate ray_config.temp exists (required for HPC client startup)
+    # Wait up to 60 seconds (6 attempts x 10 seconds) for the file to appear
+    ray_config_path = os.path.join(exp_folder, "ray_config.temp")
+    max_attempts = 6
+    wait_seconds = 10
+    
+    for attempt in range(1, max_attempts + 1):
+        if Path(ray_config_path).exists():
+            break
+        
+        if attempt < max_attempts:
+            print(
+                f"ray_config.temp not found (attempt {attempt}/{max_attempts}). "
+                f"Waiting {wait_seconds} seconds..."
+            )
+            time.sleep(wait_seconds)
+        else:
+            # Final attempt failed
+            error_msg = (
+                f"ray_config.temp file not found after {max_attempts} attempts "
+                f"({max_attempts * wait_seconds} seconds): {ray_config_path}\n"
+                f"The HPC server may not have fully initialized yet. "
+                f"Please wait and try again, or check the server logs for errors."
+            )
+            raise FileNotFoundError(error_msg)
 
     # Determine the script path based on platform type
     if exp.platform_type == "microblogging":

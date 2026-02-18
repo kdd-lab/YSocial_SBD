@@ -4704,7 +4704,11 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     # Create new experiment folder and copy all files
     pathlib.Path(new_folder).mkdir(parents=True, exist_ok=True)
 
-    # Copy all files from source to new folder, excluding log files
+    # Detect if this is an HPC or Standard experiment BEFORE copying files
+    # This is critical: HPC experiments have different file handling requirements
+    is_hpc = os.path.exists(os.path.join(source_folder, "server_config.json"))
+
+    # Copy all files from source to new folder, excluding log files and HPC-specific files
     import re
 
     log_pattern = re.compile(r"\.log(\.\d+)?$")  # Matches .log, .log.1, .log.2, etc.
@@ -4713,6 +4717,15 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         # Skip log files (server logs and client logs) including rotated logs
         if log_pattern.search(item):
             continue
+        
+        # For HPC experiments, skip additional files:
+        # - database files (HPC generates its own on server startup)
+        # - ray_config.temp (temporary Ray configuration file)
+        if is_hpc:
+            if item == "database_server.db" or item.startswith("database_") and item.endswith(".db"):
+                continue
+            if item == "ray_config.temp":
+                continue
 
         source_item = os.path.join(source_folder, item)
         dest_item = os.path.join(new_folder, item)
@@ -4731,10 +4744,6 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
         )
         shutil.rmtree(new_folder, ignore_errors=True)
         return False
-
-    # Detect if this is an HPC or Standard experiment BEFORE handling database
-    # This is critical: HPC experiments generate their own database on server startup
-    is_hpc = os.path.exists(os.path.join(new_folder, "server_config.json"))
 
     # Handle database copying first to get the correct db_uri
     new_db_name = ""
