@@ -992,19 +992,23 @@
                             <i class="mdi mdi-download"></i> Download Group
                         </button>` : '';
                     
+                    // Determine if group should be collapsed by default (for completed and stopped)
+                    const shouldCollapse = statusFilter !== EXP_STATUS.ACTIVE;
+                    const collapsedClass = shouldCollapse ? ' collapsed' : '';
+                    
                     html += `
                         <div class="experiment-group">
                             <div class="group-header" onclick="toggleGroup('${groupId}')" 
                                  style="border-left: 3px solid ${statusFilter === EXP_STATUS.ACTIVE ? '#28a745' : statusFilter === EXP_STATUS.COMPLETED ? '#17a2b8' : '#6c757d'}">
                                 <div style="display: flex; align-items: center; gap: 10px;">
-                                    <i class="mdi mdi-chevron-down chevron" id="chevron-${groupId}"></i>
+                                    <i class="mdi mdi-chevron-down chevron${collapsedClass}" id="chevron-${groupId}"></i>
                                     <span style="font-weight: 600; color: #333; font-size: 0.9em;">${group}</span>
                                     <span class="count-badge ${badgeClass}">${count}</span>
                                     ${downloadBtn}
                                 </div>
                                 <span style="font-size: 0.7em; color: #999;">Click to expand/collapse</span>
                             </div>
-                            <div id="content-${groupId}" class="group-content">
+                            <div id="content-${groupId}" class="group-content${collapsedClass}">
                     `;
                     
                     // Add experiments

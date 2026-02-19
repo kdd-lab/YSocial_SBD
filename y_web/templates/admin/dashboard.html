@@ -269,7 +269,7 @@
 {% endmacro %}
 
 {# Macro for rendering experiments grouped by group with fold/unfold functionality #}
-{% macro render_grouped_experiments(experiments_by_group, section_color, status_name, is_compact=true) %}
+{% macro render_grouped_experiments(experiments_by_group, section_color, status_name, is_compact=true, collapsed=false) %}
     {% for group_name in experiments_by_group.keys() | sort %}
     {% set group_id = status_name + '_' + group_name.replace(' ', '_').replace('/', '_') %}
     {% set experiments = experiments_by_group[group_name] %}
@@ -277,13 +277,13 @@
     <div class="experiment-group" style="margin-bottom: 15px;">
         <div class="group-header" style="background: #f8f9fa; border: 1px solid #e0e0e0; border-left: 3px solid {{ section_color }}; border-radius: 6px; padding: 10px 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;" onclick="toggleGroup('{{ group_id }}')">
             <div style="display: flex; align-items: center; gap: 10px;">
-                <i class="mdi mdi-chevron-down" id="icon-{{ group_id }}" style="font-size: 18px; color: #666; transition: transform 0.2s;"></i>
+                <i class="mdi mdi-chevron-down" id="icon-{{ group_id }}" style="font-size: 18px; color: #666; transition: transform 0.2s;{% if collapsed %} transform: rotate(-90deg);{% endif %}"></i>
                 <span style="font-weight: 600; color: #333; font-size: 0.95em;">{{ group_name }}</span>
                 <span style="background: {{ section_color }}; color: white; font-size: 0.7em; padding: 2px 8px; border-radius: 12px; font-weight: 600;">{{ exp_count }}</span>
             </div>
             <span style="font-size: 0.75em; color: #999;">Click to expand/collapse</span>
         </div>
-        <div id="{{ group_id }}" class="group-content" style="margin-top: 8px; display: block;">
+        <div id="{{ group_id }}" class="group-content" style="margin-top: 8px; display: {% if collapsed %}none{% else %}block{% endif %};">
             {% if is_compact %}
                 {{ render_compact_experiment_box(experiments, section_color) }}
             {% else %}
@@ -330,7 +330,7 @@
                             Active experiments grouped by their project group. Click on a group header to expand/collapse.
                         </p>
                         <div id="running-experiments-container">
-                            {{ render_grouped_experiments(running_experiments_by_group, '#28a745', 'running', false) }}
+                            {{ render_grouped_experiments(running_experiments_by_group, '#28a745', 'running', false, false) }}
                         </div>
                     </div>
                     {% endif %}
@@ -350,7 +350,7 @@
                                     Experiments grouped by project. Click to expand/collapse.
                                 </p>
                                 <div id="completed-experiments-container" style="flex: 1;">
-                                    {{ render_grouped_experiments(completed_experiments_by_group, '#17a2b8', 'completed', true) }}
+                                    {{ render_grouped_experiments(completed_experiments_by_group, '#17a2b8', 'completed', true, true) }}
                                 </div>
                             </div>
                         </div>
@@ -369,7 +369,7 @@
                                     Experiments grouped by project. Click to expand/collapse.
                                 </p>
                                 <div id="stopped-experiments-container" style="flex: 1;">
-                                    {{ render_grouped_experiments(stopped_experiments_by_group, '#6c757d', 'stopped', true) }}
+                                    {{ render_grouped_experiments(stopped_experiments_by_group, '#6c757d', 'stopped', true, true) }}
                                 </div>
                             </div>
                         </div>

@@ -132,15 +132,15 @@ def dashboard():
         else:  # "stopped" or "scheduled"
             stopped_experiments.append(exp)
 
-    # Save total counts before limiting to 5
+    # Save total counts (no longer limiting to 5)
     total_running = len(active_experiments)
     total_completed = len(completed_experiments)
     total_stopped = len(stopped_experiments)
 
-    # Limit to 5 per section
-    active_experiments = active_experiments[:5]
-    completed_experiments = completed_experiments[:5]
-    stopped_experiments = stopped_experiments[:5]
+    # No longer limit to 5 per section - load all experiments
+    # active_experiments = active_experiments[:5]
+    # completed_experiments = completed_experiments[:5]
+    # stopped_experiments = stopped_experiments[:5]
 
     # Helper function to build experiment data with clients
     def build_experiment_data(experiments_list):
