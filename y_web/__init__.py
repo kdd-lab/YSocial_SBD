@@ -1100,4 +1100,15 @@ def create_app(db_type="sqlite", desktop_mode=False):
     except Exception as e:
         print(f"Failed to start log sync scheduler: {e}")
 
+    # Start the experiment schedule monitor for automatic group advancement
+    try:
+        from y_web.utils.experiment_schedule_monitor import (
+            init_experiment_schedule_monitor,
+        )
+
+        init_experiment_schedule_monitor(app)
+        print("✓ Experiment schedule monitor started")
+    except Exception as e:
+        print(f"Failed to start experiment schedule monitor: {e}")
+
     return app
