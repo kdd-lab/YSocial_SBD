@@ -13,6 +13,7 @@ import random
 import re
 import shutil
 import socket
+import threading
 import time
 import uuid
 from collections import defaultdict
@@ -98,6 +99,9 @@ experiments = Blueprint("experiments", __name__)
 # Configuration constants
 OPINION_CACHE_EXPIRY_MINUTES = 5  # Cache expiry time for opinion evolution statistics
 MAX_HPC_PER_GROUP = 4  # Maximum number of HPC experiments allowed per schedule group
+
+# Lock to prevent concurrent schedule advancement (from HTTP endpoint and background monitor)
+_schedule_check_lock = threading.Lock()
 
 
 def get_experiment_uid_from_db_name(db_name):
@@ -5850,214 +5854,229 @@ def check_schedule_progress():
     Returns:
         JSON with progress status
     """
-    import time
-
     check_privileges(current_user.username)
+    return jsonify(_do_check_schedule_progress())
 
-    status = ExperimentScheduleStatus.query.first()
-    if not status or not status.is_running:
-        return jsonify({"success": True, "is_running": False})
 
-    if not status.current_group_id:
-        return jsonify({"success": True, "is_running": False})
+def _do_check_schedule_progress():
+    """
+    Core logic for checking schedule progress and advancing to next group.
 
-    # Check if all experiments in current group are completed
-    items = ExperimentScheduleItem.query.filter_by(
-        group_id=status.current_group_id
-    ).all()
-    all_completed = True
+    Can be called from the HTTP endpoint or the background monitor.
 
-    for item in items:
-        exp = Exps.query.get(item.experiment_id)
-        if exp:
-            # Check if experiment is completed
-            if exp.exp_status != "completed":
-                all_completed = False
-                break
+    Returns:
+        dict suitable for jsonify
+    """
 
-    if not all_completed:
-        return jsonify(
-            {
+    with _schedule_check_lock:
+        status = ExperimentScheduleStatus.query.first()
+        if not status or not status.is_running:
+            return {"success": True, "is_running": False}
+
+        if not status.current_group_id:
+            return {"success": True, "is_running": False}
+
+        # Check if all experiments in current group are completed
+        items = ExperimentScheduleItem.query.filter_by(
+            group_id=status.current_group_id
+        ).all()
+        all_completed = True
+
+        for item in items:
+            exp = Exps.query.get(item.experiment_id)
+            if exp:
+                # Check if experiment is completed
+                if exp.exp_status != "completed":
+                    all_completed = False
+                    break
+
+        if not all_completed:
+            return {
                 "success": True,
                 "is_running": True,
                 "all_completed": False,
                 "current_group_id": status.current_group_id,
             }
-        )
 
-    # All completed - stop current group experiments and move to next group
-    logs = []
-    current_group = ExperimentScheduleGroup.query.get(status.current_group_id)
+        # All completed - stop current group experiments and move to next group
+        logs = []
+        current_group = ExperimentScheduleGroup.query.get(status.current_group_id)
 
-    msg = f"Group '{current_group.name}' completed!"
-    logs.append(msg)
-    db.session.add(ExperimentScheduleLog(message=msg, log_type="success"))
-
-    # Mark current group as completed (don't delete yet - will clean up at end of schedule)
-    current_group.is_completed = 1
-    db.session.commit()
-
-    for item in items:
-        exp = Exps.query.get(item.experiment_id)
-        if exp and exp.running == 1:
-            msg = f"Stopping experiment '{exp.exp_name}'..."
-            logs.append(msg)
-            db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-            # Stop clients
-            clients = Client.query.filter_by(id_exp=exp.idexp).all()
-            for client in clients:
-                if client.status == 1:
-                    if client.pid:
-                        if exp.simulator_type == "HPC":
-                            stop_hpc_client(client)
-                        else:
-                            terminate_client(client, pause=False)
-                    client.status = 0
-                    db.session.commit()
-
-            # Stop server
-            if exp.simulator_type == "HPC":
-                terminated = stop_hpc_server(exp.idexp)
-            else:
-                terminated = terminate_server_process(exp.idexp)
-            if not terminated:
-                terminate_process_on_port(exp.port)
-
-            exp.running = 0
-            db.session.commit()
-
-    # Get next non-completed group
-    next_group = (
-        ExperimentScheduleGroup.query.filter(
-            ExperimentScheduleGroup.order_index > current_group.order_index,
-            (ExperimentScheduleGroup.is_completed == 0)
-            | (ExperimentScheduleGroup.is_completed == None),
-        )
-        .order_by(ExperimentScheduleGroup.order_index)
-        .first()
-    )
-
-    if not next_group:
-        # Schedule complete
-        status.is_running = 0
-        status.current_group_id = None
-        db.session.commit()
-        msg = "All groups completed! Schedule finished."
+        msg = f"Group '{current_group.name}' completed!"
         logs.append(msg)
         db.session.add(ExperimentScheduleLog(message=msg, log_type="success"))
+
+        # Mark current group as completed (don't delete yet - will clean up at end of schedule)
+        current_group.is_completed = 1
         db.session.commit()
 
-        # Clean up all completed groups from the database
-        completed_groups = ExperimentScheduleGroup.query.filter_by(is_completed=1).all()
-        for group in completed_groups:
-            ExperimentScheduleItem.query.filter_by(group_id=group.id).delete()
-            db.session.delete(group)
-        db.session.commit()
+        for item in items:
+            exp = Exps.query.get(item.experiment_id)
+            if exp and exp.running == 1:
+                msg = f"Stopping experiment '{exp.exp_name}'..."
+                logs.append(msg)
+                db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
+                # Stop clients
+                clients = Client.query.filter_by(id_exp=exp.idexp).all()
+                for client in clients:
+                    if client.status == 1:
+                        if client.pid:
+                            if exp.simulator_type == "HPC":
+                                stop_hpc_client(client)
+                            else:
+                                terminate_client(client, pause=False)
+                        client.status = 0
+                        db.session.commit()
 
-        # Clear all schedule logs after successful completion
-        ExperimentScheduleLog.query.delete()
-        db.session.commit()
+                # Stop server
+                if exp.simulator_type == "HPC":
+                    terminated = stop_hpc_server(exp.idexp)
+                else:
+                    terminated = terminate_server_process(exp.idexp)
+                if not terminated:
+                    terminate_process_on_port(exp.port)
 
-        return jsonify(
-            {
+                exp.running = 0
+                db.session.commit()
+
+        # Get next non-completed group
+        next_group = (
+            ExperimentScheduleGroup.query.filter(
+                ExperimentScheduleGroup.order_index > current_group.order_index,
+                (ExperimentScheduleGroup.is_completed == 0)
+                | (ExperimentScheduleGroup.is_completed == None),
+            )
+            .order_by(ExperimentScheduleGroup.order_index)
+            .first()
+        )
+
+        if not next_group:
+            # Schedule complete
+            status.is_running = 0
+            status.current_group_id = None
+            db.session.commit()
+            msg = "All groups completed! Schedule finished."
+            logs.append(msg)
+            db.session.add(ExperimentScheduleLog(message=msg, log_type="success"))
+            db.session.commit()
+
+            # Clean up all completed groups from the database
+            completed_groups = ExperimentScheduleGroup.query.filter_by(
+                is_completed=1
+            ).all()
+            for group in completed_groups:
+                ExperimentScheduleItem.query.filter_by(group_id=group.id).delete()
+                db.session.delete(group)
+            db.session.commit()
+
+            # Clear all schedule logs after successful completion
+            ExperimentScheduleLog.query.delete()
+            db.session.commit()
+
+            return {
                 "success": True,
                 "is_running": False,
                 "all_completed": True,
                 "schedule_complete": True,
                 "logs": logs,
             }
-        )
 
-    # Start next group
-    msg = f"Starting next group: '{next_group.name}'..."
-    logs.append(msg)
-    db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-    status.current_group_id = next_group.id
-    db.session.commit()
+        # Start next group
+        msg = f"Starting next group: '{next_group.name}'..."
+        logs.append(msg)
+        db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
+        status.current_group_id = next_group.id
+        db.session.commit()
 
-    next_items = ExperimentScheduleItem.query.filter_by(group_id=next_group.id).all()
-    for item in next_items:
-        exp = Exps.query.get(item.experiment_id)
-        if exp and exp.running == 0:
-            # Check if all clients have already completed before starting the server
-            all_clients_completed, clients_to_start = _get_clients_to_start(exp)
+        next_items = ExperimentScheduleItem.query.filter_by(
+            group_id=next_group.id
+        ).all()
+        for item in next_items:
+            exp = Exps.query.get(item.experiment_id)
+            if exp and exp.running == 0:
+                # Check if all clients have already completed before starting the server
+                all_clients_completed, clients_to_start = _get_clients_to_start(exp)
 
-            # If all clients have completed, mark experiment as completed and skip
-            if all_clients_completed:
-                msg = f"Experiment '{exp.exp_name}' already completed - skipping"
-                logs.append(msg)
-                db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-                exp.exp_status = "completed"
-                db.session.commit()
-                continue
-
-            # If no clients to start, skip
-            if len(clients_to_start) == 0:
-                msg = f"No clients to start for '{exp.exp_name}' - skipping"
-                logs.append(msg)
-                db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-                continue
-
-            logs.append(f"Starting server for '{exp.exp_name}'...")
-            db.session.add(
-                ExperimentScheduleLog(
-                    message=f"Starting server for '{exp.exp_name}'...", log_type="info"
-                )
-            )
-            exp.running = 1
-            exp.exp_status = "active"
-            db.session.commit()
-
-            # Start the server (use appropriate function for HPC vs Standard)
-            if exp.simulator_type == "HPC":
-                start_hpc_server(exp)
-            else:
-                start_server(exp)
-
-            # Wait for server to be ready
-            logs.append(f"Waiting for server '{exp.exp_name}' to be ready...")
-            time.sleep(3)
-
-            # Start only clients that haven't completed
-            for client in clients_to_start:
-                if client.status == 0:
-                    logs.append(f"Starting client '{client.name}'...")
+                # If all clients have completed, mark experiment as completed and skip
+                if all_clients_completed:
+                    msg = f"Experiment '{exp.exp_name}' already completed - skipping"
+                    logs.append(msg)
                     db.session.add(
-                        ExperimentScheduleLog(
-                            message=f"Starting client '{client.name}'...",
-                            log_type="info",
-                        )
+                        ExperimentScheduleLog(message=msg, log_type="info")
                     )
-                    population = Population.query.filter_by(
-                        id=client.population_id
-                    ).first()
-                    if population:
-                        if exp.simulator_type == "HPC":
-                            start_hpc_client(exp, client, population)
-                        else:
-                            start_client(exp, client, population, resume=True)
-                        client.status = 1
-                        db.session.commit()
+                    exp.exp_status = "completed"
+                    db.session.commit()
+                    continue
 
-            logs.append(f"Experiment '{exp.exp_name}' started successfully")
-            db.session.add(
-                ExperimentScheduleLog(
-                    message=f"Experiment '{exp.exp_name}' started successfully",
-                    log_type="success",
+                # If no clients to start, skip
+                if len(clients_to_start) == 0:
+                    msg = f"No clients to start for '{exp.exp_name}' - skipping"
+                    logs.append(msg)
+                    db.session.add(
+                        ExperimentScheduleLog(message=msg, log_type="info")
+                    )
+                    continue
+
+                logs.append(f"Starting server for '{exp.exp_name}'...")
+                db.session.add(
+                    ExperimentScheduleLog(
+                        message=f"Starting server for '{exp.exp_name}'...",
+                        log_type="info",
+                    )
                 )
+                exp.running = 1
+                exp.exp_status = "active"
+                db.session.commit()
+
+                # Start the server (use appropriate function for HPC vs Standard)
+                if exp.simulator_type == "HPC":
+                    start_hpc_server(exp)
+                else:
+                    start_server(exp)
+
+                # Wait for server to be ready
+                logs.append(f"Waiting for server '{exp.exp_name}' to be ready...")
+                time.sleep(3)
+
+                # Start only clients that haven't completed
+                for client in clients_to_start:
+                    if client.status == 0:
+                        logs.append(f"Starting client '{client.name}'...")
+                        db.session.add(
+                            ExperimentScheduleLog(
+                                message=f"Starting client '{client.name}'...",
+                                log_type="info",
+                            )
+                        )
+                        population = Population.query.filter_by(
+                            id=client.population_id
+                        ).first()
+                        if population:
+                            if exp.simulator_type == "HPC":
+                                start_hpc_client(exp, client, population)
+                            else:
+                                start_client(exp, client, population, resume=True)
+                            client.status = 1
+                            db.session.commit()
+
+                logs.append(f"Experiment '{exp.exp_name}' started successfully")
+                db.session.add(
+                    ExperimentScheduleLog(
+                        message=f"Experiment '{exp.exp_name}' started successfully",
+                        log_type="success",
+                    )
+                )
+                db.session.commit()
+
+        logs.append(f"Group '{next_group.name}' started!")
+        db.session.add(
+            ExperimentScheduleLog(
+                message=f"Group '{next_group.name}' started!", log_type="success"
             )
-            db.session.commit()
-
-    logs.append(f"Group '{next_group.name}' started!")
-    db.session.add(
-        ExperimentScheduleLog(
-            message=f"Group '{next_group.name}' started!", log_type="success"
         )
-    )
-    db.session.commit()
+        db.session.commit()
 
-    return jsonify(
-        {
+        return {
             "success": True,
             "is_running": True,
             "all_completed": True,
@@ -6065,7 +6084,6 @@ def check_schedule_progress():
             "next_group_id": next_group.id,
             "logs": logs,
         }
-    )
 
 
 @experiments.route("/admin/schedule/available_experiments", methods=["GET"])
