@@ -157,7 +157,9 @@ class TestInitStopHelpers:
 
     def teardown_method(self):
         """Clean up global monitor state after each test."""
-        from y_web.utils.experiment_schedule_monitor import stop_experiment_schedule_monitor
+        from y_web.utils.experiment_schedule_monitor import (
+            stop_experiment_schedule_monitor,
+        )
 
         stop_experiment_schedule_monitor()
 

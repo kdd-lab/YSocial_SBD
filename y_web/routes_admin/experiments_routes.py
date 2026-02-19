@@ -6001,9 +6001,7 @@ def _do_check_schedule_progress():
                 if all_clients_completed:
                     msg = f"Experiment '{exp.exp_name}' already completed - skipping"
                     logs.append(msg)
-                    db.session.add(
-                        ExperimentScheduleLog(message=msg, log_type="info")
-                    )
+                    db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
                     exp.exp_status = "completed"
                     db.session.commit()
                     continue
@@ -6012,9 +6010,7 @@ def _do_check_schedule_progress():
                 if len(clients_to_start) == 0:
                     msg = f"No clients to start for '{exp.exp_name}' - skipping"
                     logs.append(msg)
-                    db.session.add(
-                        ExperimentScheduleLog(message=msg, log_type="info")
-                    )
+                    db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
                     continue
 
                 logs.append(f"Starting server for '{exp.exp_name}'...")
