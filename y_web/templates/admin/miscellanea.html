@@ -41,6 +41,12 @@
                 .misc-tab-content.active {
                     display: block;
                 }
+                @media (max-width: 576px) {
+                    .misc-tab {
+                        padding: 8px 12px;
+                        font-size: 0.85em;
+                    }
+                }
                 .misc-section-description {
                     background: #f9fafb;
                     border-left: 3px solid #22c55e;
@@ -77,6 +83,18 @@
                         margin-bottom: 20px;
                     }
                     
+                    .misc-grid-2col {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                    
+                    .misc-grid-1col {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .misc-box-full {
+                        grid-column: 1 / -1;
+                    }
+
                     @media (max-width: 1400px) {
                         .misc-grid {
                             grid-template-columns: repeat(2, 1fr);
@@ -84,8 +102,13 @@
                     }
                     
                     @media (max-width: 768px) {
-                        .misc-grid {
+                        .misc-grid,
+                        .misc-grid-2col,
+                        .misc-grid-1col {
                             grid-template-columns: 1fr;
+                        }
+                        .misc-compact-box {
+                            overflow-x: auto;
                         }
                     }
                     
@@ -1444,8 +1467,8 @@
                 </div>
 
                 <!-- Activity Profiles in its own row spanning 2 columns -->
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
-                    <div class="misc-compact-box" id="box-activity-profiles" style="grid-column: span 2;">
+                <div class="misc-grid misc-grid-2col">
+                    <div class="misc-compact-box misc-box-full" id="box-activity-profiles">
                         <h3>Activity Profiles</h3>
 
                         <div class="box-content">
@@ -1777,7 +1800,7 @@
                 </div>
 
                 <!-- Row 1: System Updates & Telemetry Settings -->
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="misc-grid misc-grid-2col">
                     <!-- System Updates -->
                     <div class="misc-compact-box" id="box-system-updates">
                         <h3>System Updates</h3>
@@ -1901,7 +1924,7 @@
                 </div>
 
                 <!-- Row 2: HPC Monitor, Process Watchdog, About System Settings -->
-                <div class="misc-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 20px;">
+                <div class="misc-grid" style="margin-top: 20px;">
                     <!-- HPC Monitor -->
                     <!-- HPC Monitor -->
                     <div class="misc-compact-box" id="box-hpc-monitor">
@@ -2254,7 +2277,7 @@
                     <strong>LLM Management:</strong> Manage your self-hosted Large Language Model server, view available models, and pull new models from the repository.
                 </div>
 
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="misc-grid misc-grid-2col">
                     <!-- LLM Server Status -->
                     <div class="misc-compact-box" id="box-llm-server">
                         <h3>Self-hosted LLM Server ({{ llm_backend['backend']|upper }})</h3>
@@ -2414,7 +2437,7 @@
                 {% if llm_backend["status"] and llm_backend["installed"] %}
                 {% if len(models) > 0 %}
                 <!-- Available LLMs Table (full width) -->
-                <div class="misc-grid" style="grid-template-columns: 1fr; margin-top: 20px;">
+                <div class="misc-grid misc-grid-1col" style="margin-top: 20px;">
                     <div class="misc-compact-box" id="box-available-llms">
                         <h3>Available LLMs</h3>
 
@@ -2513,7 +2536,7 @@
                     <strong>Opinion Dynamics:</strong> Configure opinion groups and distributions for opinion dynamics simulations. Define opinion ranges and statistical distributions to model agent opinions.
                 </div>
 
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="misc-grid misc-grid-2col">
                     <!-- Opinion Groups Box -->
                     <div class="misc-compact-box" id="box-opinion-groups">
                         <h3>Opinion Groups</h3>
