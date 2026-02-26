@@ -425,29 +425,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
         return dict(current_user_role=None, current_user_id=None)
 
     @app.context_processor
-    def inject_release_info():
-        """Inject release update information for admin users."""
-        from flask_login import current_user
-
-        from .models import Admin_users, ReleaseInfo
-
-        if current_user.is_authenticated:
-            try:
-                admin_user = Admin_users.query.filter_by(
-                    username=current_user.username
-                ).first()
-                if admin_user and admin_user.role == "admin":
-                    # Get release info
-                    release_info = ReleaseInfo.query.first()
-                    if release_info and release_info.latest_version_tag:
-                        return dict(
-                            new_release_available=True, release_info=release_info
-                        )
-            except Exception:
-                pass
-        return dict(new_release_available=False, release_info=None)
-
-    @app.context_processor
     def inject_blog_post_info():
         """Inject latest blog post information for admin users."""
         from flask_login import current_user
@@ -899,15 +876,7 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to initialize active experiment databases: {e}")
 
-    # Check for updates at startup
     with app.app_context():
-        try:
-            from y_web.utils.check_release import update_release_info_in_db
-
-            update_release_info_in_db()
-        except Exception as e:
-            print(f"Failed to check for updates at startup: {e}")
-
         try:
             from y_web.utils.check_blog import update_blog_info_in_db
 

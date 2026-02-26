@@ -1796,57 +1796,11 @@
                 </style>
 
                 <div class="misc-section-description">
-                    <strong>System Settings:</strong> Configure system-level settings for the YSocial platform, including telemetry, HPC client monitoring, process monitoring, and system updates.
+                    <strong>System Settings:</strong> Configure system-level settings for the YSocial platform, including telemetry, HPC client monitoring, and process monitoring.
                 </div>
 
-                <!-- Row 1: System Updates & Telemetry Settings -->
+                <!-- Row 1: Telemetry Settings -->
                 <div class="misc-grid misc-grid-2col">
-                    <!-- System Updates -->
-                    <div class="misc-compact-box" id="box-system-updates">
-                        <h3>System Updates</h3>
-                        <div class="help-block" style="margin-bottom: 15px;">
-                            <p>Check for new YSocial releases and stay up to date.</p>
-                        </div>
-                        <div style="margin-top: 15px;">
-                            <button id="check-updates-btn" class="button is-solid primary-button" style="width: 100%;">
-                                <i class="mdi mdi-update"></i> Check for Updates
-                            </button>
-                        </div>
-                        <div id="update-status" style="font-size: 0.8em; color: #777; margin-top: 10px;">
-                            Click to check if a newer version of YSocial is available.
-                        </div>
-                        <script>
-                            document.getElementById('check-updates-btn').addEventListener('click', function() {
-                                const btn = this;
-                                const statusDiv = document.getElementById('update-status');
-                                
-                                btn.disabled = true;
-                                btn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Checking...';
-                                statusDiv.innerHTML = '<span style="color: #4a90e2;">Checking for updates...</span>';
-                                
-                                fetch('/admin/check_for_updates', { method: 'POST' })
-                                .then(response => {
-                                    btn.disabled = false;
-                                    btn.innerHTML = '<i class="mdi mdi-update"></i> Check for Updates';
-                                    
-                                    if (response.redirected) {
-                                        window.location.href = response.url;
-                                    } else {
-                                        statusDiv.innerHTML = '<span style="color: #22c55e;">✓ Check complete</span>';
-                                        setTimeout(() => {
-                                            statusDiv.innerHTML = 'Click to check if a newer version of YSocial is available.';
-                                        }, 3000);
-                                    }
-                                })
-                                .catch(error => {
-                                    btn.disabled = false;
-                                    btn.innerHTML = '<i class="mdi mdi-update"></i> Check for Updates';
-                                    statusDiv.innerHTML = '<span style="color: #dc3545;">✗ Error checking for updates</span>';
-                                });
-                            });
-                        </script>
-                    </div>
-
                     <!-- Telemetry Settings -->
                     <div class="misc-compact-box" id="box-telemetry-settings">
                         <h3>Telemetry Settings</h3>
@@ -2287,7 +2241,6 @@
                             <br>
                             <p><strong>Log Synchronization:</strong> Prevents data loss during log rotation by periodically reading logs from active experiments.</p>
                             <br>
-                            <p><strong>System Updates:</strong> Check for new YSocial releases to access the latest features and improvements.</p>
                         </div>
                     </div>
                 </div>

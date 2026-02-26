@@ -62,11 +62,11 @@ def get_server_process_status(*args, **kwargs):
 
 
 def get_ollama_models(*args, **kwargs):
-    return ["llama3.2", "minicpm-v"]
+    return ["llama3.2"]
 
 
 def get_llm_models(*args, **kwargs):
-    return ["llama3.2", "minicpm-v"]
+    return ["llama3.2"]
 
 
 def is_ollama_running(*args, **kwargs):

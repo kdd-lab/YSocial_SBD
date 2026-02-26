@@ -9,11 +9,7 @@ and system status monitoring.
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import current_user, login_required
 
-from y_web.utils import (
-    get_llm_models,
-    get_ollama_models,
-    get_vllm_models,
-)
+from y_web.utils import get_llm_models
 from y_web.utils.miscellanea import llm_backend_status, ollama_status
 
 from .models import (
