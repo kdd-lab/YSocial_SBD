@@ -256,6 +256,30 @@
                                         </button>
                                     </div>
                                 </div>
+
+                                <div style="margin: 1.25rem 0; text-align: center; color: #95a5a6; font-size: 0.9rem;">
+                                    or
+                                </div>
+
+                                <div class="field" style="margin-bottom: 0.75rem;">
+                                    <div class="control">
+                                        <a href="{{ url_for('auth.social_login') }}"
+                                           class="button is-light is-fullwidth"
+                                           style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; border: 1px solid #dcdfe5; color: #2c3e50;">
+                                            Continue with Social Account
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="field">
+                                    <div class="control">
+                                        <a href="{{ url_for('auth.orcid_login') }}"
+                                           class="button is-light is-fullwidth"
+                                           style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; border: 1px solid #dcdfe5; color: #2c3e50;">
+                                            Continue with ORCID
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </form>
                         {% endif %}

@@ -184,6 +184,60 @@ To access the **admin panel**, use the default credentials:
 
 ---
 
+## 🔐 Authentication (Email, Social, ORCID)
+
+This build supports:
+
+- Email/password login (existing)
+- Social OAuth login/signup (default provider: Google)
+- ORCID OAuth login/signup
+
+OAuth-created users are assigned default role `researcher`.
+
+### Google social login setup
+
+1. Create OAuth credentials in Google Cloud Console.
+2. Add callback URL:
+   - `http://localhost:8080/login/social/callback`
+3. Export environment variables:
+
+```bash
+export SOCIAL_PROVIDER=google
+export SOCIAL_CLIENT_ID="your-google-client-id"
+export SOCIAL_CLIENT_SECRET="your-google-client-secret"
+```
+
+### ORCID login setup
+
+1. Create an ORCID application.
+2. Add callback URL:
+   - `http://localhost:8080/login/orcid/callback`
+3. Export environment variables:
+
+```bash
+export ORCID_CLIENT_ID="your-orcid-client-id"
+export ORCID_CLIENT_SECRET="your-orcid-client-secret"
+export ORCID_BASE_URL="https://orcid.org"
+```
+
+For sandbox:
+
+```bash
+export ORCID_BASE_URL="https://sandbox.orcid.org"
+```
+
+### Complete auth documentation
+
+See [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md) for:
+
+- route-by-route behavior
+- account provisioning details
+- security notes
+- troubleshooting
+- source file mapping
+
+---
+
 ## 🔧 **LLM Backend Configuration**
 
 YSocial supports multiple LLM backends for content annotation and agent interactions:

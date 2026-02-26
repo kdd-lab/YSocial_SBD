@@ -276,6 +276,25 @@ def create_app(db_type="sqlite", desktop_mode=False):
 
     app.config["SECRET_KEY"] = "4323432nldsf"
     app.config["DESKTOP_MODE"] = desktop_mode
+    app.config["SOCIAL_PROVIDER"] = os.getenv("SOCIAL_PROVIDER", "google")
+    app.config["SOCIAL_CLIENT_ID"] = os.getenv("SOCIAL_CLIENT_ID") or os.getenv(
+        "GOOGLE_CLIENT_ID"
+    )
+    app.config["SOCIAL_CLIENT_SECRET"] = os.getenv(
+        "SOCIAL_CLIENT_SECRET"
+    ) or os.getenv("GOOGLE_CLIENT_SECRET")
+    app.config["SOCIAL_AUTH_URL"] = os.getenv(
+        "SOCIAL_AUTH_URL", "https://accounts.google.com/o/oauth2/v2/auth"
+    )
+    app.config["SOCIAL_TOKEN_URL"] = os.getenv(
+        "SOCIAL_TOKEN_URL", "https://oauth2.googleapis.com/token"
+    )
+    app.config["SOCIAL_USERINFO_URL"] = os.getenv(
+        "SOCIAL_USERINFO_URL", "https://openidconnect.googleapis.com/v1/userinfo"
+    )
+    app.config["ORCID_CLIENT_ID"] = os.getenv("ORCID_CLIENT_ID")
+    app.config["ORCID_CLIENT_SECRET"] = os.getenv("ORCID_CLIENT_SECRET")
+    app.config["ORCID_BASE_URL"] = os.getenv("ORCID_BASE_URL", "https://orcid.org")
 
     if db_type == "sqlite":
         # Source-only build: keep databases under the project db directory.
