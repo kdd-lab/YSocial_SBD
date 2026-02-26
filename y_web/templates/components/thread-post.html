@@ -9,7 +9,7 @@
                         <img
                                 src="https://via.placeholder.com/300x300"
                                 {% if thread['profile_pic'] == "" %}
-                                data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(thread['author_id']) +'.png') }}"
+                                data-demo-src="{{ url_for('static', filename='assets/img/users/'+ thread['author_id']|user_image_id +'.png') }}"
                             {% else %}
                                 data-demo-src="{{ thread['profile_pic'] }}"
                             {% endif %}

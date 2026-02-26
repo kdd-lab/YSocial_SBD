@@ -157,7 +157,7 @@
         <hr class="sidebar-collapsible">
 
         {% if current_user_role == "admin" %}
-        <a href="/admin/miscellanea" class="dashboard-aside-link sidebar-collapsible" id="sidebar-miscellanea">
+        <a href="{{ url_for('experiments.miscellanea') }}" class="dashboard-aside-link sidebar-collapsible" id="sidebar-miscellanea">
             <div>
                 <i data-feather="more-horizontal"></i>
                 <span>Miscellanea</span>

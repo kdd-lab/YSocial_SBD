@@ -10,7 +10,7 @@
                     <img
                             src="https://via.placeholder.com/300x300"
                             {% if item['profile_pic'] == "" %}
-                                data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(item['author_id']) +'.png') }}"
+                                data-demo-src="{{ url_for('static', filename='assets/img/users/'+ item['author_id']|user_image_id +'.png') }}"
                             {% else %}
                                 data-demo-src="{{ item['profile_pic'] }}"
                             {% endif %}
@@ -279,7 +279,7 @@
                         <img
                                 src="https://via.placeholder.com/300x300"
                                 {% if cm['profile_pic'] == "" %}
-                                    data-demo-src="{{ url_for('static', filename='assets/img/users/'+ str(cm['author_id']) +'.png') }}"
+                                    data-demo-src="{{ url_for('static', filename='assets/img/users/'+ cm['author_id']|user_image_id +'.png') }}"
                                 {% else %}
                                     data-demo-src="{{ cm['profile_pic'] }}"
                                 {% endif %}

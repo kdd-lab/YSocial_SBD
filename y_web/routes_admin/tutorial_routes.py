@@ -483,16 +483,14 @@ def create_tutorial_experiment():
                         dummy_conn.execute(text(schema_sql))
 
                     hashed_pw = generate_password_hash("admin", method="pbkdf2:sha256")
-                    stmt = text(
-                        """
+                    stmt = text("""
                         INSERT INTO user_mgmt (username, email, password, user_type, leaning, age,
                                                language, owner, joined_on, frecsys_type,
                                                round_actions, toxicity, is_page, daily_activity_level)
                         VALUES (:username, :email, :password, :user_type, :leaning, :age,
                                 :language, :owner, :joined_on, :frecsys_type,
                                 :round_actions, :toxicity, :is_page, :daily_activity_level)
-                        """
-                    )
+                        """)
                     dummy_conn.execute(
                         stmt,
                         {
@@ -911,7 +909,7 @@ def run_tutorial_simulation():
     Returns:
         JSON with success status
     """
-    from y_web.utils import start_client
+    from y_web.utils import start_client, start_hpc_client
     from y_web.utils.external_processes import start_server
 
     check_privileges(current_user.username)
@@ -964,7 +962,10 @@ def run_tutorial_simulation():
             time.sleep(2)
 
         # Start the client
-        start_client(exp, client, population, resume=True)
+        if exp.simulator_type == "HPC":
+            start_hpc_client(exp, client, population)
+        else:
+            start_client(exp, client, population, resume=True)
 
         # Update client status
         db.session.query(Client).filter_by(id=client_id).update({Client.status: 1})

@@ -116,7 +116,8 @@ def augment_text(text, exp_id):
     Augment text by converting mentions and hashtags to clickable links.
 
     Replaces @username mentions with links to user profiles and #hashtag
-    with links to hashtag pages. Also capitalizes the first letter.
+    with links to hashtag pages. Also capitalizes the first letter and
+    removes surrounding quote characters.
 
     Args:
         text: Raw text with mentions and hashtags
@@ -125,6 +126,9 @@ def augment_text(text, exp_id):
     Returns:
         HTML string with hyperlinked mentions and hashtags
     """
+    # Remove leading/trailing quote characters
+    text = text.strip('"')
+
     # text = text.split("(")[0]
 
     # Extract the mentions and hashtags
@@ -145,7 +149,15 @@ def augment_text(text, exp_id):
     # Get the used hashtag id
     for h in hashtags:
         try:
-            used_hastag[h] = Hashtags.query.filter_by(hashtag=h).first().id
+            # Try exact match first
+            hashtag_obj = Hashtags.query.filter_by(hashtag=h).first()
+            if hashtag_obj:
+                used_hastag[h] = hashtag_obj.id
+            else:
+                # Try without # prefix for HPC compatibility
+                hashtag_obj = Hashtags.query.filter_by(hashtag=h[1:]).first()
+                if hashtag_obj:
+                    used_hastag[h] = hashtag_obj.id
         except:
             pass
 
@@ -157,11 +169,12 @@ def augment_text(text, exp_id):
         text = text.replace(h, f'<a href="/{exp_id}/hashtag_posts/{hid}/1"> {h} </a>')
 
     # remove first character it is a space
-    if text[0] == " ":
+    if len(text) > 0 and text[0] == " ":
         text = text[1:]
 
     # capitalize the first letter of the text
-    text = text[0].upper() + text[1:]
+    if len(text) > 0:
+        text = text[0].upper() + text[1:]
 
     return text
 

@@ -41,6 +41,12 @@
                 .misc-tab-content.active {
                     display: block;
                 }
+                @media (max-width: 576px) {
+                    .misc-tab {
+                        padding: 8px 12px;
+                        font-size: 0.85em;
+                    }
+                }
                 .misc-section-description {
                     background: #f9fafb;
                     border-left: 3px solid #22c55e;
@@ -77,6 +83,18 @@
                         margin-bottom: 20px;
                     }
                     
+                    .misc-grid-2col {
+                        grid-template-columns: repeat(2, 1fr);
+                    }
+                    
+                    .misc-grid-1col {
+                        grid-template-columns: 1fr;
+                    }
+                    
+                    .misc-box-full {
+                        grid-column: 1 / -1;
+                    }
+
                     @media (max-width: 1400px) {
                         .misc-grid {
                             grid-template-columns: repeat(2, 1fr);
@@ -84,8 +102,13 @@
                     }
                     
                     @media (max-width: 768px) {
-                        .misc-grid {
+                        .misc-grid,
+                        .misc-grid-2col,
+                        .misc-grid-1col {
                             grid-template-columns: 1fr;
+                        }
+                        .misc-compact-box {
+                            overflow-x: auto;
                         }
                     }
                     
@@ -1444,8 +1467,8 @@
                 </div>
 
                 <!-- Activity Profiles in its own row spanning 2 columns -->
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
-                    <div class="misc-compact-box" id="box-activity-profiles" style="grid-column: span 2;">
+                <div class="misc-grid misc-grid-2col">
+                    <div class="misc-compact-box misc-box-full" id="box-activity-profiles">
                         <h3>Activity Profiles</h3>
 
                         <div class="box-content">
@@ -1773,11 +1796,11 @@
                 </style>
 
                 <div class="misc-section-description">
-                    <strong>System Settings:</strong> Configure system-level settings for the YSocial platform, including telemetry, automatic log synchronization, process monitoring, and system updates.
+                    <strong>System Settings:</strong> Configure system-level settings for the YSocial platform, including telemetry, HPC client monitoring, process monitoring, and system updates.
                 </div>
 
                 <!-- Row 1: System Updates & Telemetry Settings -->
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="misc-grid misc-grid-2col">
                     <!-- System Updates -->
                     <div class="misc-compact-box" id="box-system-updates">
                         <h3>System Updates</h3>
@@ -1900,79 +1923,77 @@
                     </div>
                 </div>
 
-                <!-- Row 2: Automatic Log Synchronization, Process Watchdog, About System Settings -->
-                <div class="misc-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: 20px;">
-                    <!-- Automatic Log Synchronization -->
-                    <div class="misc-compact-box" id="box-log-sync">
-                        <h3>Automatic Log Synchronization</h3>
+                <!-- Row 2: HPC Monitor, Process Watchdog, About System Settings -->
+                <div class="misc-grid" style="margin-top: 20px;">
+                    <!-- HPC Monitor -->
+                    <!-- HPC Monitor -->
+                    <div class="misc-compact-box" id="box-hpc-monitor">
+                        <h3>HPC Monitor</h3>
                         <div class="help-block" style="margin-bottom: 15px;">
-                            <p>Periodic reading of logs from running experiments to keep plot data updated.</p>
+                            <p>Automatic monitoring of HPC client execution status and completion detection.</p>
                         </div>
 
-                        <div id="log-sync-settings-container">
+                        <div id="hpc-monitor-settings-container">
                             <div class="box-lines">
                                 <div class="box-line" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                                     <span class="left" style="flex: 0 0 100px; font-weight: 500;">Enable</span>
                                     <span class="right" style="flex: 1; display: flex; align-items: center;">
                                         <label class="switch-small">
-                                            <input type="checkbox" id="log_sync_enabled" checked>
+                                            <input type="checkbox" id="hpc_monitor_enabled" checked>
                                             <span class="slider-small round"></span>
                                         </label>
-                                        <span id="sync-status-indicator" style="margin-left: 10px; font-size: 0.85em; color: #6b7280;"></span>
+                                        <span id="hpc-monitor-status-indicator" style="margin-left: 10px; font-size: 0.85em; color: #6b7280;"></span>
                                     </span>
                                 </div>
                                 <div class="box-line" style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
                                     <span class="left" style="flex: 0 0 100px; font-weight: 500;">Interval</span>
                                     <span class="right" style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                                        <input type="number" id="sync_interval_minutes" class="input" style="width: 60px;" min="1" max="1440" value="10">
-                                        <span style="font-size: 0.9em; color: #6b7280;">min</span>
+                                        <input type="number" id="hpc_check_interval_seconds" class="input" style="width: 60px;" min="1" max="300" value="5">
+                                        <span style="font-size: 0.9em; color: #6b7280;">sec</span>
                                     </span>
                                 </div>
                                 <div class="box-line" style="display: flex; align-items: center; gap: 12px; padding: 12px 0;">
-                                    <span class="left" style="flex: 0 0 100px; font-weight: 500;">Last Sync</span>
+                                    <span class="left" style="flex: 0 0 100px; font-weight: 500;">Last Check</span>
                                     <span class="right" style="flex: 1;">
-                                        <span id="last-sync-time" style="font-size: 0.9em; color: #6b7280;">Never</span>
+                                        <span id="last-hpc-check-time" style="font-size: 0.9em; color: #6b7280;">Never</span>
                                     </span>
                                 </div>
                             </div>
 
                             <div style="display: flex; gap: 10px; margin-top: 15px;">
-                                <button id="save-log-sync-settings" class="button is-solid primary-button" style="flex: 1; font-size: 0.85em; padding: 6px 10px;">
+                                <button id="save-hpc-monitor-settings" class="button is-solid primary-button" style="flex: 1; font-size: 0.85em; padding: 6px 10px;">
                                     Save
-                                </button>
-                                <button id="trigger-log-sync" class="button is-solid" style="flex: 1; background-color: #6b7280; color: white; font-size: 0.85em; padding: 6px 10px;">
-                                    Sync Now
                                 </button>
                             </div>
 
-                            <div id="log-sync-message" style="margin-top: 10px; padding: 8px 12px; border-radius: 4px; display: none;"></div>
+                            <div id="hpc-monitor-message" style="margin-top: 10px; padding: 8px 12px; border-radius: 4px; display: none;"></div>
                         </div>
 
                         <script>
-                            // Load current log sync settings
-                            async function loadLogSyncSettings() {
+                            // Load current HPC monitor settings
+                            async function loadHpcMonitorSettings() {
                                 try {
-                                    const response = await fetch('/admin/log_sync_settings');
+                                    const response = await fetch('/admin/hpc_monitor_settings');
                                     const data = await response.json();
                                     
-                                    document.getElementById('log_sync_enabled').checked = data.enabled;
-                                    document.getElementById('sync_interval_minutes').value = data.sync_interval_minutes;
+                                    document.getElementById('hpc_monitor_enabled').checked = data.enabled;
+                                    document.getElementById('hpc_check_interval_seconds').value = data.check_interval_seconds;
                                     
-                                    updateSyncStatusIndicator(data.enabled);
+                                    updateHpcMonitorStatusIndicator(data.enabled);
                                     
-                                    if (data.last_sync) {
-                                        const lastSync = new Date(data.last_sync);
-                                        document.getElementById('last-sync-time').textContent = lastSync.toLocaleString();
+                                    if (data.last_check) {
+                                        const lastCheck = new Date(data.last_check);
+                                        document.getElementById('last-hpc-check-time').textContent = lastCheck.toLocaleString();
                                     } else {
-                                        document.getElementById('last-sync-time').textContent = 'Never';
+                                        document.getElementById('last-hpc-check-time').textContent = 'Never';
                                     }
                                 } catch (error) {
-                                    console.error('Error loading log sync settings:', error);
+                                    console.error('Error loading HPC monitor settings:', error);
                                 }
                             }
 
-                            function updateSyncStatusIndicator(enabled) {
-                                const indicator = document.getElementById('sync-status-indicator');
+                            function updateHpcMonitorStatusIndicator(enabled) {
+                                const indicator = document.getElementById('hpc-monitor-status-indicator');
                                 if (enabled) {
                                     indicator.innerHTML = '<span style="color: #22c55e;">● Active</span>';
                                 } else {
@@ -1980,8 +2001,8 @@
                                 }
                             }
 
-                            function showLogSyncMessage(message, isError) {
-                                const msgDiv = document.getElementById('log-sync-message');
+                            function showHpcMonitorMessage(message, isError) {
+                                const msgDiv = document.getElementById('hpc-monitor-message');
                                 msgDiv.textContent = message;
                                 msgDiv.style.display = 'block';
                                 msgDiv.style.backgroundColor = isError ? '#fee2e2' : '#dcfce7';
@@ -1992,92 +2013,64 @@
                                 }, 5000);
                             }
 
-                            // Save log sync settings
-                            document.getElementById('save-log-sync-settings').addEventListener('click', async function() {
-                                const enabled = document.getElementById('log_sync_enabled').checked;
-                                const intervalValue = document.getElementById('sync_interval_minutes').value;
+                            // Save HPC monitor settings
+                            document.getElementById('save-hpc-monitor-settings').addEventListener('click', async function() {
+                                const enabled = document.getElementById('hpc_monitor_enabled').checked;
+                                const intervalValue = document.getElementById('hpc_check_interval_seconds').value;
                                 const interval = Number(intervalValue);
                                 
                                 // Check for NaN or invalid values
-                                if (isNaN(interval) || interval < 1 || interval > 1440) {
-                                    showLogSyncMessage('Sync interval must be a valid number between 1 and 1440 minutes', true);
+                                if (isNaN(interval) || interval < 1 || interval > 300) {
+                                    showHpcMonitorMessage('Check interval must be a valid number between 1 and 300 seconds', true);
                                     return;
                                 }
                                 
                                 try {
-                                    const response = await fetch('/admin/log_sync_settings', {
+                                    const response = await fetch('/admin/hpc_monitor_settings', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({
                                             enabled: enabled,
-                                            sync_interval_minutes: interval
+                                            check_interval_seconds: interval
                                         })
                                     });
                                     
                                     const data = await response.json();
                                     
                                     if (data.success) {
-                                        updateSyncStatusIndicator(enabled);
-                                        showLogSyncMessage('Settings saved successfully', false);
+                                        updateHpcMonitorStatusIndicator(enabled);
+                                        showHpcMonitorMessage('Settings saved successfully', false);
                                     } else {
-                                        showLogSyncMessage(data.message || 'Failed to save settings', true);
+                                        showHpcMonitorMessage(data.message || 'Failed to save settings', true);
                                     }
                                 } catch (error) {
-                                    console.error('Error saving log sync settings:', error);
-                                    showLogSyncMessage('Error saving settings', true);
-                                }
-                            });
-
-                            // Trigger manual sync
-                            document.getElementById('trigger-log-sync').addEventListener('click', async function() {
-                                this.disabled = true;
-                                this.textContent = 'Syncing...';
-                                
-                                try {
-                                    const response = await fetch('/admin/log_sync_trigger', {
-                                        method: 'POST'
-                                    });
-                                    
-                                    const data = await response.json();
-                                    
-                                    if (data.success) {
-                                        showLogSyncMessage('Log sync completed successfully', false);
-                                        // Reload settings to update last sync time
-                                        await loadLogSyncSettings();
-                                    } else {
-                                        showLogSyncMessage(data.message || 'Failed to trigger sync', true);
-                                    }
-                                } catch (error) {
-                                    console.error('Error triggering log sync:', error);
-                                    showLogSyncMessage('Error triggering sync', true);
-                                } finally {
-                                    this.disabled = false;
-                                    this.textContent = 'Sync Now';
+                                    console.error('Error saving HPC monitor settings:', error);
+                                    showHpcMonitorMessage('Error saving settings', true);
                                 }
                             });
 
                             // Update status indicator when toggle changes
-                            document.getElementById('log_sync_enabled').addEventListener('change', function() {
-                                updateSyncStatusIndicator(this.checked);
+                            document.getElementById('hpc_monitor_enabled').addEventListener('change', function() {
+                                updateHpcMonitorStatusIndicator(this.checked);
                             });
 
                             // Load settings on page load using data attribute to avoid duplicate initialization
                             (function() {
-                                const logSyncContainer = document.getElementById('log-sync-settings-container');
-                                if (logSyncContainer && !logSyncContainer.dataset.initialized) {
-                                    logSyncContainer.dataset.initialized = 'true';
+                                const hpcMonitorContainer = document.getElementById('hpc-monitor-settings-container');
+                                if (hpcMonitorContainer && !hpcMonitorContainer.dataset.initialized) {
+                                    hpcMonitorContainer.dataset.initialized = 'true';
                                     if (document.readyState === 'loading') {
-                                        document.addEventListener('DOMContentLoaded', loadLogSyncSettings);
+                                        document.addEventListener('DOMContentLoaded', loadHpcMonitorSettings);
                                     } else {
                                         // DOM is already loaded
-                                        loadLogSyncSettings();
+                                        loadHpcMonitorSettings();
                                     }
                                 }
                             })();
                         </script>
                     </div>
 
-                    <!-- Process Watchdog -->
+
                     <div class="misc-compact-box" id="box-watchdog">
                         <h3>Process Watchdog</h3>
                         <div class="help-block" style="margin-bottom: 15px;">
@@ -2284,7 +2277,7 @@
                     <strong>LLM Management:</strong> Manage your self-hosted Large Language Model server, view available models, and pull new models from the repository.
                 </div>
 
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="misc-grid misc-grid-2col">
                     <!-- LLM Server Status -->
                     <div class="misc-compact-box" id="box-llm-server">
                         <h3>Self-hosted LLM Server ({{ llm_backend['backend']|upper }})</h3>
@@ -2444,7 +2437,7 @@
                 {% if llm_backend["status"] and llm_backend["installed"] %}
                 {% if len(models) > 0 %}
                 <!-- Available LLMs Table (full width) -->
-                <div class="misc-grid" style="grid-template-columns: 1fr; margin-top: 20px;">
+                <div class="misc-grid misc-grid-1col" style="margin-top: 20px;">
                     <div class="misc-compact-box" id="box-available-llms">
                         <h3>Available LLMs</h3>
 
@@ -2543,7 +2536,7 @@
                     <strong>Opinion Dynamics:</strong> Configure opinion groups and distributions for opinion dynamics simulations. Define opinion ranges and statistical distributions to model agent opinions.
                 </div>
 
-                <div class="misc-grid" style="grid-template-columns: repeat(2, 1fr);">
+                <div class="misc-grid misc-grid-2col">
                     <!-- Opinion Groups Box -->
                     <div class="misc-compact-box" id="box-opinion-groups">
                         <h3>Opinion Groups</h3>

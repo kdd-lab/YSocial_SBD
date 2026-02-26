@@ -419,7 +419,7 @@ class Exps(db.Model):
 
     __bind_key__ = "db_admin"
     __tablename__ = "exps"
-    idexp = db.Column(db.Integer, primary_key=True)
+    idexp = db.Column(db.Integer, primary_key=True, autoincrement=True)
     platform_type = db.Column(db.String(50), nullable=False, default="microblogging")
     exp_name = db.Column(db.String(50), nullable=False)
     db_name = db.Column(db.String(50), nullable=False)
@@ -433,6 +433,9 @@ class Exps(db.Model):
     server_pid = db.Column(db.Integer, nullable=True, default=None)
     llm_agents_enabled = db.Column(db.Integer, nullable=False, default=1)
     exp_status = db.Column(db.String(20), nullable=False, default="stopped")
+    simulator_type = db.Column(db.String(20), nullable=False, default="Standard")
+    is_remote = db.Column(db.Integer, nullable=False, default=0)
+    exp_group = db.Column(db.String(100), nullable=True, default="")
 
 
 class ExperimentScheduleGroup(db.Model):
@@ -700,6 +703,7 @@ class Client(db.Model):
     search = db.Column(db.REAL)
     vote = db.Column(db.REAL)
     share_link = db.Column(db.REAL)
+    follow = db.Column(db.REAL, default=0.0)
     llm = db.Column(db.String(100))
     llm_api_key = db.Column(db.String(300))
     llm_max_tokens = db.Column(db.Integer)
@@ -842,6 +846,8 @@ class Content_Recsys(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     value = db.Column(db.String(500), nullable=False)
+    category = db.Column(db.String(100), nullable=True)
+    enabled = db.Column(db.String(100), nullable=True)
 
 
 class Follow_Recsys(db.Model):
@@ -852,6 +858,8 @@ class Follow_Recsys(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     value = db.Column(db.String(500), nullable=False)
+    category = db.Column(db.String(100), nullable=True)
+    enabled = db.Column(db.String(100), nullable=True)
 
 
 class Topic_List(db.Model):
@@ -1096,23 +1104,23 @@ LogFileOffset.__table_args__ = (
 )
 
 
-class LogSyncSettings(db.Model):
+class HpcMonitorSettings(db.Model):
     """
-    Settings for automatic periodic log synchronization.
+    Settings for HPC client execution monitoring.
 
-    Stores configuration for the background log sync scheduler including
-    whether it's enabled and the sync frequency in minutes.
+    Stores configuration for the HPC monitor including whether it's enabled
+    and the check frequency in seconds.
     Single-row table that is created on first access if it doesn't exist.
     """
 
     __bind_key__ = "db_admin"
-    __tablename__ = "log_sync_settings"
+    __tablename__ = "hpc_monitor_settings"
     id = db.Column(db.Integer, primary_key=True)
     enabled = db.Column(db.Boolean, nullable=False, default=True)
-    sync_interval_minutes = db.Column(
-        db.Integer, nullable=False, default=10
-    )  # Default 10 minutes
-    last_sync = db.Column(db.DateTime, nullable=True)  # Last time sync was performed
+    check_interval_seconds = db.Column(
+        db.Integer, nullable=False, default=5
+    )  # Default 5 seconds
+    last_check = db.Column(db.DateTime, nullable=True)  # Last time check was performed
 
 
 class WatchdogSettings(db.Model):
@@ -1164,3 +1172,79 @@ class OpinionDistribution(db.Model):
     name = db.Column(db.String(100), nullable=False)
     distribution_type = db.Column(db.String(50), nullable=False)
     parameters = db.Column(db.Text, nullable=False)  # JSON string
+
+
+class OpinionEvolutionCache(db.Model):
+    """
+    Cache table for opinion evolution statistics to optimize animation performance.
+
+    Stores pre-computed statistics for each (experiment, day, hour, topic) combination
+    to avoid re-querying and re-processing large datasets during animation playback.
+
+    Supports incremental computation: stores latest_opinions state to allow updating
+    from a previous cached state rather than recomputing from scratch.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_evolution_cache"
+    id = db.Column(db.Integer, primary_key=True)
+    exp_id = db.Column(
+        db.Integer, db.ForeignKey("exps.idexp"), nullable=False, index=True
+    )
+    day = db.Column(db.Integer, nullable=False, index=True)
+    hour = db.Column(db.Integer, nullable=False, index=True)
+    topic_id = db.Column(db.Integer, nullable=True, index=True)  # NULL for all topics
+
+    # Pre-computed statistics
+    total_opinions = db.Column(db.Integer, nullable=False)
+    social_interactions = db.Column(db.Integer, nullable=False)
+    unique_agents = db.Column(db.Integer, nullable=False)
+
+    # Binned opinion data (JSON string: {group_name: count})
+    binned_data = db.Column(db.Text, nullable=False)
+
+    # Latest opinions state for incremental computation
+    # JSON string: {agent_id: {topic_id: {"opinion": float, "day": int, "hour": int}}}
+    latest_opinions_state = db.Column(db.Text, nullable=True)
+
+    # Timestamp for cache invalidation
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    # Composite index for fast lookups
+    __table_args__ = (
+        db.Index("idx_cache_lookup", "exp_id", "day", "hour", "topic_id"),
+    )
+
+
+class OpinionEvolutionSampledAgents(db.Model):
+    """
+    Stores sampled agent IDs for opinion evolution visualization.
+
+    To maintain stable and efficient visualizations, agents are sampled once
+    per (experiment, topic, sample_percentage) combination and reused across
+    all animation frames, rather than re-sampling on each frame.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "opinion_evolution_sampled_agents"
+    id = db.Column(db.Integer, primary_key=True)
+    exp_id = db.Column(
+        db.Integer, db.ForeignKey("exps.idexp"), nullable=False, index=True
+    )
+    topic_id = db.Column(
+        db.String(50), nullable=True, index=True
+    )  # NULL for all topics, String to support UUID in HPC
+    sample_percentage = db.Column(db.Integer, nullable=False, index=True)
+
+    # JSON array of sampled agent IDs
+    sampled_agent_ids = db.Column(db.Text, nullable=False)
+
+    # Timestamp for cache invalidation
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+    # Composite unique index to ensure one sample set per combination
+    __table_args__ = (
+        db.Index(
+            "idx_sampled_agents_lookup", "exp_id", "topic_id", "sample_percentage"
+        ),
+    )

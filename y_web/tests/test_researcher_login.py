@@ -112,15 +112,13 @@ def app():
 
     @auth.route("/login")
     def login():
-        return render_template_string(
-            """
+        return render_template_string("""
         <form method="post">
             <input name="email" type="email" placeholder="Email" required>
             <input name="password" type="password" placeholder="Password" required>
             <button type="submit">Login</button>
         </form>
-        """
-        )
+        """)
 
     @auth.route("/login", methods=["POST"])
     def login_post():

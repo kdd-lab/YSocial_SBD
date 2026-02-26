@@ -4,6 +4,7 @@ Server process runner script for YSocial.
 This script is invoked as a subprocess to run the YServer.
 It's designed to be called by start_server using subprocess.Popen.
 """
+
 import argparse
 import json
 import os

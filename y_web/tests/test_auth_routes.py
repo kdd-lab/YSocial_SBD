@@ -107,16 +107,14 @@ def app():
 
     @auth.route("/signup")
     def signup():
-        return render_template_string(
-            """
+        return render_template_string("""
         <form method="post" action="{{ url_for('auth.signup_post') }}">
             <input name="email" type="email" placeholder="Email" required>
             <input name="name" type="text" placeholder="Name" required>
             <input name="password" type="password" placeholder="Password" required>
             <button type="submit">Sign Up</button>
         </form>
-        """
-        )
+        """)
 
     @auth.route("/signup", methods=["POST"])
     def signup_post():
@@ -170,15 +168,13 @@ def app():
 
     @auth.route("/login")
     def login():
-        return render_template_string(
-            """
+        return render_template_string("""
         <form method="post">
             <input name="email" type="email" placeholder="Email" required>
             <input name="password" type="password" placeholder="Password" required>
             <button type="submit">Login</button>
         </form>
-        """
-        )
+        """)
 
     @auth.route("/login", methods=["POST"])
     def login_post():

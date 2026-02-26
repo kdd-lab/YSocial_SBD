@@ -112,12 +112,10 @@ def create_postgresql_db(app):
 
             # Insert initial admin user
             db_conn.execute(
-                text(
-                    """
+                text("""
                      INSERT INTO admin_users (username, email, password, role)
                      VALUES (:username, :email, :password, :role)
-                     """
-                ),
+                     """),
                 {
                     "username": "Admin",
                     "email": "admin@y-not.social",
@@ -155,16 +153,14 @@ def create_postgresql_db(app):
             hashed_pw = generate_password_hash("admin", method="pbkdf2:sha256")
 
             # Insert initial admin user
-            stmt = text(
-                """
+            stmt = text("""
                         INSERT INTO user_mgmt (username, email, password, user_type, leaning, age,
                                                language, owner, joined_on, frecsys_type,
                                                round_actions, toxicity, is_page, daily_activity_level)
                         VALUES (:username, :email, :password, :user_type, :leaning, :age,
                                 :language, :owner, :joined_on, :frecsys_type,
                                 :round_actions, :toxicity, :is_page, :daily_activity_level)
-                        """
-            )
+                        """)
 
             dummy_conn.execute(
                 stmt,
@@ -395,14 +391,14 @@ def create_app(db_type="sqlite", desktop_mode=False):
         Returns:
             Admin_users or User_mgmt object if found, None otherwise
         """
-        user_id_str = str(user_id)
+        user_id_str = user_id
         if user_id_str.startswith("admin_"):
             # Admin or researcher user
-            admin_id = int(user_id_str.replace("admin_", ""))
+            admin_id = user_id_str.replace("admin_", "")
             return Admin_users.query.get(admin_id)
         else:
             # Regular experiment participant
-            return User_mgmt.query.get(int(user_id))
+            return User_mgmt.query.get(user_id)
 
     # Setup experiment context handler
     from .experiment_context import (
@@ -520,6 +516,37 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 print(f"Error injecting blog post info: {e}")
         return dict(new_blog_post_available=False, blog_post=None)
 
+    # Add custom Jinja filter for user ID to image mapping
+    # This supports both int IDs (Standard experiments) and UUID IDs (HPC experiments)
+    @app.template_filter("user_image_id")
+    def user_image_id_filter(user_id):
+        """
+        Convert user ID to a consistent image ID for profile pictures.
+
+        For integer IDs (Standard experiments): returns the ID as string
+        For UUID strings (HPC experiments): returns a hash-based consistent numeric ID as string
+
+        Args:
+            user_id: User ID (int or UUID string)
+
+        Returns:
+            String numeric ID for image filename (1-1000 range for UUIDs)
+        """
+        if user_id is None:
+            return "1"  # Default fallback
+
+        # Try to use as integer (Standard experiments)
+        try:
+            return str(int(user_id))
+        except (ValueError, TypeError):
+            # UUID string (HPC experiments) - create consistent hash
+            import hashlib
+
+            # Use MD5 hash for consistent mapping
+            hash_value = int(hashlib.md5(str(user_id).encode()).hexdigest(), 16)
+            # Map to range 1-1000 for available profile images
+            return str((hash_value % 1000) + 1)
+
     # Register your blueprints here as before
     from .auth import auth as auth_blueprint
 
@@ -635,18 +662,18 @@ def create_app(db_type="sqlite", desktop_mode=False):
             print(f"Failed to run log metrics tables migration: {e}")
 
         try:
-            # Run migration to add log sync settings table if needed
+            # Run migration to add HPC monitor settings table and remove log sync settings
             if db_type == "sqlite":
-                from y_web.migrations.add_log_sync_settings import (
-                    migrate_sqlite as migrate_log_sync_sqlite,
+                from y_web.migrations.add_hpc_monitor_settings import (
+                    migrate_sqlite as migrate_hpc_monitor_sqlite,
                 )
 
                 dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
                 if dashboard_db_path:
-                    migrate_log_sync_sqlite(dashboard_db_path)
+                    migrate_hpc_monitor_sqlite(dashboard_db_path)
             elif db_type == "postgresql":
-                from y_web.migrations.add_log_sync_settings import (
-                    migrate_postgresql as migrate_log_sync_postgresql,
+                from y_web.migrations.add_hpc_monitor_settings import (
+                    migrate_postgresql as migrate_hpc_monitor_postgresql,
                 )
 
                 # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
@@ -656,11 +683,11 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 pg_user = os.getenv("PG_USER", "postgres")
                 pg_password = os.getenv("PG_PASSWORD", "")
                 if pg_password:
-                    migrate_log_sync_postgresql(
+                    migrate_hpc_monitor_postgresql(
                         pg_host, pg_port, pg_database, pg_user, pg_password
                     )
         except Exception as e:
-            print(f"Failed to run log sync settings migration: {e}")
+            print(f"Failed to run HPC monitor settings migration: {e}")
 
         try:
             # Run migration to add exp_status column to exps table if needed
@@ -802,6 +829,34 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run exp_details_tutorial_shown column migration: {e}")
 
+        try:
+            # Run migration to add exp_group column to exps table if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_exp_group_column import (
+                    migrate_sqlite as migrate_exp_group_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_exp_group_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_exp_group_column import (
+                    migrate_postgresql as migrate_exp_group_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_exp_group_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run exp_group column migration: {e}")
+
         # Run agent archetypes migration
         try:
             if db_type == "sqlite":
@@ -889,6 +944,112 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run agent archetype field migration: {e}")
 
+        # Run opinion evolution cache tables migration
+        try:
+            if db_type == "sqlite":
+                from y_web.migrations.add_opinion_evolution_cache import (
+                    migrate_sqlite as migrate_cache_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_cache_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_opinion_evolution_cache import (
+                    migrate_postgresql as migrate_cache_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_cache_postgresql(
+                        pg_user, pg_password, pg_host, pg_port, pg_database
+                    )
+        except Exception as e:
+            print(f"Failed to run opinion evolution cache migration: {e}")
+
+        # Run remote experiment fields migration
+        try:
+            if db_type == "sqlite":
+                from y_web.migrations.add_remote_experiment_fields import (
+                    migrate_sqlite as migrate_remote_fields_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_remote_fields_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_remote_experiment_fields import (
+                    migrate_postgresql as migrate_remote_fields_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_remote_fields_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run remote experiment fields migration: {e}")
+
+        try:
+            # Run migration to add follow action column if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_follow_action_column import migrate_sqlite
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_follow_action_column import (
+                    migrate_postgresql,
+                )
+
+                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run follow action column migration: {e}")
+
+        try:
+            # Run migration to add group and enabled columns to recsys tables
+            if db_type == "sqlite":
+                from y_web.migrations.add_recsys_columns import migrate_sqlite
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_recsys_columns import migrate_postgresql
+
+                # Get PostgreSQL connection details from environment variables
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run recsys columns migration: {e}")
+
         # Ensure all tables defined in models exist (including release_info)
         # This creates any missing tables that are defined in models.py
         try:
@@ -938,5 +1099,16 @@ def create_app(db_type="sqlite", desktop_mode=False):
         print("✓ Log sync scheduler started")
     except Exception as e:
         print(f"Failed to start log sync scheduler: {e}")
+
+    # Start the experiment schedule monitor for automatic group advancement
+    try:
+        from y_web.utils.experiment_schedule_monitor import (
+            init_experiment_schedule_monitor,
+        )
+
+        init_experiment_schedule_monitor(app)
+        print("✓ Experiment schedule monitor started")
+    except Exception as e:
+        print(f"Failed to start experiment schedule monitor: {e}")
 
     return app

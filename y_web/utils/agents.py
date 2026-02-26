@@ -287,6 +287,9 @@ def generate_population(
     existing_agents = db.session.query(Agent.name).all()
     used_names = {agent.name for agent in existing_agents}
 
+    # Collect agents to insert in bulk
+    agents_to_insert = []
+
     for _ in range(population.size):
         # Sample a profession category if provided
         profession_category = None
@@ -406,15 +409,23 @@ def generate_population(
             activity_profile=assigned_profile_id,
         )
 
-        db.session.add(agent)
-        db.session.commit()
+        agents_to_insert.append(agent)
 
+    # Bulk insert all agents in a single transaction
+    db.session.bulk_save_objects(agents_to_insert, return_defaults=True)
+    db.session.flush()
+
+    # Now create Agent_Population relationships in bulk
+    agent_populations_to_insert = []
+    for agent in agents_to_insert:
         agent_population = Agent_Population(
             agent_id=agent.id, population_id=population.id
         )
+        agent_populations_to_insert.append(agent_population)
 
-        db.session.add(agent_population)
-        db.session.commit()
+    # Bulk insert all agent-population relationships
+    db.session.bulk_save_objects(agent_populations_to_insert)
+    db.session.commit()
 
 
 __locales = {

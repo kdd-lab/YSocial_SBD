@@ -18,7 +18,7 @@ from y_web.models import (
 )
 
 
-def get_suggested_users(user_id, pages=False):
+def get_suggested_users(username, pages=False):
     """
     Get follow recommendations for a user.
 
@@ -33,10 +33,11 @@ def get_suggested_users(user_id, pages=False):
         List of dictionaries with keys: 'username', 'id', 'profile_pic'
     """
 
-    if user_id == "all":
+    if username == "all":
         return []
 
-    user = User_mgmt.query.filter_by(id=int(user_id)).first()
+    user = User_mgmt.query.filter_by(username=username).first()
+    user_id = user.id
 
     users = __follow_suggestions(user.frecsys_type, user.id, 5, 1.5)
     if len(users) == 0:
@@ -46,13 +47,13 @@ def get_suggested_users(user_id, pages=False):
         res = [
             {"username": user.username, "id": user.id, "profile_pic": ""}
             for user in users
-            if user.is_page != 1 and int(user_id) != user.id
+            if user.is_page != 1 and user_id != user.id
         ]
     else:
         res = [
             {"username": user.username, "id": user.id, "profile_pic": ""}
             for user in users
-            if user.is_page == 1 and int(user_id) != user.id
+            if user.is_page == 1 and user_id != user.id
         ]
         if len(res) == 0:
             # get random Users with is_page = 1 that user_id is not following
@@ -117,7 +118,7 @@ def __follow_suggestions(rectype, user_id, n_neighbors, leaning_biased):
         ).limit(n_neighbors)
 
         for follower in followers:
-            res[follower[0].follower_id] = int(follower[1])
+            res[follower[0].follower_id] = follower[1]
 
         # normalize pa to probabilities
         total_degree = sum(res.values())

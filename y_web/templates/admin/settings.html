@@ -54,6 +54,208 @@
         font-size: 0.9em;
         font-weight: 500;
     }
+    
+    /* Grouped experiments styles */
+    .experiment-group {
+        margin-bottom: 12px;
+    }
+    .group-header {
+        background: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 8px 12px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.2s;
+    }
+    .group-header:hover {
+        background: #e9ecef;
+    }
+    .group-header .chevron {
+        font-size: 16px;
+        color: #666;
+        transition: transform 0.2s;
+    }
+    .group-header .chevron.collapsed {
+        transform: rotate(-90deg);
+    }
+    .group-content {
+        margin-top: 6px;
+        display: block;
+    }
+    .group-content.collapsed {
+        display: none;
+    }
+    .exp-item {
+        background: #fafafa;
+        border: 1px solid #e6e6e6;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin: 4px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .exp-item-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+    }
+    .exp-item-name {
+        color: #0d95e8;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
+    .exp-tag {
+        display: inline-block;
+        color: white;
+        font-size: 0.7em;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+    .exp-tag.owner {
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    }
+    .exp-tag.group {
+        background: linear-gradient(90deg, #10b981, #34d399);
+    }
+    .exp-tag.hpc {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+    }
+    .exp-tag.remote {
+        background: linear-gradient(90deg, #2196F3, #03A9F4);
+    }
+    .exp-tag.infinite {
+        background: linear-gradient(90deg, #22c55e, #4ade80);
+    }
+    .count-badge {
+        background: #28a745;
+        color: white;
+        font-size: 0.7em;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+    .count-badge.completed {
+        background: #17a2b8;
+    }
+    .count-badge.stopped {
+        background: #6c757d;
+    }
+    
+    /* Progress bar styles (from experiment_details) */
+    .sleek-progress-container {
+        flex: 1;
+        position: relative;
+        background: linear-gradient(to right, #f5f5f5 0%, #e8e8e8 100%);
+        border-radius: 20px;
+        height: 20px;
+        overflow: hidden;
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.08);
+        min-width: 100px;
+    }
+    .sleek-progress-bar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #039be5 0%, #4facfe 100%);
+        border-radius: 20px;
+        transition: width 0.4s ease-in-out, background 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(3,155,229,0.3);
+    }
+    .sleek-progress-bar span {
+        font-size: 0.7em;
+        font-weight: 600;
+        color: white;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    
+    /* Pagination styles */
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        padding: 8px 0;
+        font-size: 0.85em;
+    }
+    .pagination-info {
+        color: #666;
+    }
+    .pagination-buttons {
+        display: flex;
+        gap: 4px;
+    }
+    .pagination-buttons button {
+        padding: 4px 10px;
+        border: 1px solid #ddd;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+    }
+    .pagination-buttons button:hover:not(:disabled) {
+        background: #f0f0f0;
+    }
+    .pagination-buttons button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    .pagination-buttons button.active {
+        background: #039be5;
+        color: white;
+        border-color: #039be5;
+    }
+    
+    /* Checkbox styles for completed experiments */
+    .exp-checkbox {
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+    }
+    
+    /* Client progress section in exp-item */
+    .client-progress-section {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e0e0e0;
+    }
+    .client-progress-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+        font-size: 0.8em;
+    }
+    .client-progress-item .client-name {
+        min-width: 80px;
+        color: #666;
+    }
+    
+    /* Download group button */
+    .download-group-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 2px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.7em;
+        margin-left: 8px;
+    }
+    .download-group-btn:hover {
+        background: #218838;
+    }
 </style>
 
 <div class="view-wrapper is-dashboard">
@@ -82,7 +284,7 @@
                                 Running
                             </h3>
                             <div class="box-content" style="flex: 1;">
-                                <div id="table-active" class="experiment-table compact-table"></div>
+                                <div id="groups-active" class="experiment-groups"></div>
                             </div>
                         </div>
 
@@ -107,7 +309,7 @@
                                 </span>
                             </h3>
                             <div class="box-content" style="flex: 1;">
-                                <div id="table-completed" class="experiment-table compact-table"></div>
+                                <div id="groups-completed" class="experiment-groups"></div>
                             </div>
                         </div>
 
@@ -118,7 +320,7 @@
                                 Stopped / Scheduled
                             </h3>
                             <div class="box-content" style="flex: 1;">
-                                <div id="table-stopped" class="experiment-table compact-table"></div>
+                                <div id="groups-stopped" class="experiment-groups"></div>
                             </div>
                         </div>
                     </div>
@@ -199,7 +401,7 @@
     };
 
     // Store grid instances for refresh
-    const gridInstances = {};
+    // const gridInstances = {};  // No longer using Grid.js
     const DATA_REFRESH_INTERVAL = 30000; // 30 seconds
 
     const updateUrl = (prev, query) => {
@@ -217,6 +419,30 @@
             return {};
         }
     };
+
+    // Functions to start/stop experiment servers
+    function startExperimentServer(expId) {
+        if (!confirm('Start the experiment server?')) return;
+        
+        // Show loading
+        const btn = event.target.closest('a');
+        if (btn) btn.innerHTML = '<i class="mdi mdi-loading mdi-spin" style="font-size: 18px;"></i>';
+        
+        // Navigate to start endpoint
+        window.location.href = `/admin/start_experiment/${expId}`;
+    }
+    
+    function stopExperimentServer(expId) {
+        if (!confirm('Stop the experiment server?')) return;
+        
+        // Show loading
+        const btn = event.target.closest('a');
+        if (btn) btn.innerHTML = '<i class="mdi mdi-loading mdi-spin" style="font-size: 18px;"></i>';
+        
+        // Navigate to stop endpoint
+        window.location.href = `/admin/stop_experiment/${expId}`;
+    }
+
 
     // Function to create compact table columns configuration for Running Experiments
     function getRunningTableColumns() {
@@ -648,109 +874,434 @@
     }
 
     // Create table for a specific status
-    function createTable(tableId, statusFilter, boxId) {
-        const tableDiv = document.getElementById(tableId);
+    // Function to toggle group visibility
+    function toggleGroup(groupId) {
+        const content = document.getElementById(`content-${groupId}`);
+        const chevron = document.getElementById(`chevron-${groupId}`);
+        
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            chevron.classList.remove('collapsed');
+        } else {
+            content.classList.add('collapsed');
+            chevron.classList.add('collapsed');
+        }
+    }
+    
+    // Pagination state for each container
+    const paginationState = {};
+    
+    // Function to download all experiments from a group
+    function downloadGroupExperiments(groupName, statusFilter) {
+        // Fetch all experiments in this group
+        fetch(`/admin/experiments_data?exp_status=${statusFilter}&length=1000`)
+            .then(response => response.json())
+            .then(results => {
+                const groupExps = results.data.filter(exp => 
+                    (exp.exp_group || 'No group') === groupName
+                );
+                
+                if (groupExps.length === 0) {
+                    alert('No experiments found in this group.');
+                    return;
+                }
+                
+                const expIds = groupExps.map(exp => exp.idexp);
+                
+                // Submit form to download
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/admin/download_experiments_bulk';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'exp_ids';
+                input.value = JSON.stringify(expIds);
+                form.appendChild(input);
+                
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+            })
+            .catch(error => {
+                console.error('Error downloading group:', error);
+                alert('Error downloading group experiments.');
+            });
+    }
+    
+    // Function to create grouped experiment display with pagination
+    function createGroupedView(containerId, statusFilter, boxId) {
+        const containerDiv = document.getElementById(containerId);
         const boxDiv = document.getElementById(boxId);
         
-        // Use progress bar columns for running experiments, completed columns for completed (with checkboxes), tags for others
-        let columns;
-        if (statusFilter === EXP_STATUS.ACTIVE) {
-            columns = getRunningTableColumns();
-        } else if (statusFilter === EXP_STATUS.COMPLETED) {
-            columns = getCompletedTableColumns();
-        } else {
-            columns = getTableColumns();
+        // Initialize pagination state if not exists
+        if (!paginationState[containerId]) {
+            paginationState[containerId] = { page: 0, itemsPerPage: 10 };
         }
         
-        const grid = new gridjs.Grid({
-            columns: columns,
-            server: {
-                url: `/admin/experiments_data?exp_status=${statusFilter}`,
-                then: results => {
-                    // Show/hide box based on whether there are results
-                    if (results.total > 0) {
-                        boxDiv.style.display = 'flex';
-                    } else {
-                        boxDiv.style.display = 'none';
-                    }
-                    return results.data;
-                },
-                total: results => results.total,
-            },
-            search: {
-                enabled: true,
-                server: {
-                    url: (prev, search) => {
-                        return updateUrl(prev, { search });
-                    },
-                },
-            },
-            sort: {
-                enabled: true,
-                multiColumn: true,
-                server: {
-                    url: (prev, columns) => {
-                        const columnIds = ['idexp', 'exp_name', 'platform_type', 'exp_descr', 'owner', 'web', 'running'];
-                        const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
-                        return updateUrl(prev, { sort });
-                    },
-                },
-            },
-            pagination: {
-                enabled: true,
-                limit: 5,
-                server: {
-                    url: (prev, page, limit) => {
-                        return updateUrl(prev, { start: page * limit, length: limit });
-                    },
-                },
-            },
-            language: {
-                noRecordsFound: 'No experiments in this category'
-            }
-        });
+        const state = paginationState[containerId];
         
-        grid.render(tableDiv);
-        gridInstances[statusFilter] = grid;
-        
-        return grid;
-    }
-
-    // Function to refresh all tables with fresh data from server
-    function refreshAllTables() {
-        // Refresh each grid by triggering a new server request
-        Object.entries(gridInstances).forEach(([statusFilter, grid]) => {
-            if (grid && typeof grid.updateConfig === 'function') {
-                // Get box visibility element
-                const boxId = statusFilter === EXP_STATUS.ACTIVE ? 'box-active' : 
-                              statusFilter === EXP_STATUS.COMPLETED ? 'box-completed' : 'box-stopped';
-                const boxDiv = document.getElementById(boxId);
+        // Fetch experiments for this status
+        fetch(`/admin/experiments_data?exp_status=${statusFilter}&length=1000`)
+            .then(response => response.json())
+            .then(results => {
+                if (results.total === 0) {
+                    boxDiv.style.display = 'none';
+                    return;
+                }
                 
-                // Re-apply the same server config to trigger a fresh fetch
-                grid.updateConfig({
-                    server: {
-                        url: `/admin/experiments_data?exp_status=${statusFilter}`,
-                        then: results => {
-                            // Show/hide box based on whether there are results
-                            if (results.total > 0) {
-                                boxDiv.style.display = 'flex';
-                            } else {
-                                boxDiv.style.display = 'none';
-                            }
-                            return results.data;
-                        },
-                        total: results => results.total,
+                boxDiv.style.display = 'flex';
+                
+                // Group experiments by exp_group
+                const grouped = {};
+                results.data.forEach(exp => {
+                    const group = exp.exp_group || 'No group';
+                    if (!grouped[group]) {
+                        grouped[group] = [];
                     }
-                }).forceRender();
+                    grouped[group].push(exp);
+                });
+                
+                // Sort groups alphabetically
+                const sortedGroups = Object.keys(grouped).sort();
+                
+                // Apply pagination to groups
+                const totalGroups = sortedGroups.length;
+                const startIdx = state.page * state.itemsPerPage;
+                const endIdx = Math.min(startIdx + state.itemsPerPage, totalGroups);
+                const paginatedGroups = sortedGroups.slice(startIdx, endIdx);
+                const totalPages = Math.ceil(totalGroups / state.itemsPerPage);
+                
+                // Build HTML
+                let html = '';
+                paginatedGroups.forEach(group => {
+                    const groupId = `${statusFilter}-${group.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                    const experiments = grouped[group];
+                    const count = experiments.length;
+                    
+                    // Determine badge color
+                    let badgeClass = '';
+                    if (statusFilter === EXP_STATUS.COMPLETED) badgeClass = 'completed';
+                    else if (statusFilter === EXP_STATUS.STOPPED_SCHEDULED) badgeClass = 'stopped';
+                    
+                    // Group header with download button for completed experiments
+                    const downloadBtn = statusFilter === EXP_STATUS.COMPLETED ? 
+                        `<button onclick="event.stopPropagation(); downloadGroupExperiments('${group.replace(/'/g, "\\'")}', '${statusFilter}')" 
+                                 class="download-group-btn"
+                                 title="Download all experiments in this group">
+                            <i class="mdi mdi-download"></i> Download Group
+                        </button>` : '';
+                    
+                    // Determine if group should be collapsed by default (for completed and stopped)
+                    const shouldCollapse = statusFilter !== EXP_STATUS.ACTIVE;
+                    const collapsedClass = shouldCollapse ? ' collapsed' : '';
+                    
+                    html += `
+                        <div class="experiment-group">
+                            <div class="group-header" onclick="toggleGroup('${groupId}')" 
+                                 style="border-left: 3px solid ${statusFilter === EXP_STATUS.ACTIVE ? '#28a745' : statusFilter === EXP_STATUS.COMPLETED ? '#17a2b8' : '#6c757d'}">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <i class="mdi mdi-chevron-down chevron${collapsedClass}" id="chevron-${groupId}"></i>
+                                    <span style="font-weight: 600; color: #333; font-size: 0.9em;">${group}</span>
+                                    <span class="count-badge ${badgeClass}">${count}</span>
+                                    ${downloadBtn}
+                                </div>
+                                <span style="font-size: 0.7em; color: #999;">Click to expand/collapse</span>
+                            </div>
+                            <div id="content-${groupId}" class="group-content${collapsedClass}">
+                    `;
+                    
+                    // Add experiments
+                    experiments.forEach(exp => {
+                        // Add checkbox for completed experiments
+                        const checkbox = statusFilter === EXP_STATUS.COMPLETED ? 
+                            `<input type="checkbox" class="exp-checkbox" data-exp-id="${exp.idexp}" 
+                                    onchange="toggleExperimentSelection(${exp.idexp}, this)" 
+                                    ${selectedExperiments.has(exp.idexp) ? 'checked' : ''}
+                                    style="margin-right: 8px;" title="Select for download"/>` : '';
+                        
+                        html += `
+                            <div class="exp-item" style="flex-direction: column; align-items: stretch;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                                    <div class="exp-item-info">
+                                        ${checkbox}
+                                        <span class="exp-item-name">${exp.exp_name}</span>
+                                        <span class="exp-tag owner">${exp.owner}</span>
+                                        ${exp.simulator_type === 'HPC' ? '<span class="exp-tag hpc">HPC</span>' : ''}
+                                        ${exp.is_remote === 1 ? '<span class="exp-tag remote">Remote</span>' : ''}
+                                        ${exp.has_infinite_client ? '<span class="exp-tag infinite">∞</span>' : ''}
+                                        ${statusFilter === EXP_STATUS.ACTIVE && exp.progress !== undefined ? `<span class="exp-tag" style="background: #039be5;">${exp.progress}%</span>` : ''}
+                                    </div>
+                                    <div style="display: flex; gap: 4px;">
+                                        ${exp.running === 'Running' ? 
+                                            `<a href="#" onclick="stopExperimentServer(${exp.idexp}); return false;" title="Stop Server"><i class="mdi mdi-stop" style="font-size: 18px; color: #dc3545;"></i></a>` : 
+                                            `<a href="#" onclick="startExperimentServer(${exp.idexp}); return false;" title="Start Server"><i class="mdi mdi-play-box-outline" style="font-size: 18px; color: #28a745;"></i></a>`
+                                        }
+                                        ${exp.web === 'Loaded' ? 
+                                            `<a href="/admin/select_experiment/${exp.idexp}" title="Loaded (click to unload)"><i class="mdi mdi-select-all" style="font-size: 18px; color: #28a745;"></i></a>` : 
+                                            `<a href="/admin/select_experiment/${exp.idexp}" title="Load Web Interface"><i class="mdi mdi-select-all" style="font-size: 18px; color: #6c757d;"></i></a>`
+                                        }
+                                        <a href="/admin/experiment_details/${exp.idexp}" title="View Details"><i class="mdi mdi-open-in-new" style="font-size: 18px; color: #039be5;"></i></a>
+                                        <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
+                                    </div>
+                                </div>
+                                ${statusFilter === EXP_STATUS.ACTIVE ? `<div id="progress-section-${exp.idexp}" class="client-progress-section" style="display: none;"></div>` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // Add pagination controls if there are multiple pages
+                if (totalPages > 1) {
+                    html += `
+                        <div class="pagination-container">
+                            <div class="pagination-info">
+                                Showing groups ${startIdx + 1}-${endIdx} of ${totalGroups}
+                            </div>
+                            <div class="pagination-buttons">
+                                <button onclick="changePage('${containerId}', ${state.page - 1})" 
+                                        ${state.page === 0 ? 'disabled' : ''}>
+                                    <i class="mdi mdi-chevron-left"></i> Previous
+                                </button>
+                                <span style="padding: 4px 10px;">Page ${state.page + 1} of ${totalPages}</span>
+                                <button onclick="changePage('${containerId}', ${state.page + 1})" 
+                                        ${state.page >= totalPages - 1 ? 'disabled' : ''}>
+                                    Next <i class="mdi mdi-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                containerDiv.innerHTML = html;
+                
+                // For active experiments, fetch and display client progress bars
+                if (statusFilter === EXP_STATUS.ACTIVE) {
+                    results.data.forEach(exp => {
+                        if (exp.running === 'Running') {
+                            fetchAndDisplayClientProgress(exp.idexp);
+                        }
+                    });
+                }
+                
+                // Update download button visibility after rendering
+                updateDownloadButton();
+            })
+            .catch(error => {
+                console.error('Error fetching experiments:', error);
+                boxDiv.style.display = 'none';
+            });
+    }
+    
+    // Function to change pagination page
+    function changePage(containerId, newPage) {
+        if (!paginationState[containerId]) return;
+        paginationState[containerId].page = newPage;
+        
+        // Determine which status this container belongs to
+        let statusFilter;
+        if (containerId === 'groups-active') statusFilter = EXP_STATUS.ACTIVE;
+        else if (containerId === 'groups-completed') statusFilter = EXP_STATUS.COMPLETED;
+        else if (containerId === 'groups-stopped') statusFilter = EXP_STATUS.STOPPED_SCHEDULED;
+        
+        const boxId = containerId.replace('groups-', 'box-');
+        createGroupedView(containerId, statusFilter, boxId);
+    }
+    
+    // Store active progress poll intervals
+    const progressPollIntervals = {};
+    
+    // Store experiment-level sync intervals (for updating Client_Execution from logs)
+    const experimentSyncIntervals = {};
+    
+    // Function to fetch and display client progress for an experiment
+    function fetchAndDisplayClientProgress(expId) {
+        const progressSection = document.getElementById(`progress-section-${expId}`);
+        if (!progressSection) return;
+        
+        // Clear any existing experiment sync interval for this experiment
+        if (experimentSyncIntervals[expId]) {
+            clearInterval(experimentSyncIntervals[expId]);
+            delete experimentSyncIntervals[expId];
+        }
+        
+        // Function to fetch and update client data
+        const fetchClientData = () => {
+            const progressSection = document.getElementById(`progress-section-${expId}`);
+            if (!progressSection) {
+                // Progress section no longer exists, stop syncing
+                if (experimentSyncIntervals[expId]) {
+                    clearInterval(experimentSyncIntervals[expId]);
+                    delete experimentSyncIntervals[expId];
+                }
+                return;
             }
-        });
+            
+            // Fetch client data for this experiment
+            // This endpoint updates Client_Execution from log files on the backend
+            fetch(`/admin/experiment_clients/${expId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error || !data.clients || data.clients.length === 0) {
+                        progressSection.style.display = 'none';
+                        return;
+                    }
+                    
+                    progressSection.style.display = 'block';
+                    let html = '';
+                    
+                    data.clients.forEach(client => {
+                        if (client.status === 1) {  // Only show running clients
+                            const progressId = `progress-${expId}-${client.id}`;
+                            html += `
+                                <div class="client-progress-item">
+                                    <span class="client-name">${client.name}</span>
+                                    <div class="sleek-progress-container">
+                                        <div id="${progressId}" class="sleek-progress-bar" style="width: 0%;">
+                                            <span>0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    if (html) {
+                        progressSection.innerHTML = html;
+                        
+                        // Start polling for each running client
+                        data.clients.forEach(client => {
+                            if (client.status === 1) {
+                                pollClientProgress(expId, client.id);
+                            }
+                        });
+                    } else {
+                        progressSection.style.display = 'none';
+                    }
+                })
+                .catch(err => {
+                    console.error('Error fetching client data:', err);
+                    progressSection.style.display = 'none';
+                });
+        };
+        
+        // Initial fetch
+        fetchClientData();
+        
+        // Set up interval to sync every 30 seconds
+        // This ensures Client_Execution table is updated regularly from log files
+        experimentSyncIntervals[expId] = setInterval(fetchClientData, 30000);
+    }
+    
+    // Function to poll a single client's progress
+    function pollClientProgress(expId, clientId) {
+        const progressId = `progress-${expId}-${clientId}`;
+        const intervalKey = `${expId}-${clientId}`;
+        
+        // Clear any existing interval for this client
+        if (progressPollIntervals[intervalKey]) {
+            clearInterval(progressPollIntervals[intervalKey]);
+        }
+        
+        // Function to update progress
+        const updateProgress = () => {
+            const progressBar = document.getElementById(progressId);
+            if (!progressBar) {
+                // Progress bar no longer exists, stop polling
+                if (progressPollIntervals[intervalKey]) {
+                    clearInterval(progressPollIntervals[intervalKey]);
+                    delete progressPollIntervals[intervalKey];
+                }
+                return;
+            }
+            
+            fetch(`/admin/progress/${clientId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.infinite) {
+                        // Infinite client - show green bar with elapsed time
+                        progressBar.style.width = '100%';
+                        progressBar.style.background = 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)';
+                        progressBar.style.boxShadow = '0 2px 6px rgba(34,197,94,0.3)';
+                        
+                        const days = data.elapsed_days || 0;
+                        const hours = data.elapsed_hours || 0;
+                        let timeText = '';
+                        if (days > 0) {
+                            timeText = days + 'd ' + hours + 'h';
+                        } else {
+                            timeText = hours + 'h';
+                        }
+                        progressBar.querySelector('span').textContent = '∞ ' + timeText;
+                    } else {
+                        // Finite client - show progress percentage
+                        const percentage = Math.min(100, Math.max(0, data.progress || 0));
+                        progressBar.style.width = percentage + '%';
+                        progressBar.querySelector('span').textContent = percentage + '%';
+                        
+                        // Update gradient based on progress
+                        if (percentage >= 75) {
+                            progressBar.style.background = 'linear-gradient(90deg, #039be5 0%, #00d1b2 100%)';
+                            progressBar.style.boxShadow = '0 2px 6px rgba(0,209,178,0.3)';
+                        } else if (percentage >= 50) {
+                            progressBar.style.background = 'linear-gradient(90deg, #039be5 0%, #5596e6 100%)';
+                            progressBar.style.boxShadow = '0 2px 6px rgba(85,150,230,0.3)';
+                        }
+                    }
+                })
+                .catch(err => console.error('Error polling progress:', err));
+        };
+        
+        // Initial update
+        updateProgress();
+        
+        // Poll every 2 seconds
+        progressPollIntervals[intervalKey] = setInterval(updateProgress, 2000);
     }
 
-    // Create all three tables using status constants
-    createTable('table-active', EXP_STATUS.ACTIVE, 'box-active');
-    createTable('table-completed', EXP_STATUS.COMPLETED, 'box-completed');
-    createTable('table-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
+    // Function to refresh all grouped views
+    function refreshAllTables() {
+        // Clean up old progress poll intervals when refreshing
+        // (they will be recreated for visible experiments)
+        Object.keys(progressPollIntervals).forEach(key => {
+            clearInterval(progressPollIntervals[key]);
+            delete progressPollIntervals[key];
+        });
+        
+        // Clean up experiment sync intervals
+        Object.keys(experimentSyncIntervals).forEach(key => {
+            clearInterval(experimentSyncIntervals[key]);
+            delete experimentSyncIntervals[key];
+        });
+        
+        createGroupedView('groups-active', EXP_STATUS.ACTIVE, 'box-active');
+        createGroupedView('groups-completed', EXP_STATUS.COMPLETED, 'box-completed');
+        createGroupedView('groups-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
+    }
 
+    // Create all three grouped views using status constants
+    createGroupedView('groups-active', EXP_STATUS.ACTIVE, 'box-active');
+    createGroupedView('groups-completed', EXP_STATUS.COMPLETED, 'box-completed');
+    createGroupedView('groups-stopped', EXP_STATUS.STOPPED_SCHEDULED, 'box-stopped');
+
+    // Clean up progress polling intervals when page unloads
+    window.addEventListener('beforeunload', () => {
+        Object.keys(progressPollIntervals).forEach(key => {
+            clearInterval(progressPollIntervals[key]);
+            delete progressPollIntervals[key];
+        });
+    });
+    
     // Delay for Grid.js to complete rendering before equalizing heights
     const EQUALIZATION_DELAY = 500;
 
@@ -778,17 +1329,17 @@
     }
 
     // Equalize heights after initial tables load (with delay for Grid.js render)
-    setTimeout(equalizeBoxHeights, EQUALIZATION_DELAY);
+    // setTimeout(equalizeBoxHeights, EQUALIZATION_DELAY);  // No longer needed with grouped views
 
-    // Also equalize after each refresh
-    if (typeof refreshAllTables === 'function') {
+    // Also equalize after each refresh - no longer needed
+    /* if (typeof refreshAllTables === 'function') {
         const originalRefreshAllTables = refreshAllTables;
         refreshAllTables = function() {
             originalRefreshAllTables();
             // Re-equalize after the async refresh completes
             setTimeout(equalizeBoxHeights, EQUALIZATION_DELAY);
         };
-    }
+    } */
 
     // Set up periodic refresh
     setInterval(refreshAllTables, DATA_REFRESH_INTERVAL);
@@ -910,10 +1461,17 @@
             return;
         }
 
+        // Get selected group from the dropdown (single selection)
+        const groupFilter = document.getElementById('group-filter');
+        const selectedGroup = groupFilter.value;
+
         fetch('/admin/schedule/auto_create_groups', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ experiments_per_group: experimentsPerGroup })
+            body: JSON.stringify({ 
+                experiments_per_group: experimentsPerGroup,
+                group_filter: selectedGroup && selectedGroup !== '' ? [selectedGroup] : null
+            })
         })
         .then(response => response.json())
         .then(data => {
@@ -980,8 +1538,8 @@
                         return `
                         <div class="schedule-group" data-group-id="${group.id}" 
                              style="margin-bottom: 15px; border: 2px solid ${borderColor}; border-radius: 6px; background: #fff; ${isRunning ? 'box-shadow: 0 0 10px rgba(40, 167, 69, 0.3);' : ''}">
-                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: ${headerBg}; color: ${headerColor}; border-radius: 4px 4px 0 0;">
-                                <span style="font-weight: 600; font-size: 0.85em; display: flex; align-items: center;">
+                            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px; padding: 8px 12px; background: ${headerBg}; color: ${headerColor}; border-radius: 4px 4px 0 0;">
+                                <span style="font-weight: 600; font-size: 0.85em; display: flex; flex-wrap: wrap; align-items: center; gap: 4px;">
                                     <i class="mdi mdi-numeric-${idx + 1}-circle" style="color: ${isRunning ? 'white' : '#6c757d'};"></i> 
                                     ${group.name}
                                     ${runningBadge}
@@ -1244,10 +1802,8 @@
 
             </div>
 
-            <!-- ROW 2: New Experiment + Guide -->
-            <div class="columns is-layout-row">
-                <!--Dashboard column-->
-                <!--Dashboard column-->
+            <!-- ROW 2: New Experiment (left 2/3) + Upload Experiment (right 1/3) -->
+            <div class="columns">
                 <div class="column is-8">
                     <!--Dashboard box-->
 
@@ -1258,10 +1814,33 @@
                                 <div class="box-lines">
 
                                     <div class="box-line">
+                                        <span class="left">Simulator Type</span>
+                                        <span class="right" style="width: 70%; display: flex; align-items: flex-start; gap: 12px;">
+                                            <div class="select" style="width: 200px; flex-shrink: 0;">
+                                                <select id="simulator_type_select" name="simulator_type" style="width: 100%">
+                                                    <option value="Standard" selected>Standard</option>
+                                                    <option value="HPC">HPC (Experimental)</option>
+                                                </select>
+                                            </div>
+                                            
+                                            <!-- HPC Info Box (shown when HPC is selected, horizontal layout) -->
+                                            <div id="hpc-info-inline" style="display: none; flex: 1; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border-left: 4px solid #ffc107; padding: 8px 10px; border-radius: 6px; font-size: 0.75em; line-height: 1.3; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                                <div style="display: flex; align-items: flex-start; gap: 6px;">
+                                                    <i class="mdi mdi-information" style="color: #ff9800; font-size: 1.1em; flex-shrink: 0; margin-top: 1px;"></i>
+                                                    <div>
+                                                        <strong style="color: #e65100; display: block; margin-bottom: 1px; font-size: 0.95em;">HPC Simulator</strong>
+                                                        <span style="color: #5d4037;">This is an experimental simulator that guarantees higher simulation scalability at the cost of more fine-grained configuration and setting complexity.</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <div class="box-line">
                                         <span class="left">Platform Type</span>
                                         <span class="right" style="width: 70%;">
                                             <div class="select">
-                                                <select name="platform_type" style="width: 100%">
+                                                <select id="platform_type_select" name="platform_type" style="width: 100%">
                                                     <option value="microblogging">Microblogging (i.e., X/BlueSky)</option>
                                                     <option value="forum" disabled>Forum (i.e., Reddit)</option>
                                                 </select>
@@ -1294,6 +1873,38 @@
                                     </div>
 
                                     <div class="box-line">
+                                        <span class="left">Experiment Type</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div id="remote-experiment-container" style="display: flex; align-items: center; gap: 8px;">
+                                                <label class="switch-small">
+                                                    <input type="checkbox" id="remote_experiment_toggle" name="is_remote" value="true">
+                                                    <span class="slider-small round"></span>
+                                                </label>
+                                                <span id="remote-experiment-label" style="font-size: 0.9rem; color: #6b7280;">Remote Experiment</span>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <!-- Remote Experiment Configuration (shown only when remote is enabled) -->
+                                    <div id="remote-config-box" class="box-line" style="display: none;">
+                                        <span class="left">Remote Server</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; padding: 16px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+                                                <div style="margin-bottom: 12px;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Host Address</label>
+                                                    <input type="text" id="remote_host" name="remote_host" value="" placeholder="e.g., 192.168.1.100 or example.com" class="input" style="width: 100%;">
+                                                </div>
+
+                                                <div style="margin-bottom: 0;">
+                                                    <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Port</label>
+                                                    <!-- Default: 8000 (common for YSocial experiment servers) -->
+                                                    <input type="number" id="remote_port" name="remote_port" value="8000" placeholder="8000" class="input" style="width: 100%;" min="1" max="65535">
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <div class="box-line">
                                         <span class="left">Simulation Topics</span>
                                         <span class="right" style="width: 70%;">
 
@@ -1301,6 +1912,13 @@
                                             <ul id="tags"></ul>
                                             <input type="hidden" id="tags-hidden" name="tags">
                                             <input type="text" id="input-tag" placeholder="Enter topic name" style="width: 100%;"/>
+                                        </div>
+                                        
+                                        <!-- Numeric input for number of topics when LLM agents are disabled -->
+                                        <div id="topic-count-input" style="display: none; margin-top: 8px;">
+                                            <label for="topic-count" style="font-size: 0.9rem; color: #374151; display: block; margin-bottom: 4px;">Number of topics:</label>
+                                            <input type="number" id="topic-count" min="1" max="100" value="10" style="width: 100px; padding: 4px 8px; border: 1px solid #d1d5db; border-radius: 4px;"/>
+                                            <button type="button" id="generate-topics-btn" title="Generate topics based on the specified count" aria-label="Generate topics" style="margin-left: 8px; padding: 4px 12px; background: #039be5; color: white; border: none; border-radius: 4px; cursor: pointer;">Generate</button>
                                         </div>
 
                                         <script>
@@ -1390,6 +2008,76 @@
                                         <span class="right" style="width: 70%;"><input type="text" name="perspective_api"
                                                                                        class="input"
                                                                                        value=""></span>
+                                    </div>
+
+                                    <!-- Redis Configuration Box (shown only for HPC, collapsed by default) -->
+                                    <div id="redis-config-box" class="box-line" style="display: none;">
+                                        <span class="left">Advanced Settings</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
+                                                <!-- Collapsible header -->
+                                                <div id="redis-config-header" style="padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #f9fafb; border-radius: 6px 6px 0 0; transition: background 0.2s;">
+                                                    <span style="font-size: 0.9em; color: #374151; font-weight: 600;">
+                                                        <i class="mdi mdi-cog-outline" style="margin-right: 6px;"></i>
+                                                        Redis Configuration
+                                                    </span>
+                                                    <i id="redis-config-icon" class="mdi mdi-chevron-down" style="font-size: 1.2em; color: #6b7280; transition: transform 0.3s;"></i>
+                                                </div>
+                                                
+                                                <!-- Collapsible content -->
+                                                <div id="redis-config-content" style="display: none; padding: 16px; border-top: 1px solid #e5e7eb;">
+                                                    <div style="margin-bottom: 16px;">
+                                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                                            <input type="checkbox" id="redis_enabled" name="redis_enabled" value="true" style="width: auto;">
+                                                            <span style="font-size: 0.9em; color: #374151; font-weight: 500;">Enable Redis</span>
+                                                        </label>
+                                                    </div>
+
+                                                    <div style="margin-bottom: 12px;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Host</label>
+                                                        <input type="text" name="redis_host" value="localhost" class="input" style="width: 100%;">
+                                                    </div>
+
+                                                    <div style="margin-bottom: 12px;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Port</label>
+                                                        <input type="number" name="redis_port" value="6379" class="input" style="width: 100%;" min="1" max="65535">
+                                                    </div>
+
+                                                    <div style="margin-bottom: 12px;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Password <span style="color: #6b7280; font-weight: normal;">(optional)</span></label>
+                                                        <input type="password" name="redis_password" value="" placeholder="Leave empty for no password" class="input" style="width: 100%;">
+                                                    </div>
+
+                                                    <div style="margin-bottom: 0;">
+                                                        <label style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 6px; font-weight: 500;">Sliding Window Days</label>
+                                                        <input type="number" name="redis_sliding_window_days" value="2" class="input" style="width: 100%;" min="1" max="365">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </span>
+                                    </div>
+
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div style="display: flex; gap: 8px; align-items: center;">
+                                                <input type="text" 
+                                                       id="exp_group_input" 
+                                                       name="exp_group" 
+                                                       list="exp_groups_datalist" 
+                                                       class="input" 
+                                                       placeholder="Enter or select a group..."
+                                                       style="flex: 1;">
+                                                <datalist id="exp_groups_datalist">
+                                                    {% for group in exp_groups %}
+                                                    <option value="{{ group }}">
+                                                    {% endfor %}
+                                                </datalist>
+                                            </div>
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                Optional: Group experiments together (e.g., "Project A", "Study B")
+                                            </p>
+                                        </span>
                                     </div>
                                 </div>
                                 <div class="button-wrap">
@@ -1535,6 +2223,8 @@
 
                             // Handle LLM agents toggle
                             llmAgentsToggle.addEventListener('change', function() {
+                                const topicCountInput = document.getElementById('topic-count-input');
+                                
                                 if (!this.checked) {
                                     // Disable all annotation toggles
                                     toxicityToggle.checked = false;
@@ -1545,21 +2235,18 @@
                                     emotionToggle.disabled = true;
                                     perspectiveApiField.style.display = 'none';
 
-                                    // Clear and disable topics input, set to 10 default topics
+                                    // Clear topics and show numeric input for topic count
                                     tagList.length = 0;
                                     while (tags.firstChild) {
                                         tags.removeChild(tags.firstChild);
                                     }
-                                    const defaultTopics = ['Topic1', 'Topic2', 'Topic3', 'Topic4', 'Topic5', 'Topic6', 'Topic7', 'Topic8', 'Topic9', 'Topic10'];
-                                    defaultTopics.forEach(function(topicName) {
-                                        tagList.push(topicName);
-                                        const tag = document.createElement('li');
-                                        tag.innerHTML = `${topicName} <button class="delete-button" disabled style="cursor: not-allowed; opacity: 0.5;">X</button>`;
-                                        tags.appendChild(tag);
-                                    });
-                                    hiddenInput.value = defaultTopics.join(',');
-                                    inputTag.disabled = true;
-                                    inputTag.placeholder = 'Topics disabled when LLM agents are off';
+                                    
+                                    // Hide tag input, show topic count input first
+                                    inputTag.style.display = 'none';
+                                    topicCountInput.style.display = 'block';
+                                    
+                                    // Generate initial topics with default count (10)
+                                    generateTopics(10);
                                     updateButtonState();
                                 } else {
                                     // Re-enable all annotation toggles
@@ -1575,9 +2262,167 @@
                                         tags.removeChild(tags.firstChild);
                                     }
                                     hiddenInput.value = '';
+                                    inputTag.style.display = 'block';
                                     inputTag.disabled = false;
                                     inputTag.placeholder = 'Enter topic name';
+                                    topicCountInput.style.display = 'none';
                                     updateButtonState();
+                                }
+                            });
+                            
+                            // Function to generate topics
+                            function generateTopics(count) {
+                                // Clear existing topics
+                                tagList.length = 0;
+                                while (tags.firstChild) {
+                                    tags.removeChild(tags.firstChild);
+                                }
+                                
+                                // Generate new topics
+                                for (let i = 1; i <= count; i++) {
+                                    const topicName = `Topic${i}`;
+                                    tagList.push(topicName);
+                                    const tag = document.createElement('li');
+                                    
+                                    // Create text node for topic name (prevents XSS)
+                                    tag.textContent = topicName + ' ';
+                                    
+                                    // Create delete button separately
+                                    const deleteBtn = document.createElement('button');
+                                    deleteBtn.className = 'delete-button';
+                                    deleteBtn.textContent = 'X';
+                                    deleteBtn.disabled = true;
+                                    deleteBtn.style.cursor = 'not-allowed';
+                                    deleteBtn.style.opacity = '0.5';
+                                    
+                                    tag.appendChild(deleteBtn);
+                                    tags.appendChild(tag);
+                                }
+                                hiddenInput.value = tagList.join(',');
+                                updateButtonState();
+                            }
+                            
+                            // Handle generate topics button click
+                            document.getElementById('generate-topics-btn').addEventListener('click', function() {
+                                const topicCount = parseInt(document.getElementById('topic-count').value);
+                                if (!isNaN(topicCount) && topicCount >= 1 && topicCount <= 100) {
+                                    generateTopics(topicCount);
+                                }
+                            });
+
+                            // Handle Simulator Type change
+                            const simulatorTypeSelect = document.getElementById('simulator_type_select');
+                            const hpcInfoInline = document.getElementById('hpc-info-inline');
+                            const redisConfigBox = document.getElementById('redis-config-box');
+                            const platformTypeSelect = document.getElementById('platform_type_select');
+                            
+                            // Handle Redis Configuration collapsible toggle
+                            const redisConfigHeader = document.getElementById('redis-config-header');
+                            const redisConfigContent = document.getElementById('redis-config-content');
+                            const redisConfigIcon = document.getElementById('redis-config-icon');
+                            
+                            redisConfigHeader.addEventListener('click', function() {
+                                const isExpanded = redisConfigContent.style.display === 'block';
+                                if (isExpanded) {
+                                    redisConfigContent.style.display = 'none';
+                                    redisConfigIcon.style.transform = 'rotate(0deg)';
+                                } else {
+                                    redisConfigContent.style.display = 'block';
+                                    redisConfigIcon.style.transform = 'rotate(180deg)';
+                                }
+                            });
+                            
+                            // Hover effect for Redis config header
+                            redisConfigHeader.addEventListener('mouseenter', function() {
+                                redisConfigHeader.style.background = '#f3f4f6';
+                            });
+                            redisConfigHeader.addEventListener('mouseleave', function() {
+                                redisConfigHeader.style.background = '#f9fafb';
+                            });
+
+                            function updateSimulatorTypeUI() {
+                                const isHPC = simulatorTypeSelect.value === 'HPC';
+                                const remoteExperimentToggle = document.getElementById('remote_experiment_toggle');
+                                const remoteExperimentContainer = document.getElementById('remote-experiment-container');
+                                const remoteExperimentLabel = document.getElementById('remote-experiment-label');
+                                
+                                // Show/hide HPC info box as overlay
+                                if (isHPC) {
+                                    hpcInfoInline.style.display = 'block';
+                                    redisConfigBox.style.display = 'flex';
+                                    
+                                    // Filter platform type to show only microblogging for HPC
+                                    platformTypeSelect.value = 'microblogging';
+                                    // Hide forum option for HPC
+                                    Array.from(platformTypeSelect.options).forEach(option => {
+                                        if (option.value === 'forum') {
+                                            option.style.display = 'none';
+                                        }
+                                    });
+                                    
+                                    // Disable remote experiment toggle for HPC
+                                    remoteExperimentToggle.disabled = true;
+                                    remoteExperimentToggle.checked = false;
+                                    // Add visual styling for disabled state
+                                    if (remoteExperimentContainer) {
+                                        remoteExperimentContainer.style.opacity = '0.5';
+                                        remoteExperimentContainer.style.cursor = 'not-allowed';
+                                    }
+                                    if (remoteExperimentLabel) {
+                                        remoteExperimentLabel.style.color = '#9ca3af';
+                                    }
+                                    // Hide remote config box if it was visible
+                                    const remoteConfigBox = document.getElementById('remote-config-box');
+                                    if (remoteConfigBox) {
+                                        remoteConfigBox.style.display = 'none';
+                                    }
+                                    // Update required attributes
+                                    const remoteHostInput = document.getElementById('remote_host');
+                                    const remotePortInput = document.getElementById('remote_port');
+                                    if (remoteHostInput) remoteHostInput.required = false;
+                                    if (remotePortInput) remotePortInput.required = false;
+                                } else {
+                                    hpcInfoInline.style.display = 'none';
+                                    redisConfigBox.style.display = 'none';
+                                    
+                                    // Show all platform type options for Standard
+                                    Array.from(platformTypeSelect.options).forEach(option => {
+                                        option.style.display = '';
+                                    });
+                                    
+                                    // Enable remote experiment toggle for Standard
+                                    remoteExperimentToggle.disabled = false;
+                                    // Restore visual styling
+                                    if (remoteExperimentContainer) {
+                                        remoteExperimentContainer.style.opacity = '1';
+                                        remoteExperimentContainer.style.cursor = 'pointer';
+                                    }
+                                    if (remoteExperimentLabel) {
+                                        remoteExperimentLabel.style.color = '#6b7280';
+                                    }
+                                }
+                            }
+
+                            simulatorTypeSelect.addEventListener('change', updateSimulatorTypeUI);
+                            
+                            // Initialize on page load
+                            updateSimulatorTypeUI();
+
+                            // Handle Remote Experiment toggle
+                            const remoteExperimentToggle = document.getElementById('remote_experiment_toggle');
+                            const remoteConfigBox = document.getElementById('remote-config-box');
+                            const remoteHostInput = document.getElementById('remote_host');
+                            const remotePortInput = document.getElementById('remote_port');
+
+                            remoteExperimentToggle.addEventListener('change', function() {
+                                if (this.checked) {
+                                    remoteConfigBox.style.display = 'flex';
+                                    remoteHostInput.required = true;
+                                    remotePortInput.required = true;
+                                } else {
+                                    remoteConfigBox.style.display = 'none';
+                                    remoteHostInput.required = false;
+                                    remotePortInput.required = false;
                                 }
                             });
                         });
@@ -1645,47 +2490,121 @@
                         </div>
                     </div> -->
                 </div>
-
-
-                <!--Dashboard column-->
+                <!-- End of New Experiment column -->
+                
+                <!-- Upload Experiment Column (right 1/3) -->
                 <div class="column is-4">
-                    <!--Box-->
-                    <div class="sidebar-box">
-                        <h3>Guide</h3>
-                        <div class="help-block">
-
-                            <p>
-                                <b>Experiments Overview</b><br>
-                                View and manage your experiments organized by status: Running (active), Completed, and Stopped/Scheduled.
-                            </p>
-                            <br>
-
-                            <p>
-                               <b>Create New Experiment</b><br>
-                                Decide whether to use LLM agent or standard ones, provide experiment name, description, simulation topics.
-                            </p>
-                            <br>
-
-                            <p>
-                                <b>Experiment Schedule</b><br>
-                                Create groups to run experiments in batches. Experiments in a group run in parallel; groups run sequentially.
-                            </p>
-                            <br>
-
-                            <p>
-                                <b>Copy & Upload</b><br>
-                                Copy existing experiments or upload previously exported experiment ones.
-                                Copied experiment start from scratch. Uploaded ones retain their status.
-                            </p>
+                    <div id="box-upload-experiment" class="dashboard-box">
+                        <h3 class="title is-5 is-thin">Upload Experiment</h3>
+                        <div class="box-content">
+                            <form action="/admin/upload_experiment" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Uploading experiment...');">
+                                <style>
+                                    .file-upload-wrapper-exp {
+                                        position: relative;
+                                        overflow: hidden;
+                                        display: block;
+                                        margin-bottom: 12px;
+                                    }
+                                    .file-upload-wrapper-exp input[type=file] {
+                                        position: absolute;
+                                        left: -9999px;
+                                    }
+                                    .file-upload-label-exp {
+                                        display: flex;
+                                        align-items: center;
+                                        justify-content: center;
+                                        padding: 10px 12px;
+                                        background: #f9fafb;
+                                        border: 1px dashed #d1d5db;
+                                        border-radius: 4px;
+                                        cursor: pointer;
+                                        transition: all 0.2s;
+                                        font-size: 0.85em;
+                                    }
+                                    .file-upload-label-exp:hover {
+                                        background: #f3f4f6;
+                                        border-color: #22c55e;
+                                    }
+                                    .file-upload-icon-exp {
+                                        margin-right: 8px;
+                                        font-size: 1.1em;
+                                    }
+                                    .file-upload-text-exp {
+                                        color: #6b7280;
+                                    }
+                                    .file-name-display-exp {
+                                        margin-top: 6px;
+                                        font-size: 0.8em;
+                                        color: #22c55e;
+                                        font-weight: 500;
+                                        text-align: center;
+                                    }
+                                </style>
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">Experiment Name</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="exp_name" 
+                                                   name="exp_name" 
+                                                   class="input" 
+                                                   placeholder="Leave empty to use name from config...">
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="upload_exp_group" 
+                                                   name="exp_group" 
+                                                   list="exp_groups_datalist_upload" 
+                                                   class="input" 
+                                                   placeholder="Enter or select a group...">
+                                            <datalist id="exp_groups_datalist_upload">
+                                                {% for group in exp_groups %}
+                                                <option value="{{ group }}">
+                                                {% endfor %}
+                                            </datalist>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">ZIP File</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="file-upload-wrapper-exp">
+                                                <input type="file" id="experiment" name="experiment" accept=".zip" onchange="displayExperimentFileName(this)" required>
+                                                <label for="experiment" class="file-upload-label-exp">
+                                                    <span class="file-upload-icon-exp">📦</span>
+                                                    <span class="file-upload-text-exp">Choose ZIP file...</span>
+                                                </label>
+                                                <div id="experiment-file-name-display" class="file-name-display-exp"></div>
+                                            </div>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="button-wrap">
+                                    <button class="button is-solid primary-button is-fullwidth">
+                                        Upload Experiment
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
-
+                    <script>
+                        function displayExperimentFileName(input) {
+                            const display = document.getElementById('experiment-file-name-display');
+                            if (input.files && input.files[0]) {
+                                display.textContent = '✓ ' + input.files[0].name;
+                            } else {
+                                display.textContent = '';
+                            }
+                        }
+                    </script>
                 </div>
+
             </div>
 
-            <!-- ROW 3: Experiment Schedule + Copy Experiment -->
+            <!-- ROW 3: Experiment Schedule (left 2/3) + Copy Experiment (right 1/3) -->
             <div class="columns">
-                <!-- Experiment Schedule Column (is-8) -->
                 <div class="column is-8">
                     <div id="box-schedule" class="dashboard-box">
                         <h3 class="title is-5 is-thin" style="display: flex; align-items: center; justify-content: space-between;">
@@ -1696,12 +2615,12 @@
                             <span id="schedule-status-badge" style="display: none; padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 500;"></span>
                         </h3>
                         <p style="font-size: 0.85em; color: #666; margin-bottom: 15px;">
-                            Create experiment groups for sequential batch execution. Experiments within a group run in parallel; groups run sequentially.
+                            Create experiment groups for sequential batch execution. Experiments within a group run in parallel; groups run sequentially. HPC experiments can be grouped up to 4 per group (cannot mix with Standard experiments).
                         </p>
 
-                        <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 15px;">
                             <!-- Available Experiments -->
-                            <div style="flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 150px;">
+                            <div style="flex: 1 1 150px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 150px;">
                                 <h4 style="font-size: 0.9em; font-weight: 600; margin-bottom: 10px; color: #333;">
                                     <i class="mdi mdi-flask-outline"></i> Available
                                 </h4>
@@ -1711,12 +2630,12 @@
                             </div>
 
                             <!-- Schedule Groups -->
-                            <div style="flex: 2; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 150px;">
+                            <div style="flex: 2 1 200px; border: 1px solid #ddd; border-radius: 8px; padding: 10px; min-height: 150px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 5px;">
                                     <h4 style="font-size: 0.9em; font-weight: 600; color: #333;">
                                         <i class="mdi mdi-playlist-play"></i> Groups
                                     </h4>
-                                    <div style="display: flex; gap: 5px; align-items: center;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
                                         <button id="add-group-btn" onclick="addScheduleGroup()" style="background: #28a745; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
                                             <i class="mdi mdi-plus"></i> Add
                                         </button>
@@ -1724,6 +2643,14 @@
                                             <i class="mdi mdi-auto-fix"></i> Auto
                                         </button>
                                         <input type="number" id="exps-per-group" value="2" min="1" max="10" style="width: 45px; padding: 3px 5px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.8em; text-align: center;" title="Experiments per group">
+                                        <div class="select" style="font-size: 0.8em;">
+                                            <select id="group-filter" aria-label="Filter experiments by group" title="Filter by group (all = all groups)">
+                                                <option value="">All Groups</option>
+                                                {% for group in exp_groups %}
+                                                <option value="{{ group }}">{{ group }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                                 <div id="schedule-groups" style="min-height: 100px; max-height: 200px; overflow-y: auto;">
@@ -1734,7 +2661,7 @@
 
                         <!-- Execution Log with Start/Stop buttons on same row -->
                         <div id="schedule-log-container" style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; background: #f8f9fa;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 5px;">
                                 <h4 style="font-size: 0.9em; font-weight: 600; color: #333; margin: 0;">
                                     <i class="mdi mdi-console"></i> Log
                                 </h4>
@@ -1757,159 +2684,80 @@
                     </div>
                 </div>
                 
-                <!-- Copy Experiment Column (is-4) -->
+                <!-- Copy Experiment Column (right 1/3) -->
                 <div class="column is-4">
-                    <div id="box-copy-experiment" class="sidebar-box">
-                        <h3>Copy Experiment</h3>
-                        <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
-                            <div style="margin-bottom: 12px;">
-                                <label for="new_exp_name" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    New Experiment Name
-                                </label>
-                                <input type="text" 
-                                       id="new_exp_name" 
-                                       name="new_exp_name" 
-                                       class="input" 
-                                       placeholder="Enter new name..." 
-                                       required>
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <label for="source_exp_id" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Source Experiment
-                                </label>
-                                <div class="select" style="width: 100%;">
-                                    <select id="source_exp_id" name="source_exp_id" style="width: 100%;" required>
-                                        <option value="">Select experiment...</option>
-                                        {% for exp in all_experiments %}
-                                        <option value="{{ exp.idexp }}">{{ exp.exp_name }}</option>
-                                        {% endfor %}
-                                    </select>
+                    <div id="box-copy-experiment" class="dashboard-box">
+                        <h3 class="title is-5 is-thin">Copy Experiment</h3>
+                        <div class="box-content">
+                            <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">New Name</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="new_exp_name" 
+                                                   name="new_exp_name" 
+                                                   class="input" 
+                                                   placeholder="Enter new name..." 
+                                                   required>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Source Experiment</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="select" style="width: 100%;">
+                                                <select id="source_exp_id" name="source_exp_id" style="width: 100%;" required>
+                                                    <option value="">Select experiment...</option>
+                                                    {% for exp in all_experiments %}
+                                                    <option value="{{ exp.idexp }}">{{ exp.exp_name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Number of Copies</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="number" 
+                                                   id="num_copies" 
+                                                   name="num_copies" 
+                                                   class="input" 
+                                                   value="1" 
+                                                   min="1"
+                                                   max="20"
+                                                   style="width: 100%;">
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                If &gt;1, creates copies named: name_1, name_2, etc.
+                                            </p>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="copy_exp_group" 
+                                                   name="exp_group" 
+                                                   list="exp_groups_datalist_copy" 
+                                                   class="input" 
+                                                   placeholder="Enter or select a group...">
+                                            <datalist id="exp_groups_datalist_copy">
+                                                {% for group in exp_groups %}
+                                                <option value="{{ group }}">
+                                                {% endfor %}
+                                            </datalist>
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                Optional: Group experiments together
+                                            </p>
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style="margin-bottom: 12px;">
-                                <label for="num_copies" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Number of Copies
-                                </label>
-                                <input type="number" 
-                                       id="num_copies" 
-                                       name="num_copies" 
-                                       class="input" 
-                                       value="1" 
-                                       min="1"
-                                       max="20"
-                                       style="width: 100%;">
-                                <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
-                                    If &gt;1, creates copies named: name_1, name_2, etc.
-                                </p>
-                            </div>
-                            <div class="help-block" style="margin-bottom: 12px;">
-                                <p style="font-size: 0.8em; color: #6b7280; line-height: 1.4;">
-                                    Creates a complete copy of an experiment that will be ready to start immediately.
-                                </p>
-                            </div>
-                            <div class="button-wrap">
-                                <button type="submit" class="button is-solid primary-button is-fullwidth">
-                                    Copy Experiment
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ROW 4: Empty + Upload Experiment -->
-            <div class="columns">
-                <!-- Empty Column (is-8) -->
-                <div class="column is-8">
-                    <!-- Empty space under Experiment Schedule -->
-                </div>
-                
-                <!-- Upload Experiment Column (is-4) -->
-                <div class="column is-4">
-                    <div id="box-upload-experiment" class="sidebar-box">
-                        <h3>Upload Experiment</h3>
-                        <form action="/admin/upload_experiment" enctype="multipart/form-data" method="POST" onsubmit="showLoading('Uploading experiment...');">
-                            <style>
-                                .file-upload-wrapper-exp {
-                                    position: relative;
-                                    overflow: hidden;
-                                    display: block;
-                                    margin-bottom: 12px;
-                                }
-                                .file-upload-wrapper-exp input[type=file] {
-                                    position: absolute;
-                                    left: -9999px;
-                                }
-                                .file-upload-label-exp {
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    padding: 10px 12px;
-                                    background: #f9fafb;
-                                    border: 1px dashed #d1d5db;
-                                    border-radius: 4px;
-                                    cursor: pointer;
-                                    transition: all 0.2s;
-                                    font-size: 0.85em;
-                                }
-                                .file-upload-label-exp:hover {
-                                    background: #f3f4f6;
-                                    border-color: #22c55e;
-                                }
-                                .file-upload-icon-exp {
-                                    margin-right: 8px;
-                                    font-size: 1.1em;
-                                }
-                                .file-upload-text-exp {
-                                    color: #6b7280;
-                                }
-                                .file-name-display-exp {
-                                    margin-top: 6px;
-                                    font-size: 0.8em;
-                                    color: #22c55e;
-                                    font-weight: 500;
-                                    text-align: center;
-                                }
-                            </style>
-                            <div style="margin-bottom: 12px;">
-                                <label for="exp_name" style="display: block; font-size: 0.85em; color: #374151; margin-bottom: 4px; font-weight: 500;">
-                                    Experiment Name (optional)
-                                </label>
-                                <input type="text" 
-                                       id="exp_name" 
-                                       name="exp_name" 
-                                       class="input" 
-                                       placeholder="Leave empty to use name from config...">
-                            </div>
-                            <div class="file-upload-wrapper-exp">
-                                <input type="file" id="experiment" name="experiment" accept=".zip" onchange="displayExperimentFileName(this)" required>
-                                <label for="experiment" class="file-upload-label-exp">
-                                    <span class="file-upload-icon-exp">📦</span>
-                                    <span class="file-upload-text-exp">Choose ZIP file...</span>
-                                </label>
-                                <div id="experiment-file-name-display" class="file-name-display-exp"></div>
-                            </div>
-                            <div class="help-block" style="margin-bottom: 12px;">
-                                <p style="font-size: 0.8em; color: #6b7280; line-height: 1.4;">
-                                    Upload a ZIP file containing experiment data.
-                                </p>
-                            </div>
-                            <div class="button-wrap">
-                                <button class="button is-solid primary-button is-fullwidth">
-                                    Upload Experiment
-                                </button>
-                            </div>
-                        </form>
-                        <script>
-                            function displayExperimentFileName(input) {
-                                const display = document.getElementById('experiment-file-name-display');
-                                if (input.files && input.files[0]) {
-                                    display.textContent = '✓ ' + input.files[0].name;
-                                } else {
-                                    display.textContent = '';
-                                }
-                            }
-                        </script>
+                                <div class="button-wrap">
+                                    <button type="submit" class="button is-solid primary-button is-fullwidth">
+                                        Copy Experiment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>

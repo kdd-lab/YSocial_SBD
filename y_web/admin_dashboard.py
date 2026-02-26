@@ -132,15 +132,10 @@ def dashboard():
         else:  # "stopped" or "scheduled"
             stopped_experiments.append(exp)
 
-    # Save total counts before limiting to 5
+    # Save total counts (all experiments loaded, no limiting)
     total_running = len(active_experiments)
     total_completed = len(completed_experiments)
     total_stopped = len(stopped_experiments)
-
-    # Limit to 5 per section
-    active_experiments = active_experiments[:5]
-    completed_experiments = completed_experiments[:5]
-    stopped_experiments = stopped_experiments[:5]
 
     # Helper function to build experiment data with clients
     def build_experiment_data(experiments_list):
@@ -155,6 +150,35 @@ def dashboard():
             result[e.idexp] = {"experiment": e, "clients": client_data}
         return result
 
+    # Helper function to group experiments by exp_group
+    def group_experiments_by_group(experiments_list):
+        from collections import defaultdict
+
+        grouped = defaultdict(list)
+        for e in experiments_list:
+            group_name = (
+                e.exp_group if e.exp_group and e.exp_group.strip() else "No group"
+            )
+            grouped[group_name].append(e)
+        return dict(grouped)
+
+    # Group experiments by their group for each status
+    active_groups = group_experiments_by_group(active_experiments)
+    completed_groups = group_experiments_by_group(completed_experiments)
+    stopped_groups = group_experiments_by_group(stopped_experiments)
+
+    # Build experiment data for each group
+    active_exps_by_group = {
+        group: build_experiment_data(exps) for group, exps in active_groups.items()
+    }
+    completed_exps_by_group = {
+        group: build_experiment_data(exps) for group, exps in completed_groups.items()
+    }
+    stopped_exps_by_group = {
+        group: build_experiment_data(exps) for group, exps in stopped_groups.items()
+    }
+
+    # Keep the old format for backward compatibility (flatten all groups)
     active_exps = build_experiment_data(active_experiments)
     completed_exps = build_experiment_data(completed_experiments)
     stopped_exps = build_experiment_data(stopped_experiments)
@@ -211,6 +235,10 @@ def dashboard():
         running_experiments=active_exps,
         completed_experiments=completed_exps,
         stopped_experiments=stopped_exps,
+        # New grouped data
+        running_experiments_by_group=active_exps_by_group,
+        completed_experiments_by_group=completed_exps_by_group,
+        stopped_experiments_by_group=stopped_exps_by_group,
         total_running=total_running,
         total_completed=total_completed,
         total_stopped=total_stopped,
@@ -312,6 +340,9 @@ def dashboard_experiments_by_status(status):
                 "running": exp.running,
                 "status": exp.status,
                 "owner": exp.owner,
+                "simulator_type": (
+                    exp.simulator_type if hasattr(exp, "simulator_type") else "Standard"
+                ),
                 "clients": client_data,
             }
         )

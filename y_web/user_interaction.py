@@ -7,7 +7,9 @@ commenting. Integrates sentiment analysis, toxicity detection, and LLM-based
 content annotation.
 """
 
-from flask import Blueprint, redirect, request
+import uuid
+
+from flask import Blueprint, flash, redirect, request, url_for
 from flask_login import current_user, login_required
 
 from . import db
@@ -58,34 +60,64 @@ def follow(exp_id, user_id, follower_id):
     # get the last round id from Rounds
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
+    # Handle both int and UUID follower_id (Standard vs HPC experiments)
+    try:
+        follower_id_converted = int(follower_id)
+    except (ValueError, TypeError):
+        follower_id_converted = follower_id
+
     # check
     followed = (
-        Follow.query.filter_by(user_id=user_id, follower_id=int(follower_id))
+        Follow.query.filter_by(user_id=user_id, follower_id=follower_id_converted)
         .order_by(Follow.id.desc())
         .first()
     )
 
     if followed:
         if followed.action == "follow":
-            new_follow = Follow(
-                follower_id=follower_id,
-                user_id=user_id,
-                action="unfollow",
-                round=current_round.id,
-            )
-            db.session.add(new_follow)
-            db.session.commit()
+            try:
+                new_follow = Follow(
+                    follower_id=follower_id,
+                    user_id=user_id,
+                    action="unfollow",
+                    round=current_round.id,
+                )
+                db.session.add(new_follow)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                new_follow = Follow(
+                    id=str(uuid.uuid4()),
+                    follower_id=follower_id,
+                    user_id=user_id,
+                    action="unfollow",
+                    round=current_round.id,
+                )
+                db.session.add(new_follow)
+                db.session.commit()
             return redirect(request.referrer)
 
     # add the user to the Follow table
-    new_follow = Follow(
-        follower_id=follower_id,
-        user_id=user_id,
-        action="follow",
-        round=current_round.id,
-    )
-    db.session.add(new_follow)
-    db.session.commit()
+    try:
+        new_follow = Follow(
+            follower_id=follower_id,
+            user_id=user_id,
+            action="follow",
+            round=current_round.id,
+        )
+        db.session.add(new_follow)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        new_follow = Follow(
+            id=str(uuid.uuid4()),
+            follower_id=follower_id,
+            user_id=user_id,
+            action="follow",
+            round=current_round.id,
+        )
+        db.session.add(new_follow)
+        db.session.commit()
 
     return redirect(request.referrer)
 
@@ -104,25 +136,52 @@ def share_content(exp_id):
     Returns:
         Redirect to referrer page
     """
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
+    exp_user_id = exp_user.id
+
     post_id = request.args.get("post_id")
 
     # get the post
     original = Post.query.filter_by(id=post_id).first()
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
-    post = Post(
-        tweet=original.tweet,
-        round=current_round.id,
-        user_id=current_user.id,
-        comment_to=-1,
-        shared_from=post_id,
-        image_id=original.image_id,
-        news_id=original.news_id,
-        post_img=original.post_img,
-    )
+    try:
+        post = Post(
+            tweet=original.tweet,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=-1,
+            shared_from=post_id,
+            image_id=original.image_id,
+            news_id=original.news_id,
+            post_img=original.post_img,
+        )
 
-    db.session.add(post)
-    db.session.commit()
+        db.session.add(post)
+        db.session.commit()
+    except:
+        post = Post(
+            id=str(uuid.uuid4()),
+            tweet=original.tweet,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=-1,
+            shared_from=post_id,
+            image_id=original.image_id,
+            news_id=original.news_id,
+            post_img=original.post_img,
+        )
+
+        db.session.add(post)
+        db.session.commit()
 
     # get topics of the original post
     topics_id = Post_topics.query.filter_by(post_id=post_id).all()
@@ -142,10 +201,21 @@ def react(exp_id):
     post_id = request.args.get("post_id")
     action = request.args.get("action")
 
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
+    exp_user_id = exp_user.id
+
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
     record = Reactions.query.filter_by(
-        post_id=post_id, user_id=current_user.id, round=current_round.id
+        post_id=post_id, user_id=exp_user_id, round=current_round.id
     ).first()
 
     if record:
@@ -157,15 +227,27 @@ def react(exp_id):
             db.session.commit()
 
     else:
-        reaction = Reactions(
-            post_id=post_id,
-            user_id=current_user.id,
-            type=action,
-            round=current_round.id,
-        )
+        try:
+            reaction = Reactions(
+                post_id=post_id,
+                user_id=exp_user_id,
+                type=action,
+                round=current_round.id,
+            )
 
-        db.session.add(reaction)
-        db.session.commit()
+            db.session.add(reaction)
+            db.session.commit()
+        except:
+            reaction = Reactions(
+                id=str(uuid.uuid4()),
+                post_id=post_id,
+                user_id=exp_user_id,
+                type=action,
+                round=current_round.id,
+            )
+
+            db.session.add(reaction)
+            db.session.commit()
 
     # update the reaction count of the post
     post = Post.query.filter_by(id=post_id).first()
@@ -188,6 +270,13 @@ def publish_post(exp_id):
     text = request.args.get("post")
     url = request.args.get("url")
 
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer)
+    exp_user_id = exp_user.id
+
     user = Admin_users.query.filter_by(username=current_user.username).first()
     llm = user.llm if user.llm != "" else "llama3.2:latest"
     llm_url = user.llm_url if user.llm_url != "" else None
@@ -200,10 +289,19 @@ def publish_post(exp_id):
 
         img = Images.query.filter_by(url=url).first()
         if img is None:
-            img = Images(url=url, description=annotation, article_id=-1)
-            db.session.add(img)
-            db.session.commit()
-            img_id = img.id
+            try:
+                img = Images(url=url, description=annotation, article_id=-1)
+                db.session.add(img)
+                db.session.commit()
+                img_id = img.id
+            except Exception as e:
+                db.session.rollback()
+                img = Images(
+                    id=str(uuid.uuid4()), url=url, description=annotation, article_id=-1
+                )
+                db.session.add(img)
+                db.session.commit()
+                img_id = img.id
         else:
             img_id = img.id
 
@@ -211,16 +309,29 @@ def publish_post(exp_id):
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
     # add post to the db
-    post = Post(
-        tweet=text,
-        round=current_round.id,
-        user_id=current_user.id,
-        comment_to=-1,
-        image_id=img_id,
-    )
+    try:
+        post = Post(
+            tweet=text,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=-1,
+            image_id=img_id,
+        )
+        db.session.add(post)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        post = Post(
+            id=str(uuid.uuid4()),
+            tweet=text,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=-1,
+            image_id=img_id,
+        )
 
-    db.session.add(post)
-    db.session.commit()
+        db.session.add(post)
+        db.session.commit()
 
     post.thread_id = post.id
     db.session.commit()
@@ -237,33 +348,67 @@ def publish_post(exp_id):
     for topic in topics:
         res = Interests.query.filter_by(interest=topic).first()
         if res is None:
-            interest = Interests(interest=topic)
-            db.session.add(interest)
-            db.session.commit()
+            try:
+                interest = Interests(interest=topic)
+                db.session.add(interest)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                interest = Interests(iid=str(uuid.uuid4()), interest=topic)
+                db.session.add(interest)
+                db.session.commit()
+
             res = Interests.query.filter_by(interest=topic).first()
 
         topic_id = res.iid
 
-        ui = User_interest(
-            user_id=current_user.id, interest_id=topic_id, round_id=current_round.id
-        )
-        db.session.add(ui)
-        ti = Post_topics(post_id=post.id, topic_id=topic_id)
-        db.session.add(ti)
-        db.session.commit()
+        try:
+            ui = User_interest(
+                user_id=exp_user_id, interest_id=topic_id, round_id=current_round.id
+            )
+            db.session.add(ui)
+            ti = Post_topics(post_id=post.id, topic_id=topic_id)
+            db.session.add(ti)
+            db.session.commit()
 
-        post_sentiment = Post_Sentiment(
-            post_id=post.id,
-            user_id=current_user.id,
-            topic_id=topic_id,
-            pos=sentiment["pos"],
-            neg=sentiment["neg"],
-            neu=sentiment["neu"],
-            compound=sentiment["compound"],
-            round=current_round.id,
-        )
-        db.session.add(post_sentiment)
-        db.session.commit()
+            post_sentiment = Post_Sentiment(
+                post_id=post.id,
+                user_id=exp_user_id,
+                topic_id=topic_id,
+                pos=sentiment["pos"],
+                neg=sentiment["neg"],
+                neu=sentiment["neu"],
+                compound=sentiment["compound"],
+                round=current_round.id,
+            )
+            db.session.add(post_sentiment)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            ui = User_interest(
+                id=str(uuid.uuid4()),
+                user_id=exp_user_id,
+                interest_id=topic_id,
+                round_id=current_round.id,
+            )
+            db.session.add(ui)
+            ti = Post_topics(id=str(uuid.uuid4()), post_id=post.id, topic_id=topic_id)
+            db.session.add(ti)
+            db.session.commit()
+
+            post_sentiment = Post_Sentiment(
+                id=str(uuid.uuid4()),
+                post_id=post.id,
+                user_id=exp_user_id,
+                topic_id=topic_id,
+                pos=sentiment["pos"],
+                neg=sentiment["neg"],
+                neu=sentiment["neu"],
+                compound=sentiment["compound"],
+                round=current_round.id,
+            )
+            db.session.add(post_sentiment)
+            db.session.commit()
 
     for emotion in emotions:
         if len(emotion) < 1:
@@ -271,9 +416,17 @@ def publish_post(exp_id):
 
         em = Emotions.query.filter_by(emotion=emotion).first()
         if em is not None:
-            post_emotion = Post_emotions(post_id=post.id, emotion_id=em.id)
-            db.session.add(post_emotion)
-            db.session.commit()
+            try:
+                post_emotion = Post_emotions(post_id=post.id, emotion_id=em.id)
+                db.session.add(post_emotion)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                post_emotion = Post_emotions(
+                    id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
+                )
+                db.session.add(post_emotion)
+                db.session.commit()
 
     for tag in hashtags:
         if len(tag) < 4:
@@ -281,14 +434,28 @@ def publish_post(exp_id):
 
         ht = Hashtags.query.filter_by(hashtag=tag).first()
         if ht is None:
-            ht = Hashtags(hashtag=tag)
-            db.session.add(ht)
-            db.session.commit()
+            try:
+                ht = Hashtags(hashtag=tag)
+                db.session.add(ht)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
+                db.session.add(ht)
+                db.session.commit()
             ht = Hashtags.query.filter_by(hashtag=tag).first()
 
-        post_tag = Post_hashtags(post_id=post.id, hashtag_id=ht.id)
-        db.session.add(post_tag)
-        db.session.commit()
+        try:
+            post_tag = Post_hashtags(post_id=post.id, hashtag_id=ht.id)
+            db.session.add(post_tag)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            post_tag = Post_hashtags(
+                id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
+            )
+            db.session.add(post_tag)
+            db.session.commit()
 
     for mention in mentions:
         if len(mention) < 1:
@@ -297,10 +464,21 @@ def publish_post(exp_id):
         us = User_mgmt.query.filter_by(username=mention.strip("@")).first()
 
         # existing user and not self
-        if us is not None and us.id != current_user.id:
-            mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
-            db.session.add(mn)
-            db.session.commit()
+        if us is not None and us.id != exp_user_id:
+            try:
+                mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
+                db.session.add(mn)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                mn = Mentions(
+                    id=str(uuid.uuid4()),
+                    user_id=us.id,
+                    post_id=post.id,
+                    round=current_round.id,
+                )
+                db.session.add(mn)
+                db.session.commit()
         else:
             text = text.replace(mention, "")
 
@@ -327,6 +505,13 @@ def publish_post_reddit(exp_id):
     llm = user.llm if user.llm != "" else "llama3.2:latest"
     llm_url = user.llm_url if user.llm_url != "" else None
 
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return redirect(request.referrer)
+    exp_user_id = exp_user.id
+
     # Normalize URL: prepend http:// if missing
     if url and not url.lower().startswith(("http://", "https://")):
         url = "http://" + url
@@ -345,13 +530,26 @@ def publish_post_reddit(exp_id):
 
                 img = Images.query.filter_by(url=url).first()
                 if img is None:
-                    img = Images(url=url, description=annotation, article_id=-1)
-                    db.session.add(img)
-                    db.session.commit()
-                    img_id = img.id
+                    try:
+                        img = Images(url=url, description=annotation, article_id=-1)
+                        db.session.add(img)
+                        db.session.commit()
+                        img_id = img.id
+                    except Exception as e:
+                        db.session.rollback()
+                        img = Images(
+                            id=str(uuid.uuid4()),
+                            url=url,
+                            description=annotation,
+                            article_id=-1,
+                        )
+                        db.session.add(img)
+                        db.session.commit()
+                        img_id = img.id
                 else:
                     img_id = img.id
             except Exception as e:
+                db.session.rollback()
                 print(f"Error processing image URL {url}: {e}")
                 # Continue without image processing
                 pass
@@ -384,42 +582,86 @@ def publish_post_reddit(exp_id):
             # Get or create website entry
             website = Websites.query.filter_by(name=article_info["source"]).first()
             if not website:
-                website = Websites(
-                    name=article_info["source"],
-                    rss="",
-                    leaning="neutral",
-                    category="user_shared",
-                    last_fetched=int(time.time()),
-                    language="en",
-                    country="us",
-                )
-                db.session.add(website)
-                db.session.commit()
+                try:
+                    website = Websites(
+                        name=article_info["source"],
+                        rss="",
+                        leaning="neutral",
+                        category="user_shared",
+                        last_fetched=int(time.time()),
+                        language="en",
+                        country="us",
+                    )
+                    db.session.add(website)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    website = Websites(
+                        id=str(uuid.uuid4()),
+                        name=article_info["source"],
+                        rss="",
+                        leaning="neutral",
+                        category="user_shared",
+                        last_fetched=int(time.time()),
+                        language="en",
+                        country="us",
+                    )
+                    db.session.add(website)
+                    db.session.commit()
 
             # Create article entry with extracted information
-            article = Articles(
-                title=article_info["title"],
-                summary=article_info["summary"],
-                website_id=website.id,
-                link=url,
-                fetched_on=int(time.time()),
-            )
-            db.session.add(article)
-            db.session.commit()
-            news_id = article.id
+            try:
+                article = Articles(
+                    title=article_info["title"],
+                    summary=article_info["summary"],
+                    website_id=website.id,
+                    link=url,
+                    fetched_on=int(time.time()),
+                )
+                db.session.add(article)
+                db.session.commit()
+                news_id = article.id
+            except Exception as e:
+                db.session.rollback()
+                article = Articles(
+                    id=str(uuid.uuid4()),
+                    title=article_info["title"],
+                    summary=article_info["summary"],
+                    website_id=website.id,
+                    link=url,
+                    fetched_on=int(time.time()),
+                )
+                db.session.add(article)
+                db.session.commit()
+                news_id = article.id
 
     # add post to the db
-    post = Post(
-        tweet=text,
-        round=current_round.id,
-        user_id=current_user.id,
-        comment_to=-1,
-        image_id=img_id,
-        news_id=news_id,
-    )
+    try:
+        post = Post(
+            tweet=text,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=-1,
+            image_id=img_id,
+            news_id=news_id,
+        )
 
-    db.session.add(post)
-    db.session.commit()
+        db.session.add(post)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        post = Post(
+            id=str(uuid.uuid4()),
+            tweet=text,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=-1,
+            image_id=img_id,
+            news_id=news_id,
+        )
+
+        db.session.add(post)
+        db.session.commit()
 
     post.thread_id = post.id
     db.session.commit()
@@ -436,33 +678,66 @@ def publish_post_reddit(exp_id):
     for topic in topics:
         res = Interests.query.filter_by(interest=topic).first()
         if res is None:
-            interest = Interests(interest=topic)
-            db.session.add(interest)
-            db.session.commit()
+            try:
+                interest = Interests(interest=topic)
+                db.session.add(interest)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                interest = Interests(iid=str(uuid.uuid4()), interest=topic)
+                db.session.add(interest)
+                db.session.commit()
             res = Interests.query.filter_by(interest=topic).first()
 
         topic_id = res.iid
 
-        ui = User_interest(
-            user_id=current_user.id, interest_id=topic_id, round_id=current_round.id
-        )
-        db.session.add(ui)
-        ti = Post_topics(post_id=post.id, topic_id=topic_id)
-        db.session.add(ti)
-        db.session.commit()
+        try:
+            ui = User_interest(
+                user_id=exp_user_id, interest_id=topic_id, round_id=current_round.id
+            )
+            db.session.add(ui)
+            ti = Post_topics(post_id=post.id, topic_id=topic_id)
+            db.session.add(ti)
+            db.session.commit()
 
-        post_sentiment = Post_Sentiment(
-            post_id=post.id,
-            user_id=current_user.id,
-            topic_id=topic_id,
-            pos=sentiment["pos"],
-            neg=sentiment["neg"],
-            neu=sentiment["neu"],
-            compound=sentiment["compound"],
-            round=current_round.id,
-        )
-        db.session.add(post_sentiment)
-        db.session.commit()
+            post_sentiment = Post_Sentiment(
+                post_id=post.id,
+                user_id=exp_user_id,
+                topic_id=topic_id,
+                pos=sentiment["pos"],
+                neg=sentiment["neg"],
+                neu=sentiment["neu"],
+                compound=sentiment["compound"],
+                round=current_round.id,
+            )
+            db.session.add(post_sentiment)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            ui = User_interest(
+                id=str(uuid.uuid4()),
+                user_id=exp_user_id,
+                interest_id=topic_id,
+                round_id=current_round.id,
+            )
+            db.session.add(ui)
+            ti = Post_topics(post_id=post.id, topic_id=topic_id)
+            db.session.add(ti)
+            db.session.commit()
+
+            post_sentiment = Post_Sentiment(
+                id=str(uuid.uuid4()),
+                post_id=post.id,
+                user_id=exp_user_id,
+                topic_id=topic_id,
+                pos=sentiment["pos"],
+                neg=sentiment["neg"],
+                neu=sentiment["neu"],
+                compound=sentiment["compound"],
+                round=current_round.id,
+            )
+            db.session.add(post_sentiment)
+            db.session.commit()
 
     for emotion in emotions:
         if len(emotion) < 1:
@@ -470,9 +745,17 @@ def publish_post_reddit(exp_id):
 
         em = Emotions.query.filter_by(emotion=emotion).first()
         if em is not None:
-            post_emotion = Post_emotions(post_id=post.id, emotion_id=em.id)
-            db.session.add(post_emotion)
-            db.session.commit()
+            try:
+                post_emotion = Post_emotions(post_id=post.id, emotion_id=em.id)
+                db.session.add(post_emotion)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                post_emotion = Post_emotions(
+                    id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
+                )
+                db.session.add(post_emotion)
+                db.session.commit()
 
     for tag in hashtags:
         if len(tag) < 4:
@@ -480,14 +763,28 @@ def publish_post_reddit(exp_id):
 
         ht = Hashtags.query.filter_by(hashtag=tag).first()
         if ht is None:
-            ht = Hashtags(hashtag=tag)
-            db.session.add(ht)
-            db.session.commit()
+            try:
+                ht = Hashtags(hashtag=tag)
+                db.session.add(ht)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
+                db.session.add(ht)
+                db.session.commit()
             ht = Hashtags.query.filter_by(hashtag=tag).first()
 
-        post_tag = Post_hashtags(post_id=post.id, hashtag_id=ht.id)
-        db.session.add(post_tag)
-        db.session.commit()
+        try:
+            post_tag = Post_hashtags(post_id=post.id, hashtag_id=ht.id)
+            db.session.add(post_tag)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            post_tag = Post_hashtags(
+                id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
+            )
+            db.session.add(post_tag)
+            db.session.commit()
 
     for mention in mentions:
         if len(mention) < 1:
@@ -496,10 +793,21 @@ def publish_post_reddit(exp_id):
         us = User_mgmt.query.filter_by(username=mention.strip("@")).first()
 
         # existing user and not self
-        if us is not None and us.id != current_user.id:
-            mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
-            db.session.add(mn)
-            db.session.commit()
+        if us is not None and us.id != exp_user_id:
+            try:
+                mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
+                db.session.add(mn)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                mn = Mentions(
+                    id=str(uuid.uuid4()),
+                    user_id=us.id,
+                    post_id=post.id,
+                    round=current_round.id,
+                )
+                db.session.add(mn)
+                db.session.commit()
         else:
             text = text.replace(mention, "")
 
@@ -519,44 +827,95 @@ def publish_comment(exp_id):
     Returns:
         Redirect to thread page after commenting
     """
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        flash("User not found in experiment", "error")
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
+    exp_user_id = exp_user.id
+
     text = request.args.get("post")
     pid = request.args.get("parent")
+
+    # Handle both int and UUID parent ID formats (Standard vs HPC experiments)
+    try:
+        pid = int(pid)
+    except (ValueError, TypeError):
+        # Keep as string if it's a UUID
+        pass
 
     # get the last round id from Rounds
     current_round = Rounds.query.order_by(Rounds.id.desc()).first()
 
     # get the thread if of the post with id pid
-    thread_id = Post.query.filter_by(id=pid).first().thread_id
+    parent_post = Post.query.filter_by(id=pid).first()
+    if not parent_post:
+        flash("Parent post not found", "error")
+        return (
+            redirect(request.referrer)
+            if request.referrer
+            else redirect(url_for("main.index"))
+        )
+    thread_id = parent_post.thread_id if parent_post.thread_id else parent_post.id
 
-    # add post to the db
-    post = Post(
-        tweet=text,
-        round=current_round.id,
-        user_id=current_user.id,
-        comment_to=pid,
-        thread_id=thread_id,
-    )
+    # If parent post has no thread_id, update it to use its own ID
+    # This ensures queries for thread_id = post.id will find all comments
+    if not parent_post.thread_id:
+        parent_post.thread_id = parent_post.id
+        db.session.commit()
 
-    db.session.add(post)
-    db.session.commit()
+    try:
+        # add post to the db
+        post = Post(
+            tweet=text,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=pid,
+            thread_id=thread_id,
+        )
+
+        db.session.add(post)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        uid = str(uuid.uuid4())
+        # add post to the db
+        post = Post(
+            id=uid,
+            tweet=text,
+            round=current_round.id,
+            user_id=exp_user_id,
+            comment_to=pid,
+            thread_id=thread_id,
+        )
+
+        db.session.add(post)
+        db.session.commit()
 
     # get sentiment of the post is responding to
     sentiment_root = Post_Sentiment.query.filter_by(post_id=pid).first()
 
-    if sentiment_root is None:
+    if sentiment_root is not None:
         values = {
             "pos": sentiment_root.pos,
             "neg": sentiment_root.neg,
             "neu": sentiment_root.neu,
         }
         # get the key with the max value
-        sentiment_parent = max(values, key=values.get)
-        sentiment = vader_sentiment(text)
+    else:
+        values = {"neu": 1}
+
+    sentiment_parent = max(values, key=values.get)
+    sentiment = vader_sentiment(text)
 
     toxicity(text, current_user.username, post.id, db)
 
     # check if the comment is to answer a mention
-    mention = Mentions.query.filter_by(post_id=pid, user_id=current_user.id).first()
+    mention = Mentions.query.filter_by(post_id=pid, user_id=exp_user_id).first()
     if mention:
         mention.answered = 1
         db.session.commit()
@@ -575,27 +934,55 @@ def publish_comment(exp_id):
 
     if len(topics_id) > 0:
         for t in topics_id:
-            ui = User_interest(
-                user_id=current_user.id, interest_id=t, round_id=current_round.id
-            )
-            db.session.add(ui)
-            ti = Post_topics(post_id=post.id, topic_id=t)
-            db.session.add(ti)
-            db.session.commit()
+            try:
+                ui = User_interest(
+                    user_id=exp_user_id, interest_id=t, round_id=current_round.id
+                )
+                db.session.add(ui)
+                ti = Post_topics(post_id=post.id, topic_id=t)
+                db.session.add(ti)
+                db.session.commit()
 
-            post_sentiment = Post_Sentiment(
-                post_id=post.id,
-                user_id=current_user.id,
-                topic_id=t,
-                pos=sentiment["pos"],
-                neg=sentiment["neg"],
-                neu=sentiment["neu"],
-                compound=sentiment["compound"],
-                sentiment_parent=sentiment_parent,
-                round=current_round.id,
-            )
-            db.session.add(post_sentiment)
-            db.session.commit()
+                post_sentiment = Post_Sentiment(
+                    post_id=post.id,
+                    user_id=exp_user_id,
+                    topic_id=t,
+                    pos=sentiment["pos"],
+                    neg=sentiment["neg"],
+                    neu=sentiment["neu"],
+                    compound=sentiment["compound"],
+                    sentiment_parent=sentiment_parent,
+                    round=current_round.id,
+                )
+                db.session.add(post_sentiment)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                ui = User_interest(
+                    id=str(uuid.uuid4()),
+                    user_id=exp_user_id,
+                    interest_id=t,
+                    round_id=current_round.id,
+                )
+                db.session.add(ui)
+                ti = Post_topics(id=str(uuid.uuid4()), post_id=post.id, topic_id=t)
+                db.session.add(ti)
+                db.session.commit()
+
+                post_sentiment = Post_Sentiment(
+                    id=str(uuid.uuid4()),
+                    post_id=post.id,
+                    user_id=exp_user_id,
+                    topic_id=t,
+                    pos=sentiment["pos"],
+                    neg=sentiment["neg"],
+                    neu=sentiment["neu"],
+                    compound=sentiment["compound"],
+                    sentiment_parent=sentiment_parent,
+                    round=current_round.id,
+                )
+                db.session.add(post_sentiment)
+                db.session.commit()
 
     for emotion in emotions:
         if len(emotion) < 1:
@@ -603,9 +990,17 @@ def publish_comment(exp_id):
 
         em = Emotions.query.filter_by(emotion=emotion).first()
         if em is not None:
-            post_emotion = Post_emotions(post_id=post.id, emotion_id=em.id)
-            db.session.add(post_emotion)
-            db.session.commit()
+            try:
+                post_emotion = Post_emotions(post_id=post.id, emotion_id=em.id)
+                db.session.add(post_emotion)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                post_emotion = Post_emotions(
+                    id=str(uuid.uuid4()), post_id=post.id, emotion_id=em.id
+                )
+                db.session.add(post_emotion)
+                db.session.commit()
 
     for tag in hashtags:
         if len(tag) < 4:
@@ -613,14 +1008,28 @@ def publish_comment(exp_id):
 
         ht = Hashtags.query.filter_by(hashtag=tag).first()
         if ht is None:
-            ht = Hashtags(hashtag=tag)
-            db.session.add(ht)
-            db.session.commit()
+            try:
+                ht = Hashtags(hashtag=tag)
+                db.session.add(ht)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                ht = Hashtags(id=str(uuid.uuid4()), hashtag=tag)
+                db.session.add(ht)
+                db.session.commit()
             ht = Hashtags.query.filter_by(hashtag=tag).first()
 
-        post_tag = Post_hashtags(post_id=post.id, hashtag_id=ht.id)
-        db.session.add(post_tag)
-        db.session.commit()
+        try:
+            post_tag = Post_hashtags(post_id=post.id, hashtag_id=ht.id)
+            db.session.add(post_tag)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            post_tag = Post_hashtags(
+                id=str(uuid.uuid4()), post_id=post.id, hashtag_id=ht.id
+            )
+            db.session.add(post_tag)
+            db.session.commit()
 
     for mention in mentions:
         if len(mention) < 1:
@@ -630,10 +1039,21 @@ def publish_comment(exp_id):
 
         # existing user and not self
         # @todo: check ghost mentions to the current user...
-        if us is not None and us.id != current_user.id:
-            mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
-            db.session.add(mn)
-            db.session.commit()
+        if us is not None and us.id != exp_user_id:
+            try:
+                mn = Mentions(user_id=us.id, post_id=post.id, round=current_round.id)
+                db.session.add(mn)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                mn = Mentions(
+                    id=str(uuid.uuid4()),
+                    user_id=us.id,
+                    post_id=post.id,
+                    round=current_round.id,
+                )
+                db.session.add(mn)
+                db.session.commit()
         else:
             text = text.replace(mention, "")
 
@@ -650,7 +1070,13 @@ def delete_post(exp_id):
     """Delete post."""
     post_id = request.args.get("post_id")
 
-    post = Post.query.get(int(post_id))
+    # Handle both int and UUID post_id (Standard vs HPC experiments)
+    try:
+        post_id_converted = int(post_id)
+    except (ValueError, TypeError):
+        post_id_converted = post_id
+
+    post = Post.query.get(post_id_converted)
     db.session.delete(post)
     db.session.commit()
 
@@ -661,10 +1087,16 @@ def delete_post(exp_id):
 @login_required
 def cancel_notification(exp_id):
     """Handle cancel notification operation."""
+    # Get experiment user (not admin user)
+    exp_user = User_mgmt.query.filter_by(username=current_user.username).first()
+    if not exp_user:
+        return {"message": "User not found in experiment", "status": 404}
+    exp_user_id = exp_user.id
+
     pid = request.args.get("post_id")
 
     # check if the comment is to answer a mention
-    mention = Mentions.query.filter_by(post_id=pid, user_id=current_user.id).first()
+    mention = Mentions.query.filter_by(post_id=pid, user_id=exp_user_id).first()
     if mention:
         mention.answered = 1
         db.session.commit()

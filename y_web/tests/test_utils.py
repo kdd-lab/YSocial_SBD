@@ -122,6 +122,42 @@ class TestExternalProcesses:
         except ImportError as e:
             pytest.skip(f"Required dependencies not installed: {e}")
 
+    def test_start_hpc_server_import(self):
+        """Test that start_hpc_server can be imported"""
+        try:
+            from y_web.utils.external_processes import start_hpc_server
+
+            assert callable(start_hpc_server)
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
+    def test_stop_hpc_server_import(self):
+        """Test that stop_hpc_server can be imported"""
+        try:
+            from y_web.utils.external_processes import stop_hpc_server
+
+            assert callable(stop_hpc_server)
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
+    def test_start_hpc_client_import(self):
+        """Test that start_hpc_client can be imported"""
+        try:
+            from y_web.utils.external_processes import start_hpc_client
+
+            assert callable(start_hpc_client)
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
+    def test_stop_hpc_client_import(self):
+        """Test that stop_hpc_client can be imported"""
+        try:
+            from y_web.utils.external_processes import stop_hpc_client
+
+            assert callable(stop_hpc_client)
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
     def test_get_server_process_status_import(self):
         """Test that get_server_process_status can be imported"""
         try:
@@ -159,6 +195,17 @@ class TestExternalProcesses:
             from y_web.utils.external_processes import terminate_server_process
 
             result = terminate_server_process(999)
+            assert result is False
+
+        except ImportError as e:
+            pytest.skip(f"Required dependencies not installed: {e}")
+
+    def test_stop_hpc_server_not_found(self):
+        """Test stop_hpc_server when no process is tracked"""
+        try:
+            from y_web.utils.external_processes import stop_hpc_server
+
+            result = stop_hpc_server(999)
             assert result is False
 
         except ImportError as e:

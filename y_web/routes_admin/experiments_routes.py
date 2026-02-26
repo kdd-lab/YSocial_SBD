@@ -9,11 +9,15 @@ assignment, and experiment lifecycle control.
 import json
 import os
 import pathlib
+import random
 import re
 import shutil
 import socket
+import threading
+import time
 import uuid
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 from flask import (
     Blueprint,
@@ -25,7 +29,7 @@ from flask import (
     request,
     url_for,
 )
-from flask_login import current_user, login_required
+from flask_login import current_user, login_required, login_user
 
 from y_web import db  # , app
 from y_web.models import (
@@ -46,14 +50,16 @@ from y_web.models import (
     ExperimentScheduleLog,
     ExperimentScheduleStatus,
     Exps,
+    HpcMonitorSettings,
     Jupyter_instances,
     Languages,
     Leanings,
     LogFileOffset,
-    LogSyncSettings,
     Nationalities,
     Ollama_Pull,
     OpinionDistribution,
+    OpinionEvolutionCache,
+    OpinionEvolutionSampledAgents,
     OpinionGroup,
     Page,
     Page_Population,
@@ -69,7 +75,11 @@ from y_web.models import (
 )
 from y_web.utils import (
     start_client,
+    start_hpc_client,
+    start_hpc_server,
     start_server,
+    stop_hpc_client,
+    stop_hpc_server,
     terminate_client,
     terminate_process_on_port,
     terminate_server_process,
@@ -85,6 +95,13 @@ from y_web.utils.miscellanea import (
 from y_web.utils.path_utils import get_resource_path
 
 experiments = Blueprint("experiments", __name__)
+
+# Configuration constants
+OPINION_CACHE_EXPIRY_MINUTES = 5  # Cache expiry time for opinion evolution statistics
+MAX_HPC_PER_GROUP = 4  # Maximum number of HPC experiments allowed per schedule group
+
+# Lock to prevent concurrent schedule advancement (from HTTP endpoint and background monitor)
+_schedule_check_lock = threading.Lock()
 
 
 def get_experiment_uid_from_db_name(db_name):
@@ -218,6 +235,17 @@ def settings():
 
     users = Admin_users.query.all()
 
+    # Check and update status for stopped experiments that are actually completed
+    # Get all stopped experiments
+    stopped_experiments = Exps.query.filter_by(exp_status="stopped").all()
+    for exp in stopped_experiments:
+        # Use existing helper function to check if all clients completed
+        all_clients_completed, _ = _get_clients_to_start(exp)
+        if all_clients_completed:
+            # Update status to completed
+            exp.exp_status = "completed"
+            db.session.commit()
+
     # Check which experiments have infinite clients
     exp_has_infinite = {}
     for exp in experiments:
@@ -237,6 +265,16 @@ def settings():
     # Get suggested port for new experiment
     suggested_port = get_suggested_port()
 
+    # Get unique experiment groups
+    exp_groups = (
+        db.session.query(Exps.exp_group)
+        .filter(Exps.exp_group != "")
+        .filter(Exps.exp_group.isnot(None))
+        .distinct()
+        .all()
+    )
+    exp_groups = [group[0] for group in exp_groups]  # Extract from tuples
+
     return render_template(
         "admin/settings.html",
         experiments=experiments,
@@ -246,6 +284,7 @@ def settings():
         suggested_port=suggested_port,
         enable_notebook=current_app.config.get("ENABLE_NOTEBOOK", False),
         exp_has_infinite=exp_has_infinite,
+        exp_groups=exp_groups,
     )
 
 
@@ -374,44 +413,94 @@ def change_active_experiment(exp_id):
         register_experiment_database(current_app, exp_id, exp.db_name)
 
         # Ensure user exists in the experiment database
+        # For HPC experiments with SQLite: database is created by server on first startup
+        # We skip user registration if database doesn't exist yet
         # We need to switch to the correct bind temporarily
         bind_key = f"db_exp_{exp_id}"
 
-        # Check if user exists in this experiment's database
-        # Note: User_mgmt uses db_exp bind, so we need to query with bind
-        with db.session.no_autoflush:
-            # Temporarily set db_exp to this experiment
-            old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
-            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
-                "SQLALCHEMY_BINDS"
-            ][bind_key]
+        # For HPC experiments with SQLite, check if database exists
+        skip_user_registration = False
+        if exp.simulator_type == "HPC":
+            # Check database type
+            if current_app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                # Check if the SQLite database file exists
+                from y_web.utils.path_utils import get_writable_path
 
-            try:
-                user = (
-                    db.session.query(User_mgmt)
-                    .filter_by(username=current_user.username)
-                    .first()
-                )
-
-                if user is None:
-                    new_user = User_mgmt(
-                        email=current_user.email,
-                        username=current_user.username,
-                        password=current_user.password,
-                        user_type="user",
-                        leaning="neutral",
-                        age=0,
-                        recsys_type="default",
-                        language="en",
-                        frecsys_type="default",
-                        round_actions=1,
-                        toxicity="no",
+                db_path = get_writable_path(os.path.join("y_web", exp.db_name))
+                if not os.path.exists(db_path):
+                    skip_user_registration = True
+                    current_app.logger.info(
+                        f"HPC experiment database doesn't exist yet for experiment {exp_id}. "
+                        f"User will be added when server creates database on first startup."
                     )
-                    db.session.add(new_user)
-                    db.session.commit()
-            finally:
-                # Restore old bind
-                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+
+        if not skip_user_registration:
+            # Check if user exists in this experiment's database
+            # Note: User_mgmt uses db_exp bind, so we need to query with bind
+            with db.session.no_autoflush:
+                # Temporarily set db_exp to this experiment
+                old_bind = current_app.config["SQLALCHEMY_BINDS"]["db_exp"]
+                current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+                    "SQLALCHEMY_BINDS"
+                ][bind_key]
+
+                try:
+                    user = (
+                        db.session.query(User_mgmt)
+                        .filter_by(username=current_user.username)
+                        .first()
+                    )
+
+                    if user is None:
+                        # For HPC experiments, we need to use UUID strings as IDs
+                        # Standard experiments use integer IDs with auto-increment
+                        if exp.simulator_type == "HPC":
+                            # Generate a UUID string for HPC user ID
+                            user_id = str(uuid.uuid4())
+                            current_app.logger.info(
+                                f"Assigning HPC user UUID {user_id} to {current_user.username} for experiment {exp_id}"
+                            )
+                        else:
+                            # For Standard experiments, use the admin user's ID (auto-increment behavior)
+                            user_id = current_user.id
+
+                        try:
+                            # Set recsys_type based on experiment type
+                            # HPC experiments use rchrono, Standard use default
+                            content_recsys = (
+                                "rchrono" if exp.simulator_type == "HPC" else "default"
+                            )
+
+                            new_user = User_mgmt(
+                                id=user_id,
+                                email=current_user.email,
+                                username=current_user.username,
+                                password=current_user.password,
+                                user_type="user",
+                                leaning="neutral",
+                                age=0,
+                                recsys_type=content_recsys,
+                                language="en",
+                                frecsys_type="default",
+                                round_actions=1,
+                                toxicity="no",
+                                joined_on=int(time.time()),
+                            )
+                            db.session.add(new_user)
+                            db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            # If IntegrityError due to duplicate ID, log and re-raise
+                            current_app.logger.error(
+                                f"Error adding user {current_user.username} to experiment {exp_id}: {e}"
+                            )
+                            flash(
+                                f"Error activating experiment: {str(e)}. Please try again."
+                            )
+                            raise
+                finally:
+                    # Restore old bind
+                    current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
 
         # Add user to experiment if not present
         user_exp = (
@@ -426,7 +515,11 @@ def change_active_experiment(exp_id):
 
         flash(f"Experiment '{exp.exp_name}' activated.")
 
-    reload_current_user(uname)
+    # Reload user session from admin database (not experiment database)
+    # Use Admin_users which is in the main database
+    admin_user = Admin_users.query.filter_by(username=uname).first()
+    if admin_user:
+        login_user(admin_user, remember=True, force=True)
 
     return redirect("/admin/dashboard")
 
@@ -440,6 +533,7 @@ def upload_experiment():
     experiment = request.files["experiment"]
     # Get experiment name from form, fallback to name from config if not provided
     exp_name_override = request.form.get("exp_name", "").strip()
+    exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
     uid = str(uuid.uuid4()).replace("-", "_")
 
     from y_web.utils.path_utils import get_writable_path
@@ -505,7 +599,23 @@ def upload_experiment():
     try:
         # list the files in the directory
         files = os.listdir(f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}")
-        config_path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json"
+
+        # Detect simulator type by checking which config file exists
+        # Standard experiments use config_server.json, HPC use server_config.json
+        config_path_standard = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json"
+        config_path_hpc = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}server_config.json"
+
+        is_hpc_experiment = False
+        if os.path.exists(config_path_hpc):
+            config_path = config_path_hpc
+            is_hpc_experiment = True
+        elif os.path.exists(config_path_standard):
+            config_path = config_path_standard
+            is_hpc_experiment = False
+        else:
+            raise FileNotFoundError(
+                "No server configuration file found (config_server.json or server_config.json)"
+            )
 
         with open(config_path, "r") as f:
             experiment_config = json.load(f)
@@ -638,16 +748,14 @@ def upload_experiment():
                     # Insert initial admin user
                     hashed_pw = generate_password_hash("admin", method="pbkdf2:sha256")
 
-                    stmt = text(
-                        """
+                    stmt = text("""
                         INSERT INTO user_mgmt (username, email, password, user_type, leaning, age,
                                                language, owner, joined_on, frecsys_type,
                                                round_actions, toxicity, is_page, daily_activity_level)
                         VALUES (:username, :email, :password, :user_type, :leaning, :age,
                                 :language, :owner, :joined_on, :frecsys_type,
                                 :round_actions, :toxicity, :is_page, :daily_activity_level)
-                        """
-                    )
+                        """)
 
                     dummy_conn.execute(
                         stmt,
@@ -735,6 +843,8 @@ def upload_experiment():
             server=experiment_config.get("host", "127.0.0.1"),
             platform_type=experiment_config.get("platform_type", "microblogging"),
             llm_agents_enabled=llm_agents_enabled,
+            simulator_type="HPC" if is_hpc_experiment else "Standard",
+            exp_group=exp_group,
         )
 
         db.session.add(exp)
@@ -784,12 +894,14 @@ def upload_experiment():
         return redirect(request.referrer)
 
     # get the json files that do not start with "client"
+    # Also exclude server_config.json for HPC experiments
     populations = [
         f
         for f in os.listdir(f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}")
         if f.endswith(".json")
         and not f.startswith("client")
         and f != "config_server.json"
+        and f != "server_config.json"  # Exclude HPC server config
         and f != "prompts.json"
     ]
 
@@ -1004,7 +1116,9 @@ def upload_experiment():
                     db.session.add(ap)
                     db.session.commit()
 
-        # get the json file that start with "client" and contains "population"
+        # Get client configuration file for this population
+        # For Standard: client_*.json files containing population name
+        # For HPC: client_{name}-{population}.json files
         client = [
             f
             for f in os.listdir(
@@ -1012,64 +1126,180 @@ def upload_experiment():
             )
             if f.endswith(".json") and f.startswith("client") and original_name in f
         ]
-        if len(client) == 0:
-            flash("No client file found for the population")
-            shutil.rmtree(
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}",
-                ignore_errors=True,
-            )
-            return redirect(request.referrer)
 
-        client = json.load(
+        # Handle missing client configs
+        if len(client) == 0:
+            if not is_hpc_experiment:
+                # Standard experiments REQUIRE client config
+                flash("No client file found for the population")
+                shutil.rmtree(
+                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}",
+                    ignore_errors=True,
+                )
+                return redirect(request.referrer)
+            else:
+                # HPC experiments: Auto-create default client if config missing
+                # This ensures Client records exist for scheduler tracking
+                print(
+                    f"No client config found for HPC population {original_name}, creating default client"
+                )
+
+                # Create default Client record for HPC
+                default_client_name = f"client_{original_name}"
+                cl = Client(
+                    id_exp=exp.idexp,
+                    population_id=population.id,
+                    status=0,
+                    name=default_client_name,
+                    descr=f"Auto-created client for {original_name}",
+                    days=7,  # Default 7 days
+                    percentage_new_agents_iteration=0,
+                    percentage_removed_agents_iteration=0,
+                    max_length_thread_reading=10,
+                    reading_from_follower_ratio=0.5,
+                    probability_of_daily_follow=0.1,
+                    attention_window=24,
+                    visibility_rounds=36,
+                    post=0.3,
+                    share=0.2,
+                    image=0.1,
+                    comment=0.2,
+                    read=0.8,
+                    news=0.1,
+                    search=0.1,
+                    vote=0.1,
+                    llm="",
+                    llm_api_key="",
+                    llm_max_tokens=100,
+                    llm_temperature=0.7,
+                    llm_v_agent=0,
+                    llm_v="",
+                    llm_v_api_key="",
+                    llm_v_max_tokens=100,
+                    llm_v_temperature=0.7,
+                )
+                db.session.add(cl)
+                db.session.commit()
+
+                # Create Client_Execution for progress tracking
+                expected_rounds = cl.days * 24  # HPC uses 24 hourly slots
+                client_exec = Client_Execution(
+                    client_id=cl.id,
+                    elapsed_time=0,
+                    expected_duration_rounds=expected_rounds,
+                    last_active_hour=-1,
+                    last_active_day=-1,
+                )
+                db.session.add(client_exec)
+                db.session.commit()
+
+                print(
+                    f"Created default HPC client '{default_client_name}' for population {original_name}"
+                )
+                continue  # Skip to next population
+
+        client_config = json.load(
             open(
                 f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}{client[0]}"
             )
         )
 
-        # add client to the database
-        cl = Client(
-            id_exp=exp.idexp,
-            population_id=population.id,
-            status=0,
-            name=client["simulation"]["name"],
-            descr="",
-            days=client["simulation"]["days"],
-            percentage_new_agents_iteration=client["simulation"][
-                "percentage_new_agents_iteration"
-            ],
-            percentage_removed_agents_iteration=client["simulation"][
-                "percentage_removed_agents_iteration"
-            ],
-            max_length_thread_reading=client["agents"]["max_length_thread_reading"],
-            reading_from_follower_ratio=client["agents"]["reading_from_follower_ratio"],
-            probability_of_daily_follow=client["agents"]["probability_of_daily_follow"],
-            attention_window=client["agents"]["attention_window"],
-            visibility_rounds=client["posts"]["visibility_rounds"],
-            post=client["simulation"]["actions_likelihood"]["post"],
-            share=client["simulation"]["actions_likelihood"]["share"],
-            image=client["simulation"]["actions_likelihood"]["image"],
-            comment=client["simulation"]["actions_likelihood"]["comment"],
-            read=client["simulation"]["actions_likelihood"]["read"],
-            news=client["simulation"]["actions_likelihood"]["news"],
-            search=client["simulation"]["actions_likelihood"]["search"],
-            vote=client["simulation"]["actions_likelihood"]["cast"],
-            llm=client["servers"]["llm"],
-            llm_api_key=client["servers"]["llm_api_key"],
-            llm_max_tokens=client["servers"]["llm_max_tokens"],
-            llm_temperature=client["servers"]["llm_temperature"],
-            llm_v_agent=client["agents"]["llm_v_agent"],
-            llm_v=client["servers"]["llm_v"],
-            llm_v_api_key=client["servers"]["llm_v_api_key"],
-            llm_v_max_tokens=client["servers"]["llm_v_max_tokens"],
-            llm_v_temperature=client["servers"]["llm_v_temperature"],
-        )
+        # Parse client configuration based on experiment type
+        if is_hpc_experiment:
+            # HPC client config has simpler structure
+            # Extract basic information
+            client_name = client_config.get("name", "hpc_client")
+            client_days = client_config.get("simulation", {}).get("days", 7)
+
+            # Create minimal Client record for HPC
+            # Many fields will use defaults since HPC config is simpler
+            cl = Client(
+                id_exp=exp.idexp,
+                population_id=population.id,
+                status=0,
+                name=client_name,
+                descr="",
+                days=client_days,
+                percentage_new_agents_iteration=0,
+                percentage_removed_agents_iteration=0,
+                max_length_thread_reading=10,
+                reading_from_follower_ratio=0.5,
+                probability_of_daily_follow=0.1,
+                attention_window=24,
+                visibility_rounds=36,
+                post=0.3,
+                share=0.2,
+                image=0.1,
+                comment=0.2,
+                read=0.8,
+                news=0.1,
+                search=0.1,
+                vote=0.1,
+                llm="",
+                llm_api_key="",
+                llm_max_tokens=100,
+                llm_temperature=0.7,
+                llm_v_agent=0,
+                llm_v="",
+                llm_v_api_key="",
+                llm_v_max_tokens=100,
+                llm_v_temperature=0.7,
+            )
+        else:
+            # Standard client config - use existing parsing logic
+            cl = Client(
+                id_exp=exp.idexp,
+                population_id=population.id,
+                status=0,
+                name=client_config["simulation"]["name"],
+                descr="",
+                days=client_config["simulation"]["days"],
+                percentage_new_agents_iteration=client_config["simulation"][
+                    "percentage_new_agents_iteration"
+                ],
+                percentage_removed_agents_iteration=client_config["simulation"][
+                    "percentage_removed_agents_iteration"
+                ],
+                max_length_thread_reading=client_config["agents"][
+                    "max_length_thread_reading"
+                ],
+                reading_from_follower_ratio=client_config["agents"][
+                    "reading_from_follower_ratio"
+                ],
+                probability_of_daily_follow=client_config["agents"][
+                    "probability_of_daily_follow"
+                ],
+                attention_window=client_config["agents"]["attention_window"],
+                visibility_rounds=client_config["posts"]["visibility_rounds"],
+                post=client_config["simulation"]["actions_likelihood"]["post"],
+                share=client_config["simulation"]["actions_likelihood"]["share"],
+                image=client_config["simulation"]["actions_likelihood"]["image"],
+                comment=client_config["simulation"]["actions_likelihood"]["comment"],
+                read=client_config["simulation"]["actions_likelihood"]["read"],
+                news=client_config["simulation"]["actions_likelihood"]["news"],
+                search=client_config["simulation"]["actions_likelihood"]["search"],
+                vote=client_config["simulation"]["actions_likelihood"]["cast"],
+                llm=client_config["servers"]["llm"],
+                llm_api_key=client_config["servers"]["llm_api_key"],
+                llm_max_tokens=client_config["servers"]["llm_max_tokens"],
+                llm_temperature=client_config["servers"]["llm_temperature"],
+                llm_v_agent=client_config["agents"]["llm_v_agent"],
+                llm_v=client_config["servers"]["llm_v"],
+                llm_v_api_key=client_config["servers"]["llm_v_api_key"],
+                llm_v_max_tokens=client_config["servers"]["llm_v_max_tokens"],
+                llm_v_temperature=client_config["servers"]["llm_v_temperature"],
+            )
         db.session.add(cl)
         db.session.commit()
 
         # For infinite clients (days = -1), set expected_duration_rounds to -1
-        expected_rounds = (
-            -1 if cl.days == -1 else cl.days * client["simulation"]["slots"]
-        )
+        # For HPC, slots default to 24 (one per hour)
+        if is_hpc_experiment:
+            slots = 24  # HPC uses hourly slots
+        else:
+            slots = client_config.get("simulation", {}).get("slots", 24)
+
+        expected_rounds = -1 if cl.days == -1 else cl.days * slots
         client_exec = Client_Execution(
             client_id=cl.id,
             last_active_hour=-1,
@@ -1133,6 +1363,8 @@ def upload_database():
             owner="",
             exp_descr="",
             status=0,
+            simulator_type="Standard",  # Default to Standard
+            exp_group="",  # Default empty group for legacy upload_database route
         )
 
         db.session.add(exp)
@@ -1158,6 +1390,147 @@ def upload_database():
     return settings()
 
 
+def generate_standard_config(
+    platform_type,
+    exp_name,
+    host,
+    port,
+    perspective_api,
+    sentiment_annotation,
+    emotion_annotation,
+    opinions_enabled,
+    db_uri,
+    topics,
+    data_path,
+    is_remote=False,
+):
+    """Generate config file for Standard simulator type."""
+    config = {
+        "platform_type": platform_type,
+        "name": exp_name,
+        "host": host,
+        "port": port,
+        "debug": "False",
+        "reset_db": "False",
+        "modules": ["news", "voting", "image"],
+        "perspective_api": (
+            perspective_api if perspective_api and len(perspective_api) > 0 else None
+        ),
+        "sentiment_annotation": sentiment_annotation,
+        "emotion_annotation": emotion_annotation,
+        "opinions_enabled": opinions_enabled,
+        "database_uri": db_uri,
+        "topics": [t.strip() for t in topics if t.strip()],
+        "data_path": data_path,
+        "is_remote": is_remote,
+    }
+
+    return config
+
+
+def generate_hpc_config(
+    exp_name,
+    platform_type,
+    db_type,
+    db_uri,
+    redis_enabled,
+    redis_host,
+    redis_port,
+    redis_password,
+    redis_sliding_window_days,
+    perspective_api,
+    sentiment_annotation,
+    emotion_annotation,
+    topics,
+    data_path,
+    db_config_dict=None,
+    is_remote=False,
+):
+    """Generate config file for HPC simulator type."""
+    # Build database configuration section
+    database_config = {
+        "type": db_type,
+    }
+
+    if db_type == "sqlite":
+        database_config["sqlite"] = {"filename": "simulation.db"}
+    elif db_type == "postgresql":
+        if db_config_dict:
+            database_config["postgresql"] = db_config_dict
+        else:
+            # Fallback defaults
+            database_config["postgresql"] = {
+                "host": "localhost",
+                "port": 5432,
+                "database": "ysimulator",
+                "username": "postgres",
+                "password": "password",
+            }
+
+    config = {
+        "server_name": exp_name,
+        "namespace": exp_name,
+        "address": "auto",
+        "port": None,
+        "database": database_config,
+        "min_to_start": 1,
+        "timeout_seconds": 180,
+        "redis": {
+            "enabled": redis_enabled,
+            "host": redis_host,
+            "port": redis_port,
+            "db": 0,
+            "password": redis_password,
+            "sliding_window_days": redis_sliding_window_days,
+        },
+        "posts": {"visibility_rounds": 36},
+        "recommendations": {"default_limit": 5},
+        "simulation": {
+            "agent_archetypes": {
+                "enabled": True,
+                "distribution": {
+                    "validator": 0.33,
+                    "broadcaster": 0.33,
+                    "explorer": 0.34,
+                },
+                "transitions": {
+                    "validator": {
+                        "validator": 0.85,
+                        "broadcaster": 0.1,
+                        "explorer": 0.05,
+                    },
+                    "broadcaster": {
+                        "validator": 0.1,
+                        "broadcaster": 0.8,
+                        "explorer": 0.1,
+                    },
+                    "explorer": {
+                        "validator": 0.05,
+                        "broadcaster": 0.1,
+                        "explorer": 0.85,
+                    },
+                },
+            }
+        },
+        "logging": {
+            "enable_server_log": True,
+            "enable_actor_log": True,
+            "enable_request_log": True,
+            "enable_console_log": True,
+        },
+        "platform_type": platform_type,
+        "perspective_api": perspective_api,
+        "sentiment_annotation": sentiment_annotation,
+        "emotion_annotation": emotion_annotation,
+        "database_uri": db_uri,
+        "topics": [t.strip() for t in topics if t.strip()],
+        "data_path": data_path,
+        "is_remote": is_remote,
+    }
+
+    return config
+
+
 @experiments.route("/admin/create_experiment", methods=["POST", "GET"])
 @login_required
 def create_experiment():
@@ -1167,12 +1540,71 @@ def create_experiment():
     exp_name = request.form.get("exp_name")
     exp_descr = request.form.get("exp_descr")
     platform_type = request.form.get("platform_type")
+    simulator_type = request.form.get(
+        "simulator_type", "Standard"
+    )  # Default to Standard
+    exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
 
-    # Use fixed host value
-    host = "127.0.0.1"
+    # Remote experiment configuration
+    is_remote = 1 if request.form.get("is_remote") == "true" else 0
 
-    # Use suggested port (first available in range 5000-6000)
-    port = get_suggested_port()
+    # Validate remote configuration if remote experiment is selected
+    if is_remote:
+        # For remote experiments, use the provided host and port
+        host = request.form.get("remote_host", "").strip()
+        if not host:
+            flash("Remote host address is required for remote experiments.")
+            return redirect(url_for("experiments.settings"))
+
+        # Basic validation for hostname/IP format
+        # Allow: IP addresses (IPv4), domain names, and localhost
+        # This is a basic check - actual connectivity validation happens at runtime
+        import re
+
+        # Pattern allows: alphanumeric, dots, hyphens, and colons (for IPv6)
+        if not re.match(r"^[a-zA-Z0-9\.\-\:]+$", host):
+            flash("Invalid remote host format. Use IP address or domain name.")
+            return redirect(url_for("experiments.settings"))
+
+        # Validate and parse remote_port
+        remote_port_str = request.form.get("remote_port", "").strip()
+        if not remote_port_str:
+            flash("Remote port is required for remote experiments.")
+            return redirect(url_for("experiments.settings"))
+
+        try:
+            port = int(remote_port_str)
+            # Validate port range
+            if not (1 <= port <= 65535):
+                flash("Invalid remote port. Port must be between 1 and 65535.")
+                return redirect(url_for("experiments.settings"))
+        except ValueError:
+            flash("Invalid remote port. Please enter a valid number.")
+            return redirect(url_for("experiments.settings"))
+    else:
+        # For local experiments, use default local settings
+        host = "127.0.0.1"
+        # Use suggested port (first available in range 5000-6000)
+        port = get_suggested_port()
+
+    # Redis configuration parameters for HPC simulator
+    redis_enabled = request.form.get("redis_enabled") == "true"
+    redis_host = request.form.get("redis_host", "localhost")
+    redis_port = (
+        int(request.form.get("redis_port", "6379"))
+        if request.form.get("redis_port")
+        else 6379
+    )
+    redis_password = (
+        request.form.get("redis_password")
+        if request.form.get("redis_password")
+        else None
+    )
+    redis_sliding_window_days = (
+        int(request.form.get("redis_sliding_window_days", "2"))
+        if request.form.get("redis_sliding_window_days")
+        else 2
+    )
 
     # Use current logged-in user as owner
     owner = current_user.username
@@ -1210,13 +1642,16 @@ def create_experiment():
     # copy the clean database to the experiments folder
     if platform_type == "microblogging" or platform_type == "forum":
         if db_type == "sqlite":
-            clean_db_source = get_resource_path(
-                os.path.join("data_schema", "database_clean_server.db")
-            )
-            shutil.copyfile(
-                clean_db_source,
-                f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
-            )
+            # Only Standard experiments get a pre-created database
+            # HPC experiments: database is created automatically by the server on first startup
+            if simulator_type == "Standard":
+                clean_db_source = get_resource_path(
+                    os.path.join("data_schema", "database_clean_server.db")
+                )
+                shutil.copyfile(
+                    clean_db_source,
+                    f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}database_server.db",
+                )
         elif db_type == "postgresql":
             from urllib.parse import urlparse
 
@@ -1273,16 +1708,14 @@ def create_experiment():
                     # Insert initial admin user
                     hashed_pw = generate_password_hash("admin", method="pbkdf2:sha256")
 
-                    stmt = text(
-                        """
+                    stmt = text("""
                                 INSERT INTO user_mgmt (username, email, password, user_type, leaning, age,
                                                        language, owner, joined_on, frecsys_type,
                                                        round_actions, toxicity, is_page, daily_activity_level)
                                 VALUES (:username, :email, :password, :user_type, :leaning, :age,
                                         :language, :owner, :joined_on, :frecsys_type,
                                         :round_actions, :toxicity, :is_page, :daily_activity_level)
-                                """
-                    )
+                                """)
 
                     dummy_conn.execute(
                         stmt,
@@ -1313,30 +1746,80 @@ def create_experiment():
     else:
         raise NotImplementedError(f"Unsupported platform {platform_type}")
 
-    config = {
-        "platform_type": platform_type,
-        "name": exp_name,
-        "host": host,
-        "port": port,
-        "debug": "False",
-        "reset_db": "False",
-        "modules": ["news", "voting", "image"],
-        "perspective_api": (
-            perspective_api if perspective_api and len(perspective_api) > 0 else None
-        ),
-        "sentiment_annotation": sentiment_annotation,
-        "emotion_annotation": emotion_annotation,
-        "opinions_enabled": opinions_enabled,
-        "database_uri": db_uri,
-        "topics": [t.strip() for t in topics if t.strip()],
-    }
+    # Generate data_path
+    data_path = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}"
 
-    with open(
-        f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
-        "w",
-    ) as f:
-        json.dump(config, f, indent=4)
+    # Generate config based on simulator type
+    if simulator_type == "HPC":
+        # For HPC, extract PostgreSQL connection details if using postgresql
+        db_config_dict = None
+        if db_type == "postgresql":
+            from urllib.parse import urlparse
 
+            parsed_uri = urlparse(current_app.config["SQLALCHEMY_DATABASE_URI"])
+            db_config_dict = {
+                "host": parsed_uri.hostname or "localhost",
+                "port": parsed_uri.port or 5432,
+                "database": f"experiments_{uid}".replace("-", "_"),
+                "username": parsed_uri.username or "postgres",
+                "password": parsed_uri.password or "password",
+            }
+
+        config = generate_hpc_config(
+            exp_name=exp_name,
+            platform_type=platform_type,
+            db_type=db_type,
+            db_uri=db_uri,
+            redis_enabled=redis_enabled,
+            redis_host=redis_host,
+            redis_port=redis_port,
+            redis_password=redis_password,
+            redis_sliding_window_days=redis_sliding_window_days,
+            perspective_api=(
+                perspective_api
+                if perspective_api and len(perspective_api) > 0
+                else None
+            ),
+            sentiment_annotation=sentiment_annotation,
+            emotion_annotation=emotion_annotation,
+            topics=topics,
+            data_path=data_path,
+            db_config_dict=db_config_dict,
+            is_remote=is_remote,
+        )
+    else:
+        # Standard simulator
+        config = generate_standard_config(
+            platform_type=platform_type,
+            exp_name=exp_name,
+            host=host,
+            port=port,
+            perspective_api=(
+                perspective_api
+                if perspective_api and len(perspective_api) > 0
+                else None
+            ),
+            sentiment_annotation=sentiment_annotation,
+            emotion_annotation=emotion_annotation,
+            opinions_enabled=opinions_enabled,
+            db_uri=db_uri,
+            topics=topics,
+            data_path=data_path,
+            is_remote=is_remote,
+        )
+
+    if simulator_type == "HPC":
+        with open(
+            f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}server_config.json",
+            "w",
+        ) as f:
+            json.dump(config, f, indent=4)
+    else:
+        with open(
+            f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{uid}{os.sep}config_server.json",
+            "w",
+        ) as f:
+            json.dump(config, f, indent=4)
     # add the experiment to the database
 
     annotations = ""
@@ -1366,6 +1849,9 @@ def create_experiment():
         server=host,
         annotations=annotations,
         llm_agents_enabled=llm_agents_enabled,
+        simulator_type=simulator_type,
+        is_remote=is_remote,
+        exp_group=exp_group,
     )
 
     db.session.add(exp)
@@ -1481,14 +1967,12 @@ def delete_simulation(exp_id):
                 ) as conn:
                     # Terminate existing connections to the database
                     conn.execute(
-                        text(
-                            f"""
+                        text(f"""
                             SELECT pg_terminate_backend(pg_stat_activity.pid)
                             FROM pg_stat_activity
                             WHERE pg_stat_activity.datname = :dbname
                             AND pid <> pg_backend_pid()
-                            """
-                        ),
+                            """),
                         {"dbname": exp.db_name},
                     )
                     # Drop the database
@@ -1703,11 +2187,138 @@ def experiments_data():
                 "annotations": exp.annotations if exp.annotations else "",
                 "progress": exp_progress.get(exp.idexp, 0),
                 "has_infinite_client": exp_has_infinite.get(exp.idexp, False),
+                "exp_group": exp.exp_group if exp.exp_group else "No group",
+                "simulator_type": getattr(exp, "simulator_type", "Standard"),
+                "is_remote": getattr(exp, "is_remote", 0),
             }
             for exp in res
         ],
         "total": total,
     }
+
+
+@experiments.route("/admin/experiment_clients/<int:exp_id>")
+@login_required
+def experiment_clients(exp_id):
+    """Get client information for an experiment including progress data.
+
+    Returns:
+        JSON with client details and progress information
+    """
+    try:
+        # Get experiment
+        experiment = Exps.query.filter_by(idexp=exp_id).first()
+        if not experiment:
+            return jsonify({"error": "Experiment not found"}), 404
+
+        # Check user permissions
+        user = Admin_users.query.filter_by(username=current_user.username).first()
+        if user.role == "researcher" and experiment.owner != user.username:
+            return jsonify({"error": "Access denied"}), 403
+
+        # Import log metrics function and path utilities
+        from y_web.utils.log_metrics import update_client_log_metrics
+        from y_web.utils.path_utils import get_writable_path
+
+        BASE_DIR = get_writable_path()
+
+        # Get experiment folder path
+        uid = get_experiment_uid_from_db_name(experiment.db_name)
+        if uid is None:
+            return jsonify({"error": "Invalid experiment path format"}), 400
+
+        exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+
+        # Get clients for this experiment
+        clients = Client.query.filter_by(id_exp=exp_id).all()
+
+        client_data = []
+        for client in clients:
+            # Update client log metrics before reading execution data
+            # This ensures we have the latest progress information
+            client_log_file = os.path.join(exp_folder, f"{client.name}_client.log")
+            if os.path.exists(client_log_file):
+                try:
+                    # Pass is_hpc flag for HPC experiments to use correct log format
+                    is_hpc = experiment.simulator_type == "HPC"
+                    current_app.logger.info(
+                        f"Updating metrics for client {client.id} ({client.name}), "
+                        f"is_hpc={is_hpc}, log_file={client_log_file}"
+                    )
+                    update_client_log_metrics(
+                        exp_id, client.id, client_log_file, is_hpc=is_hpc
+                    )
+                except Exception as e:
+                    current_app.logger.error(
+                        f"Error updating client {client.id} log metrics: {e}",
+                        exc_info=True,
+                    )
+            else:
+                current_app.logger.warning(
+                    f"Log file not found for client {client.id} ({client.name}): {client_log_file}"
+                )
+
+            # Get client execution data (now updated with latest info)
+            client_exec = Client_Execution.query.filter_by(client_id=client.id).first()
+
+            if client_exec:
+                current_app.logger.info(
+                    f"Client_Execution for client {client.id}: elapsed_time={client_exec.elapsed_time}, "
+                    f"expected={client_exec.expected_duration_rounds}, "
+                    f"last_day={client_exec.last_active_day}, last_hour={client_exec.last_active_hour}"
+                )
+            else:
+                current_app.logger.warning(
+                    f"No Client_Execution record found for client {client.id} ({client.name})"
+                )
+
+            client_info = {
+                "id": client.id,
+                "name": client.name,
+                "status": client.status,
+                "days": client.days,
+                "progress": 0,
+                "infinite": client.days == -1,
+            }
+
+            if client_exec:
+                # Calculate progress for finite clients
+                if (
+                    client_exec.expected_duration_rounds
+                    and client_exec.expected_duration_rounds > 0
+                ):
+                    progress = min(
+                        100,
+                        max(
+                            0,
+                            int(
+                                client_exec.elapsed_time
+                                / client_exec.expected_duration_rounds
+                                * 100
+                            ),
+                        ),
+                    )
+                    client_info["progress"] = progress
+                    client_info["elapsed_time"] = client_exec.elapsed_time
+                    client_info["expected_duration_rounds"] = (
+                        client_exec.expected_duration_rounds
+                    )
+                elif client_exec.expected_duration_rounds == -1:
+                    # Infinite client
+                    client_info["infinite"] = True
+                    client_info["elapsed_time"] = client_exec.elapsed_time
+                    client_info["elapsed_days"] = client_exec.elapsed_time // 24
+                    client_info["elapsed_hours"] = client_exec.elapsed_time % 24
+
+            client_data.append(client_info)
+
+        return jsonify({"clients": client_data})
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Error fetching experiment clients: {e}", exc_info=True
+        )
+        return jsonify({"error": str(e)}), 500
 
 
 @experiments.route("/admin/experiment_details/<int:uid>")
@@ -1775,6 +2386,170 @@ def experiment_details(uid):
         notebooks=current_app.config["ENABLE_NOTEBOOK"],
         telemetry_enabled=telemetry_enabled,
     )
+
+
+@experiments.route("/admin/test_remote_server/<int:exp_id>", methods=["POST"])
+@login_required
+def test_remote_server(exp_id):
+    """Test connection to remote experiment server."""
+    check_privileges(current_user.username)
+
+    try:
+        data = request.get_json()
+        host = data.get("host", "").strip()
+        port = data.get("port")
+
+        if not host or not port:
+            return jsonify({"success": False, "message": "Host and port are required"})
+
+        # Try to connect to the server
+        import socket
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(5)  # 5 second timeout
+
+        try:
+            result = sock.connect_ex((host, int(port)))
+            sock.close()
+
+            if result == 0:
+                return jsonify(
+                    {
+                        "success": True,
+                        "message": f"Successfully connected to {host}:{port}",
+                    }
+                )
+            else:
+                return jsonify(
+                    {
+                        "success": False,
+                        "message": f"Cannot connect to {host}:{port} - Connection refused",
+                    }
+                )
+        except socket.gaierror:
+            return jsonify({"success": False, "message": f"Invalid hostname: {host}"})
+        except socket.timeout:
+            return jsonify(
+                {"success": False, "message": f"Connection timeout to {host}:{port}"}
+            )
+        except Exception as e:
+            return jsonify({"success": False, "message": f"Connection error: {str(e)}"})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Error: {str(e)}"})
+
+
+@experiments.route("/admin/update_remote_server/<int:exp_id>", methods=["POST"])
+@login_required
+def update_remote_server(exp_id):
+    """Update remote experiment server host and port."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    try:
+        data = request.get_json()
+        host = data.get("host", "").strip()
+        port = data.get("port")
+
+        if not host:
+            return jsonify({"success": False, "message": "Host address is required"})
+
+        # Validate hostname/IP format
+        if not re.match(r"^[a-zA-Z0-9\.\-\:]+$", host):
+            return jsonify({"success": False, "message": "Invalid host format"})
+
+        # Validate port
+        try:
+            port = int(port)
+            if not (1 <= port <= 65535):
+                return jsonify(
+                    {"success": False, "message": "Port must be between 1 and 65535"}
+                )
+        except (TypeError, ValueError):
+            return jsonify({"success": False, "message": "Invalid port number"})
+
+        # Get experiment
+        exp = Exps.query.filter_by(idexp=exp_id).first()
+        if not exp:
+            return jsonify({"success": False, "message": "Experiment not found"})
+
+        if exp.is_remote != 1:
+            return jsonify(
+                {"success": False, "message": "This is not a remote experiment"}
+            )
+
+        # Update database
+        db.session.query(Exps).filter_by(idexp=exp_id).update(
+            {Exps.server: host, Exps.port: port}
+        )
+        db.session.commit()
+
+        # Update config files
+        BASE_DIR = get_writable_path()
+        db_name_parts = exp.db_name.split(os.sep)
+        if len(db_name_parts) >= 2:
+            experiment_folder_name = db_name_parts[1]
+            experiment_folder = f"{BASE_DIR}{os.sep}y_web{os.sep}experiments{os.sep}{experiment_folder_name}"
+
+            # Update config_server.json (Standard) or server_config.json (HPC)
+            if exp.simulator_type == "HPC":
+                config_file = os.path.join(experiment_folder, "server_config.json")
+            else:
+                config_file = os.path.join(experiment_folder, "config_server.json")
+
+            if os.path.exists(config_file):
+                with open(config_file, "r") as f:
+                    config = json.load(f)
+
+                config["host"] = host
+                config["port"] = port
+
+                with open(config_file, "w") as f:
+                    json.dump(config, f, indent=4)
+
+            # Update all client configuration files
+            clients = Client.query.filter_by(id_exp=exp_id).all()
+            for client in clients:
+                if exp.simulator_type == "HPC":
+                    # HPC client config format: "server": {"address": null, "port": null}
+                    client_config_file = os.path.join(
+                        experiment_folder, f"{client.name}_config.json"
+                    )
+                    if os.path.exists(client_config_file):
+                        with open(client_config_file, "r") as f:
+                            client_config = json.load(f)
+
+                        if "server" not in client_config:
+                            client_config["server"] = {}
+                        client_config["server"]["address"] = host
+                        client_config["server"]["port"] = port
+
+                        with open(client_config_file, "w") as f:
+                            json.dump(client_config, f, indent=4)
+                else:
+                    # Standard client config format: "servers": {"api": "http://{host}:{port}/"}
+                    client_config_file = os.path.join(
+                        experiment_folder, f"{client.name}_config.json"
+                    )
+                    if os.path.exists(client_config_file):
+                        with open(client_config_file, "r") as f:
+                            client_config = json.load(f)
+
+                        if "servers" in client_config:
+                            client_config["servers"]["api"] = f"http://{host}:{port}/"
+
+                        with open(client_config_file, "w") as f:
+                            json.dump(client_config, f, indent=4)
+
+        return jsonify(
+            {"success": True, "message": "Server settings updated successfully"}
+        )
+
+    except Exception as e:
+        return jsonify(
+            {"success": False, "message": f"Error updating server: {str(e)}"}
+        )
 
 
 @experiments.route("/admin/submit_experiment_logs/<int:exp_id>", methods=["POST"])
@@ -1860,6 +2635,9 @@ def experiment_logs(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /logs subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "logs")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -1870,7 +2648,9 @@ def experiment_logs(exp_id):
 
         # Update metrics incrementally from log file
         try:
-            update_server_log_metrics(exp_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_server_log_metrics(exp_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             # Log the error but continue with existing data
             current_app.logger.error(
@@ -1962,6 +2742,9 @@ def experiment_trends(exp_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /logs subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "logs")
         log_file = os.path.join(exp_folder, "_server.log")
 
         # Check if any log files exist (main or rotated)
@@ -1978,7 +2761,9 @@ def experiment_trends(exp_id):
 
         # Update server metrics incrementally
         try:
-            update_server_log_metrics(exp_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_server_log_metrics(exp_id, log_file, is_hpc=is_hpc)
         except Exception as e:
             current_app.logger.error(
                 f"Error updating server log metrics: {e}", exc_info=True
@@ -2037,20 +2822,45 @@ def experiment_trends(exp_id):
                 Client_Execution.client_id.in_(client_ids)
             ).all()
             if client_executions:
-                max_expected_rounds = max(
-                    ce.expected_duration_rounds for ce in client_executions
-                )
+                # Filter out infinite clients (-1) and get max from finite ones
+                finite_expected = [
+                    ce.expected_duration_rounds
+                    for ce in client_executions
+                    if ce.expected_duration_rounds > 0
+                ]
+                max_expected_rounds = max(finite_expected) if finite_expected else 0
 
                 # Calculate remaining rounds for each client
                 for ce in client_executions:
-                    current_round = ce.last_active_day * 24 + ce.last_active_hour
-                    remaining = ce.expected_duration_rounds - current_round
+                    # Handle None values for last_active_day and last_active_hour
+                    last_day = (
+                        ce.last_active_day if ce.last_active_day is not None else -1
+                    )
+                    last_hour = (
+                        ce.last_active_hour if ce.last_active_hour is not None else -1
+                    )
+
+                    # Calculate current round
+                    # Note: days and hours are 0-indexed, but rounds are 1-indexed
+                    # (day 0, hour 0 = round 1), so we add 1
+                    if last_day >= 0 and last_hour >= 0:
+                        current_round = last_day * 24 + last_hour + 1
+                    else:
+                        current_round = 0
+
+                    # Calculate remaining rounds (handle infinite clients)
+                    if ce.expected_duration_rounds > 0:
+                        remaining = ce.expected_duration_rounds - current_round
+                    else:
+                        remaining = -1  # Infinite client
+
                     client_progress[ce.client_id] = {
                         "expected_rounds": ce.expected_duration_rounds,
                         "current_round": current_round,
-                        "remaining_rounds": max(0, remaining),
+                        "remaining_rounds": remaining if remaining >= 0 else -1,
                     }
-                    max_remaining_rounds = max(max_remaining_rounds, remaining)
+                    if remaining > 0:  # Only consider finite positive remaining
+                        max_remaining_rounds = max(max_remaining_rounds, remaining)
 
         # Convert rounds to days
         total_days = max_expected_rounds / 24 if max_expected_rounds > 0 else 0
@@ -2068,7 +2878,11 @@ def experiment_trends(exp_id):
             # Update client metrics if log file exists
             if os.path.exists(client_log_file):
                 try:
-                    update_client_log_metrics(exp_id, client.id, client_log_file)
+                    # Pass is_hpc flag for HPC experiments to use correct log format
+                    is_hpc = experiment.simulator_type == "HPC"
+                    update_client_log_metrics(
+                        exp_id, client.id, client_log_file, is_hpc=is_hpc
+                    )
                 except Exception as e:
                     current_app.logger.error(
                         f"Error updating client {client.id} log metrics: {e}",
@@ -2099,21 +2913,38 @@ def experiment_trends(exp_id):
                     client_hourly[key] += metric.total_execution_time
                 client_hourly_compute[client.name] = dict(client_hourly)
 
-        return jsonify(
-            {
-                "daily_compute": dict(daily_durations),
-                "daily_simulation": daily_simulation,
-                "hourly_compute": dict(hourly_durations),
-                "hourly_simulation": hourly_simulation,
-                "total_expected_days": total_days,
-                "total_expected_rounds": max_expected_rounds,
-                "max_remaining_rounds": max(0, max_remaining_rounds),
-                "max_remaining_days": max_remaining_days,
-                "client_daily_compute": client_daily_compute,
-                "client_hourly_compute": client_hourly_compute,
-                "client_progress": client_progress,
+        result_data = {
+            "daily_compute": dict(daily_durations),
+            "daily_simulation": daily_simulation,
+            "hourly_compute": dict(hourly_durations),
+            "hourly_simulation": hourly_simulation,
+            "total_expected_days": total_days,
+            "total_expected_rounds": max_expected_rounds,
+            "max_remaining_rounds": max(0, max_remaining_rounds),
+            "max_remaining_days": max_remaining_days,
+            "client_daily_compute": client_daily_compute,
+            "client_hourly_compute": client_hourly_compute,
+            "client_progress": client_progress,
+        }
+
+        # Log data for debugging HPC plots
+        if experiment.simulator_type == "HPC":
+            result_data["debug_info"] = {
+                "daily_compute_count": len(result_data["daily_compute"]),
+                "daily_compute_keys": list(result_data["daily_compute"].keys()),
+                "daily_compute_sample": {
+                    k: result_data["daily_compute"][k]
+                    for k in list(result_data["daily_compute"].keys())[:3]
+                },
+                "hourly_compute_count": len(result_data["hourly_compute"]),
+                "hourly_compute_keys": list(result_data["hourly_compute"].keys())[:5],
+                "daily_simulation_count": len(result_data["daily_simulation"]),
+                "hourly_simulation_count": len(result_data["hourly_simulation"]),
+                "log_file_path": log_file,
+                "log_file_exists": os.path.exists(log_file),
             }
-        )
+
+        return jsonify(result_data)
 
     except Exception as e:
         # Catch any unhandled exceptions and return JSON error
@@ -2170,6 +3001,9 @@ def client_logs(client_id):
             return jsonify({"error": "Invalid experiment path format"}), 400
 
         exp_folder = os.path.join(BASE_DIR, "y_web", "experiments", uid)
+        # For HPC experiments, logs are stored in /logs subfolder
+        if experiment.simulator_type == "HPC":
+            exp_folder = os.path.join(exp_folder, "logs")
 
         # Client log file name format: {client_name}_client.log
         log_file = os.path.join(exp_folder, f"{client.name}_client.log")
@@ -2186,7 +3020,11 @@ def client_logs(client_id):
 
         # Update client metrics incrementally
         try:
-            update_client_log_metrics(experiment.idexp, client_id, log_file)
+            # Pass is_hpc flag for HPC experiments to use correct log format
+            is_hpc = experiment.simulator_type == "HPC"
+            update_client_log_metrics(
+                experiment.idexp, client_id, log_file, is_hpc=is_hpc
+            )
         except Exception as e:
             current_app.logger.error(
                 f"Error updating client log metrics: {e}", exc_info=True
@@ -2256,8 +3094,11 @@ def start_experiment(uid):
     )
     db.session.commit()
 
-    # start the yserver
-    start_server(exp)
+    if exp.simulator_type == "HPC":
+        start_hpc_server(exp)
+    else:
+        # start the yserver
+        start_server(exp)
 
     return experiment_details(uid)
 
@@ -2296,7 +3137,10 @@ def stop_experiment(uid):
                 print(
                     f"Stopping client {client.name} (ID: {client.id}, PID: {client.pid}) for experiment {uid}"
                 )
-                terminate_client(client, pause=False)
+                if exp.simulator_type == "HPC":
+                    stop_hpc_client(client)
+                else:
+                    terminate_client(client, pause=False)
 
             # Update client status in database
             client.status = 0
@@ -2305,16 +3149,54 @@ def stop_experiment(uid):
     # Step 3: Now stop the yserver after all clients are terminated
     # Try the new subprocess-based termination first
     # If that fails or no process is tracked, fall back to port-based termination
-    terminated = terminate_server_process(uid)
+    if exp.simulator_type == "HPC":
+        terminated = stop_hpc_server(uid)
+    else:
+        terminated = terminate_server_process(uid)
     if not terminated:
         # Fallback to port-based termination for backward compatibility
         terminate_process_on_port(exp.port)
 
-    # Step 4: Update the experiment status in database
+    # Step 4: Check if all clients have completed to determine final status
+    all_clients_completed, _ = _get_clients_to_start(exp)
+    final_status = "completed" if all_clients_completed else "stopped"
+
+    # Update the experiment status in database
     db.session.query(Exps).filter_by(idexp=uid).update(
-        {Exps.running: 0, Exps.exp_status: "stopped"}
+        {Exps.running: 0, Exps.exp_status: final_status}
     )
     db.session.commit()
+
+    # Step 5: Handle scheduled experiments - remove from running group to unblock schedule
+    # Check if there's an active schedule and if this experiment is part of it
+    schedule_status = ExperimentScheduleStatus.query.first()
+    if (
+        schedule_status
+        and schedule_status.is_running
+        and schedule_status.current_group_id
+    ):
+        # Check if this experiment is in the current running group
+        schedule_item = ExperimentScheduleItem.query.filter_by(
+            experiment_id=uid, group_id=schedule_status.current_group_id
+        ).first()
+
+        if schedule_item:
+            # This experiment is part of the running schedule group
+            # Remove it from the schedule to unblock subsequent groups
+            group = ExperimentScheduleGroup.query.get(schedule_status.current_group_id)
+            group_name = group.name if group else "Unknown"
+
+            # Log the removal
+            log_msg = f"Experiment '{exp.exp_name}' was manually stopped and removed from schedule group '{group_name}'"
+            db.session.add(ExperimentScheduleLog(message=log_msg, log_type="warning"))
+
+            # Remove the schedule item
+            db.session.delete(schedule_item)
+            db.session.commit()
+
+            print(
+                f"Removed stopped experiment {exp.exp_name} (ID: {uid}) from schedule group {group_name}"
+            )
 
     return experiment_details(uid)
 
@@ -2331,6 +3213,11 @@ def prompts(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+
+    # Check if this is an HPC experiment and route to appropriate template
+    if experiment.simulator_type == "HPC":
+        return redirect(url_for("experiments.prompts_hpc", uid=uid))
+
     # get the prompts file for the experiment
     prompts = os.path.join(
         BASE_DIR,
@@ -2341,6 +3228,46 @@ def prompts(uid):
     prompts = json.load(open(prompts))
 
     return render_template("admin/prompts.html", experiment=experiment, prompts=prompts)
+
+
+@experiments.route("/admin/prompts_hpc/<int:uid>")
+@login_required
+def prompts_hpc(uid):
+    """Handle HPC prompts operation."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # get experiment details
+    experiment = Exps.query.filter_by(idexp=uid).first()
+
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.experiments"))
+
+    # Ensure this is an HPC experiment
+    if experiment.simulator_type != "HPC":
+        flash(
+            "This page is only for HPC experiments. Redirecting to standard prompts page.",
+            "warning",
+        )
+        return redirect(url_for("experiments.prompts", uid=uid))
+
+    # get the prompts file for the experiment
+    prompts_path = os.path.join(
+        BASE_DIR,
+        f"y_web{os.sep}experiments{os.sep}{experiment.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+    )
+
+    # read the prompts file
+    with open(prompts_path) as f:
+        prompts = json.load(f)
+
+    return render_template(
+        "admin/prompts_hpc.html", experiment=experiment, prompts=prompts
+    )
 
 
 @experiments.route("/admin/update_prompts/<int:uid>", methods=["POST"])
@@ -2370,6 +3297,93 @@ def update_prompts(uid):
 
     # write the updated prompts
     json.dump(prompts, open(prompts_filename, "w"), indent=4)
+
+    return redirect(request.referrer)
+
+
+@experiments.route("/admin/update_prompts_hpc/<int:uid>", methods=["POST"])
+@login_required
+def update_prompts_hpc(uid):
+    """Update HPC prompts."""
+    check_privileges(current_user.username)
+
+    from y_web.utils.path_utils import get_writable_path
+
+    BASE_DIR = get_writable_path()
+
+    # get experiment details
+    experiment = Exps.query.filter_by(idexp=uid).first()
+
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.experiments"))
+
+    # Ensure this is an HPC experiment
+    if experiment.simulator_type != "HPC":
+        flash("This update is only for HPC experiments.", "error")
+        return redirect(request.referrer)
+
+    # get the prompts file for the experiment
+    prompts_filename = os.path.join(
+        BASE_DIR,
+        f"y_web{os.sep}experiments{os.sep}{experiment.db_name.split(os.sep)[1]}{os.sep}prompts.json",
+    )
+
+    # read the prompts file
+    with open(prompts_filename) as f:
+        prompts = json.load(f)
+
+    # Update prompts based on form data
+    # Handle persona_template
+    if "persona_template" in request.form:
+        prompts["persona_template"] = request.form["persona_template"]
+
+    # Handle personas (archetypes)
+    if "personas" not in prompts:
+        prompts["personas"] = {}
+    if "personas_0" in request.form:
+        prompts["personas"]["0"] = request.form["personas_0"]
+    if "personas_1" in request.form:
+        prompts["personas"]["1"] = request.form["personas_1"]
+    if "personas_2" in request.form:
+        prompts["personas"]["2"] = request.form["personas_2"]
+
+    # Handle all action prompts (system_template and user_template pairs)
+    action_types = [
+        "generate_post",
+        "decide_reaction",
+        "generate_comment",
+        "generate_read_reaction",
+        "decide_search_action",
+        "generate_news_commentary",
+        "decide_follow",
+        "decide_secondary_follow",
+        "extract_article_topics",
+        "extract_emotions",
+        "describe_image",
+        "generate_image_commentary",
+        "infer_article_opinion",
+        "evaluate_opinion",
+        "generate_share_commentary",
+    ]
+
+    for action in action_types:
+        if action not in prompts:
+            prompts[action] = {}
+
+        system_key = f"{action}_system_template"
+        user_key = f"{action}_user_template"
+
+        if system_key in request.form:
+            prompts[action]["system_template"] = request.form[system_key]
+        if user_key in request.form:
+            prompts[action]["user_template"] = request.form[user_key]
+
+    # write the updated prompts
+    with open(prompts_filename, "w") as f:
+        json.dump(prompts, f, indent=2)
+
+    flash("HPC prompts updated successfully!", "success")
 
     return redirect(request.referrer)
 
@@ -3600,6 +4614,7 @@ def copy_experiment():
     new_exp_name = request.form.get("new_exp_name")
     source_exp_id = request.form.get("source_exp_id")
     num_copies = request.form.get("num_copies", "1")
+    exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
 
     # Validate inputs
     if not new_exp_name or not source_exp_id:
@@ -3641,7 +4656,7 @@ def copy_experiment():
     created_count = 0
     for copy_name in exp_names_to_create:
         try:
-            success = _create_single_experiment_copy(source_exp, copy_name)
+            success = _create_single_experiment_copy(source_exp, copy_name, exp_group)
             if success:
                 created_count += 1
 
@@ -3676,13 +4691,14 @@ def copy_experiment():
     return redirect(url_for("experiments.settings"))
 
 
-def _create_single_experiment_copy(source_exp, new_exp_name):
+def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
     """
     Helper function to create a single experiment copy.
 
     Args:
         source_exp: Source experiment object
         new_exp_name: Name for the new experiment
+        exp_group: Group name for the experiment (optional)
 
     Returns:
         bool: True if successful, False otherwise
@@ -3723,7 +4739,11 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
     # Create new experiment folder and copy all files
     pathlib.Path(new_folder).mkdir(parents=True, exist_ok=True)
 
-    # Copy all files from source to new folder, excluding log files
+    # Detect if this is an HPC or Standard experiment BEFORE copying files
+    # This is critical: HPC experiments have different file handling requirements
+    is_hpc = os.path.exists(os.path.join(source_folder, "server_config.json"))
+
+    # Copy all files from source to new folder, excluding log files and HPC-specific files
     import re
 
     log_pattern = re.compile(r"\.log(\.\d+)?$")  # Matches .log, .log.1, .log.2, etc.
@@ -3733,13 +4753,30 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
         if log_pattern.search(item):
             continue
 
+        # For HPC experiments, skip additional files:
+        # - database files (HPC generates its own on server startup)
+        # - ray_config.temp (temporary Ray configuration file)
+        if is_hpc:
+            if (
+                item == "database_server.db"
+                or item.startswith("database_")
+                and item.endswith(".db")
+            ):
+                continue
+            if item == "ray_config.temp":
+                continue
+
         source_item = os.path.join(source_folder, item)
         dest_item = os.path.join(new_folder, item)
 
         if os.path.isfile(source_item):
             shutil.copy2(source_item, dest_item)
         elif os.path.isdir(source_item):
-            shutil.copytree(source_item, dest_item)
+            # Special handling for logs directory: create empty directory without copying contents
+            if item == "logs":
+                os.makedirs(dest_item, exist_ok=True)
+            else:
+                shutil.copytree(source_item, dest_item)
 
     # Get suggested port for new experiment
     suggested_port = get_suggested_port()
@@ -3756,21 +4793,25 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
     new_db_uri = ""
 
     if db_type == "sqlite":
-        # Create a fresh SQLite database with clean schema (no data from source)
+        # Create database path
         new_db_path = os.path.join(new_folder, "database_server.db")
 
-        # Copy the clean database schema instead of the source database
-        clean_db_path = get_resource_path(
-            os.path.join("data_schema", "database_clean_server.db")
-        )
-        if os.path.exists(clean_db_path):
-            shutil.copy2(clean_db_path, new_db_path)
-        else:
-            # Create an empty database file
-            import sqlite3
+        # Only Standard experiments get a pre-created database
+        # HPC experiments: database is created automatically by the server on first startup
+        if not is_hpc:
+            # Copy the clean database schema for Standard experiments
+            clean_db_path = get_resource_path(
+                os.path.join("data_schema", "database_clean_server.db")
+            )
+            if os.path.exists(clean_db_path):
+                shutil.copy2(clean_db_path, new_db_path)
+            else:
+                # If clean DB doesn't exist, create an empty database file
+                import sqlite3
 
-            conn = sqlite3.connect(new_db_path)
-            conn.close()
+                conn = sqlite3.connect(new_db_path)
+                conn.close()
+        # For HPC: Do NOT create any database file - the HPC server will create it on startup
 
         new_db_name = f"experiments{os.sep}{new_uid}{os.sep}database_server.db"
 
@@ -3831,16 +4872,14 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
                 # Insert initial admin user
                 hashed_pw = generate_password_hash("admin", method="pbkdf2:sha256")
 
-                stmt = text(
-                    """
+                stmt = text("""
                     INSERT INTO user_mgmt (username, email, password, user_type, leaning, age,
                                            language, owner, joined_on, frecsys_type,
                                            round_actions, toxicity, is_page, daily_activity_level)
                     VALUES (:username, :email, :password, :user_type, :leaning, :age,
                             :language, :owner, :joined_on, :frecsys_type,
                             :round_actions, :toxicity, :is_page, :daily_activity_level)
-                    """
-                )
+                    """)
 
                 conn.execute(
                     stmt,
@@ -3866,10 +4905,16 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
 
         admin_engine.dispose()
 
-    # Update config_server.json with new name, port, and database_uri
-    config_path = os.path.join(new_folder, "config_server.json")
+    # Update configuration file with new name, port, and database_uri
+    # is_hpc was already detected earlier (before database copying)
+    # Just need to determine the correct config path
+    if is_hpc:
+        config_path = os.path.join(new_folder, "server_config.json")
+    else:
+        config_path = os.path.join(new_folder, "config_server.json")
+
     if not os.path.exists(config_path):
-        # Cleanup and return
+        # Config file doesn't exist - cleanup and return
         if os.path.exists(new_folder):
             shutil.rmtree(new_folder, ignore_errors=True)
         return False
@@ -3877,12 +4922,22 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
     with open(config_path, "r") as f:
         config = json.load(f)
 
-    # Update all necessary fields
-    config["name"] = new_exp_name
-    config["port"] = suggested_port
-    config["database_uri"] = new_db_uri
-    # Add data_path so YServer knows where to write logs (e.g., _server.log)
-    config["data_path"] = new_folder + os.sep
+    # Update configuration fields based on experiment type
+    if is_hpc:
+        # HPC experiment configuration structure
+        config["experiment_name"] = new_exp_name
+        if "server" in config:
+            config["server"]["port"] = suggested_port
+        else:
+            config["server"] = {"port": suggested_port}
+        config["database_uri"] = new_db_uri
+    else:
+        # Standard experiment configuration structure
+        config["name"] = new_exp_name
+        config["port"] = suggested_port
+        config["database_uri"] = new_db_uri
+        # Add data_path so YServer knows where to write logs (e.g., _server.log)
+        config["data_path"] = new_folder + os.sep
 
     with open(config_path, "w") as f:
         json.dump(config, f, indent=4)
@@ -3891,37 +4946,61 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
     with open(config_path, "r") as f:
         verify_config = json.load(f)
 
-    if (
-        verify_config.get("port") != suggested_port
-        or verify_config.get("database_uri") != new_db_uri
-    ):
-        # Cleanup and return
-        if os.path.exists(new_folder):
-            shutil.rmtree(new_folder, ignore_errors=True)
-        return False
+    # Verify based on experiment type
+    if is_hpc:
+        if (
+            verify_config.get("experiment_name") != new_exp_name
+            or verify_config.get("server", {}).get("port") != suggested_port
+            or verify_config.get("database_uri") != new_db_uri
+        ):
+            # Cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
+    else:
+        if (
+            verify_config.get("port") != suggested_port
+            or verify_config.get("database_uri") != new_db_uri
+        ):
+            # Cleanup and return
+            if os.path.exists(new_folder):
+                shutil.rmtree(new_folder, ignore_errors=True)
+            return False
 
     # Update all client configuration files with new port
-    # Client configs have the format: client_*.json
+    # Standard: client_*.json, HPC: {client_name}_config.json
+    # The is_hpc flag determines which config structure to update, not the filename pattern
+
     for item in os.listdir(new_folder):
-        if item.startswith("client") and item.endswith(".json"):
+        # Match Standard (client_*.json) OR HPC (*_config.json excluding server_config.json)
+        is_standard_client = item.startswith("client") and item.endswith(".json")
+        is_hpc_client = item.endswith("_config.json") and not item.startswith("server")
+
+        if is_standard_client or is_hpc_client:
             client_config_path = os.path.join(new_folder, item)
             try:
                 with open(client_config_path, "r") as f:
                     client_config = json.load(f)
 
-                # Update the API endpoint in servers section
-                if "servers" in client_config and "api" in client_config["servers"]:
-                    # Update the port in the API URL
-                    old_api = client_config["servers"]["api"]
-                    # Replace port in URL - handles both with and without trailing slash
-                    # Pattern matches :port/ or :port at end of string
-                    import re
+                # Update port based on experiment type
+                if is_hpc:
+                    # HPC client config format: "server": {"address": null, "port": null}
+                    if "server" in client_config:
+                        client_config["server"]["port"] = suggested_port
+                else:
+                    # Standard client config: "servers": {"api": "http://..."}
+                    if "servers" in client_config and "api" in client_config["servers"]:
+                        # Update the port in the API URL
+                        old_api = client_config["servers"]["api"]
+                        # Replace port in URL - handles both with and without trailing slash
+                        # Pattern matches :port/ or :port at end of string
+                        new_api = re.sub(
+                            r":(\d+)(/|$)", f":{suggested_port}\\2", old_api
+                        )
+                        client_config["servers"]["api"] = new_api
 
-                    new_api = re.sub(r":(\d+)(/|$)", f":{suggested_port}\\2", old_api)
-                    client_config["servers"]["api"] = new_api
-
-                    with open(client_config_path, "w") as f:
-                        json.dump(client_config, f, indent=4)
+                with open(client_config_path, "w") as f:
+                    json.dump(client_config, f, indent=4)
             except Exception as e:
                 # Continue anyway - this is not critical enough to fail the entire copy
                 current_app.logger.warning(
@@ -3941,6 +5020,8 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
         server=source_exp.server,
         annotations=source_exp.annotations,
         llm_agents_enabled=source_exp.llm_agents_enabled,
+        simulator_type=source_exp.simulator_type,
+        exp_group=exp_group,
     )
     db.session.add(new_exp)
     db.session.commit()
@@ -4037,44 +5118,44 @@ def _create_single_experiment_copy(source_exp, new_exp_name):
     return True
 
 
-@experiments.route("/admin/log_sync_settings", methods=["GET"])
+@experiments.route("/admin/hpc_monitor_settings", methods=["GET"])
 @login_required
-def get_log_sync_settings():
+def get_hpc_monitor_settings():
     """
-    Get current log sync settings.
+    Get current HPC monitor settings.
 
     Returns:
-        JSON with log sync settings
+        JSON with HPC monitor settings
     """
     check_privileges(current_user.username)
 
     # Get or create default settings
-    settings = LogSyncSettings.query.first()
+    settings = HpcMonitorSettings.query.first()
     if not settings:
-        settings = LogSyncSettings(enabled=True, sync_interval_minutes=10)
+        settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
         db.session.add(settings)
         db.session.commit()
 
     return jsonify(
         {
             "enabled": settings.enabled,
-            "sync_interval_minutes": settings.sync_interval_minutes,
-            "last_sync": (
-                settings.last_sync.isoformat() + "Z" if settings.last_sync else None
+            "check_interval_seconds": settings.check_interval_seconds,
+            "last_check": (
+                settings.last_check.isoformat() + "Z" if settings.last_check else None
             ),
         }
     )
 
 
-@experiments.route("/admin/log_sync_settings", methods=["POST"])
+@experiments.route("/admin/hpc_monitor_settings", methods=["POST"])
 @login_required
-def update_log_sync_settings():
+def update_hpc_monitor_settings():
     """
-    Update log sync settings.
+    Update HPC monitor settings.
 
     Expects JSON body with:
-    - enabled (bool): Whether automatic log sync is enabled
-    - sync_interval_minutes (int): Sync frequency in minutes (1-1440)
+    - enabled (bool): Whether HPC monitoring is enabled
+    - check_interval_seconds (int): Check frequency in seconds (1-300)
 
     Returns:
         JSON with success status
@@ -4086,34 +5167,34 @@ def update_log_sync_settings():
         return jsonify({"success": False, "message": "No data provided"}), 400
 
     # Get or create settings
-    settings = LogSyncSettings.query.first()
+    settings = HpcMonitorSettings.query.first()
     if not settings:
-        settings = LogSyncSettings(enabled=True, sync_interval_minutes=10)
+        settings = HpcMonitorSettings(enabled=True, check_interval_seconds=5)
         db.session.add(settings)
 
     # Update enabled if provided
     if "enabled" in data:
         settings.enabled = bool(data["enabled"])
 
-    # Update sync interval if provided
-    if "sync_interval_minutes" in data:
+    # Update check interval if provided
+    if "check_interval_seconds" in data:
         try:
-            interval = int(data["sync_interval_minutes"])
-            # Validate range: 1 minute to 24 hours
-            if interval < 1 or interval > 1440:
+            interval = int(data["check_interval_seconds"])
+            # Validate range: 1 second to 5 minutes (300 seconds)
+            if interval < 1 or interval > 300:
                 return (
                     jsonify(
                         {
                             "success": False,
-                            "message": "Sync interval must be between 1 and 1440 minutes",
+                            "message": "Check interval must be between 1 and 300 seconds",
                         }
                     ),
                     400,
                 )
-            settings.sync_interval_minutes = interval
+            settings.check_interval_seconds = interval
         except (ValueError, TypeError):
             return (
-                jsonify({"success": False, "message": "Invalid sync interval value"}),
+                jsonify({"success": False, "message": "Invalid check interval value"}),
                 400,
             )
 
@@ -4123,47 +5204,9 @@ def update_log_sync_settings():
         {
             "success": True,
             "enabled": settings.enabled,
-            "sync_interval_minutes": settings.sync_interval_minutes,
+            "check_interval_seconds": settings.check_interval_seconds,
         }
     )
-
-
-@experiments.route("/admin/log_sync_trigger", methods=["POST"])
-@login_required
-def trigger_log_sync():
-    """
-    Manually trigger a log sync for all running experiments.
-
-    Returns:
-        JSON with success status
-    """
-    check_privileges(current_user.username)
-
-    try:
-        from y_web.utils.log_sync_scheduler import get_scheduler
-
-        scheduler = get_scheduler()
-        if scheduler:
-            success = scheduler.trigger_sync()
-            if success:
-                return jsonify(
-                    {"success": True, "message": "Log sync triggered successfully"}
-                )
-            else:
-                return (
-                    jsonify({"success": False, "message": "Log sync failed"}),
-                    500,
-                )
-        else:
-            return (
-                jsonify(
-                    {"success": False, "message": "Log sync scheduler not running"}
-                ),
-                503,
-            )
-    except Exception as e:
-        current_app.logger.error(f"Error triggering log sync: {e}", exc_info=True)
-        return jsonify({"success": False, "message": str(e)}), 500
 
 
 # =====================================================
@@ -4339,6 +5382,74 @@ def add_experiment_to_group(group_id):
             jsonify({"success": False, "message": "Experiment already in group"}),
             400,
         )
+
+    # HPC experiment validation: Allow up to 4 HPC experiments per group
+    # Check if this is an HPC experiment or if the group already has experiments
+    is_hpc = exp.simulator_type == "HPC"
+
+    if is_hpc:
+        # Check how many HPC experiments are already in this group
+        hpc_count = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type == "HPC",
+            )
+            .count()
+        )
+        if hpc_count >= MAX_HPC_PER_GROUP:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": f"Maximum {MAX_HPC_PER_GROUP} HPC experiments allowed per group. This group already has {hpc_count} HPC experiments.",
+                    }
+                ),
+                400,
+            )
+
+        # Check if there are any non-HPC (Standard) experiments in this group
+        standard_count = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type != "HPC",
+            )
+            .count()
+        )
+        if standard_count > 0:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot mix HPC experiments with Standard experiments in the same group.",
+                    }
+                ),
+                400,
+            )
+    else:
+        # Check if group already contains an HPC experiment (use join for efficiency)
+        hpc_in_group = (
+            db.session.query(ExperimentScheduleItem)
+            .join(Exps, ExperimentScheduleItem.experiment_id == Exps.idexp)
+            .filter(
+                ExperimentScheduleItem.group_id == group_id,
+                Exps.simulator_type == "HPC",
+            )
+            .first()
+        )
+        if hpc_in_group:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": "Cannot mix Standard experiments with HPC experiments in the same group.",
+                    }
+                ),
+                400,
+            )
 
     # Get max order index for this group
     max_order = (
@@ -4610,8 +5721,11 @@ def start_schedule():
             exp.exp_status = "active"
             db.session.commit()
 
-            # Start the server
-            start_server(exp)
+            # Start the server (use appropriate function for HPC vs Standard)
+            if exp.simulator_type == "HPC":
+                start_hpc_server(exp)
+            else:
+                start_server(exp)
             started_count += 1
 
             # Wait for server to be ready
@@ -4630,7 +5744,10 @@ def start_schedule():
                         id=client.population_id
                     ).first()
                     if population:
-                        start_client(exp, client, population, resume=True)
+                        if exp.simulator_type == "HPC":
+                            start_hpc_client(exp, client, population)
+                        else:
+                            start_client(exp, client, population, resume=True)
                         # Mark client as running
                         client.status = 1
                         db.session.commit()
@@ -4694,17 +5811,27 @@ def stop_schedule():
                 for client in clients:
                     if client.status == 1:
                         if client.pid:
-                            terminate_client(client, pause=False)
+                            if exp.simulator_type == "HPC":
+                                stop_hpc_client(client)
+                            else:
+                                terminate_client(client, pause=False)
                         client.status = 0
                         db.session.commit()
 
                 # Stop server
-                terminated = terminate_server_process(exp.idexp)
+                if exp.simulator_type == "HPC":
+                    terminated = stop_hpc_server(exp.idexp)
+                else:
+                    terminated = terminate_server_process(exp.idexp)
                 if not terminated:
                     terminate_process_on_port(exp.port)
 
+                # Check if all clients have completed to determine final status
+                all_clients_completed, _ = _get_clients_to_start(exp)
+                final_status = "completed" if all_clients_completed else "stopped"
+
                 exp.running = 0
-                exp.exp_status = "stopped"
+                exp.exp_status = final_status
                 db.session.commit()
 
     # Reset status
@@ -4727,200 +5854,225 @@ def check_schedule_progress():
     Returns:
         JSON with progress status
     """
-    import time
-
     check_privileges(current_user.username)
+    return jsonify(_do_check_schedule_progress())
 
-    status = ExperimentScheduleStatus.query.first()
-    if not status or not status.is_running:
-        return jsonify({"success": True, "is_running": False})
 
-    if not status.current_group_id:
-        return jsonify({"success": True, "is_running": False})
+def _do_check_schedule_progress():
+    """
+    Core logic for checking schedule progress and advancing to next group.
 
-    # Check if all experiments in current group are completed
-    items = ExperimentScheduleItem.query.filter_by(
-        group_id=status.current_group_id
-    ).all()
-    all_completed = True
+    Can be called from the HTTP endpoint or the background monitor.
 
-    for item in items:
-        exp = Exps.query.get(item.experiment_id)
-        if exp:
-            # Check if experiment is completed
-            if exp.exp_status != "completed":
-                all_completed = False
-                break
+    Returns:
+        dict suitable for jsonify
+    """
 
-    if not all_completed:
-        return jsonify(
-            {
+    with _schedule_check_lock:
+        status = ExperimentScheduleStatus.query.first()
+        if not status or not status.is_running:
+            return {"success": True, "is_running": False}
+
+        if not status.current_group_id:
+            return {"success": True, "is_running": False}
+
+        # Check if all experiments in current group are completed
+        items = ExperimentScheduleItem.query.filter_by(
+            group_id=status.current_group_id
+        ).all()
+        all_completed = True
+
+        for item in items:
+            exp = Exps.query.get(item.experiment_id)
+            if exp:
+                # Check if experiment is completed
+                if exp.exp_status != "completed":
+                    all_completed = False
+                    break
+
+        if not all_completed:
+            return {
                 "success": True,
                 "is_running": True,
                 "all_completed": False,
                 "current_group_id": status.current_group_id,
             }
-        )
 
-    # All completed - stop current group experiments and move to next group
-    logs = []
-    current_group = ExperimentScheduleGroup.query.get(status.current_group_id)
+        # All completed - stop current group experiments and move to next group
+        logs = []
+        current_group = ExperimentScheduleGroup.query.get(status.current_group_id)
 
-    msg = f"Group '{current_group.name}' completed!"
-    logs.append(msg)
-    db.session.add(ExperimentScheduleLog(message=msg, log_type="success"))
-
-    # Mark current group as completed (don't delete yet - will clean up at end of schedule)
-    current_group.is_completed = 1
-    db.session.commit()
-
-    for item in items:
-        exp = Exps.query.get(item.experiment_id)
-        if exp and exp.running == 1:
-            msg = f"Stopping experiment '{exp.exp_name}'..."
-            logs.append(msg)
-            db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-            # Stop clients
-            clients = Client.query.filter_by(id_exp=exp.idexp).all()
-            for client in clients:
-                if client.status == 1:
-                    if client.pid:
-                        terminate_client(client, pause=False)
-                    client.status = 0
-                    db.session.commit()
-
-            # Stop server
-            terminated = terminate_server_process(exp.idexp)
-            if not terminated:
-                terminate_process_on_port(exp.port)
-
-            exp.running = 0
-            db.session.commit()
-
-    # Get next non-completed group
-    next_group = (
-        ExperimentScheduleGroup.query.filter(
-            ExperimentScheduleGroup.order_index > current_group.order_index,
-            (ExperimentScheduleGroup.is_completed == 0)
-            | (ExperimentScheduleGroup.is_completed == None),
-        )
-        .order_by(ExperimentScheduleGroup.order_index)
-        .first()
-    )
-
-    if not next_group:
-        # Schedule complete
-        status.is_running = 0
-        status.current_group_id = None
-        db.session.commit()
-        msg = "All groups completed! Schedule finished."
+        msg = f"Group '{current_group.name}' completed!"
         logs.append(msg)
         db.session.add(ExperimentScheduleLog(message=msg, log_type="success"))
+
+        # Mark current group as completed (don't delete yet - will clean up at end of schedule)
+        current_group.is_completed = 1
         db.session.commit()
 
-        # Clean up all completed groups from the database
-        completed_groups = ExperimentScheduleGroup.query.filter_by(is_completed=1).all()
-        for group in completed_groups:
-            ExperimentScheduleItem.query.filter_by(group_id=group.id).delete()
-            db.session.delete(group)
-        db.session.commit()
+        for item in items:
+            exp = Exps.query.get(item.experiment_id)
+            if exp and exp.running == 1:
+                msg = f"Stopping experiment '{exp.exp_name}'..."
+                logs.append(msg)
+                db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
+                # Stop clients
+                clients = Client.query.filter_by(id_exp=exp.idexp).all()
+                for client in clients:
+                    if client.status == 1:
+                        if client.pid:
+                            if exp.simulator_type == "HPC":
+                                stop_hpc_client(client)
+                            else:
+                                terminate_client(client, pause=False)
+                        client.status = 0
+                        db.session.commit()
 
-        # Clear all schedule logs after successful completion
-        ExperimentScheduleLog.query.delete()
-        db.session.commit()
+                # Stop server
+                if exp.simulator_type == "HPC":
+                    terminated = stop_hpc_server(exp.idexp)
+                else:
+                    terminated = terminate_server_process(exp.idexp)
+                if not terminated:
+                    terminate_process_on_port(exp.port)
 
-        return jsonify(
-            {
+                exp.running = 0
+                db.session.commit()
+
+        # Get next non-completed group
+        next_group = (
+            ExperimentScheduleGroup.query.filter(
+                ExperimentScheduleGroup.order_index > current_group.order_index,
+                (ExperimentScheduleGroup.is_completed == 0)
+                | (ExperimentScheduleGroup.is_completed == None),
+            )
+            .order_by(ExperimentScheduleGroup.order_index)
+            .first()
+        )
+
+        if not next_group:
+            # Schedule complete
+            status.is_running = 0
+            status.current_group_id = None
+            db.session.commit()
+            msg = "All groups completed! Schedule finished."
+            logs.append(msg)
+            db.session.add(ExperimentScheduleLog(message=msg, log_type="success"))
+            db.session.commit()
+
+            # Clean up all completed groups from the database
+            completed_groups = ExperimentScheduleGroup.query.filter_by(
+                is_completed=1
+            ).all()
+            for group in completed_groups:
+                ExperimentScheduleItem.query.filter_by(group_id=group.id).delete()
+                db.session.delete(group)
+            db.session.commit()
+
+            # Clear all schedule logs after successful completion
+            ExperimentScheduleLog.query.delete()
+            db.session.commit()
+
+            return {
                 "success": True,
                 "is_running": False,
                 "all_completed": True,
                 "schedule_complete": True,
                 "logs": logs,
             }
-        )
 
-    # Start next group
-    msg = f"Starting next group: '{next_group.name}'..."
-    logs.append(msg)
-    db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-    status.current_group_id = next_group.id
-    db.session.commit()
+        # Start next group
+        msg = f"Starting next group: '{next_group.name}'..."
+        logs.append(msg)
+        db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
+        status.current_group_id = next_group.id
+        db.session.commit()
 
-    next_items = ExperimentScheduleItem.query.filter_by(group_id=next_group.id).all()
-    for item in next_items:
-        exp = Exps.query.get(item.experiment_id)
-        if exp and exp.running == 0:
-            # Check if all clients have already completed before starting the server
-            all_clients_completed, clients_to_start = _get_clients_to_start(exp)
+        next_items = ExperimentScheduleItem.query.filter_by(
+            group_id=next_group.id
+        ).all()
+        for item in next_items:
+            exp = Exps.query.get(item.experiment_id)
+            if exp and exp.running == 0:
+                # Check if all clients have already completed before starting the server
+                all_clients_completed, clients_to_start = _get_clients_to_start(exp)
 
-            # If all clients have completed, mark experiment as completed and skip
-            if all_clients_completed:
-                msg = f"Experiment '{exp.exp_name}' already completed - skipping"
-                logs.append(msg)
-                db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-                exp.exp_status = "completed"
-                db.session.commit()
-                continue
+                # If all clients have completed, mark experiment as completed and skip
+                if all_clients_completed:
+                    msg = f"Experiment '{exp.exp_name}' already completed - skipping"
+                    logs.append(msg)
+                    db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
+                    exp.exp_status = "completed"
+                    db.session.commit()
+                    continue
 
-            # If no clients to start, skip
-            if len(clients_to_start) == 0:
-                msg = f"No clients to start for '{exp.exp_name}' - skipping"
-                logs.append(msg)
-                db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
-                continue
+                # If no clients to start, skip
+                if len(clients_to_start) == 0:
+                    msg = f"No clients to start for '{exp.exp_name}' - skipping"
+                    logs.append(msg)
+                    db.session.add(ExperimentScheduleLog(message=msg, log_type="info"))
+                    continue
 
-            logs.append(f"Starting server for '{exp.exp_name}'...")
-            db.session.add(
-                ExperimentScheduleLog(
-                    message=f"Starting server for '{exp.exp_name}'...", log_type="info"
-                )
-            )
-            exp.running = 1
-            exp.exp_status = "active"
-            db.session.commit()
-            start_server(exp)
-
-            # Wait for server to be ready
-            logs.append(f"Waiting for server '{exp.exp_name}' to be ready...")
-            time.sleep(3)
-
-            # Start only clients that haven't completed
-            for client in clients_to_start:
-                if client.status == 0:
-                    logs.append(f"Starting client '{client.name}'...")
-                    db.session.add(
-                        ExperimentScheduleLog(
-                            message=f"Starting client '{client.name}'...",
-                            log_type="info",
-                        )
+                logs.append(f"Starting server for '{exp.exp_name}'...")
+                db.session.add(
+                    ExperimentScheduleLog(
+                        message=f"Starting server for '{exp.exp_name}'...",
+                        log_type="info",
                     )
-                    population = Population.query.filter_by(
-                        id=client.population_id
-                    ).first()
-                    if population:
-                        start_client(exp, client, population, resume=True)
-                        client.status = 1
-                        db.session.commit()
-
-            logs.append(f"Experiment '{exp.exp_name}' started successfully")
-            db.session.add(
-                ExperimentScheduleLog(
-                    message=f"Experiment '{exp.exp_name}' started successfully",
-                    log_type="success",
                 )
+                exp.running = 1
+                exp.exp_status = "active"
+                db.session.commit()
+
+                # Start the server (use appropriate function for HPC vs Standard)
+                if exp.simulator_type == "HPC":
+                    start_hpc_server(exp)
+                else:
+                    start_server(exp)
+
+                # Wait for server to be ready
+                logs.append(f"Waiting for server '{exp.exp_name}' to be ready...")
+                time.sleep(3)
+
+                # Start only clients that haven't completed
+                for client in clients_to_start:
+                    if client.status == 0:
+                        logs.append(f"Starting client '{client.name}'...")
+                        db.session.add(
+                            ExperimentScheduleLog(
+                                message=f"Starting client '{client.name}'...",
+                                log_type="info",
+                            )
+                        )
+                        population = Population.query.filter_by(
+                            id=client.population_id
+                        ).first()
+                        if population:
+                            if exp.simulator_type == "HPC":
+                                start_hpc_client(exp, client, population)
+                            else:
+                                start_client(exp, client, population, resume=True)
+                            client.status = 1
+                            db.session.commit()
+
+                logs.append(f"Experiment '{exp.exp_name}' started successfully")
+                db.session.add(
+                    ExperimentScheduleLog(
+                        message=f"Experiment '{exp.exp_name}' started successfully",
+                        log_type="success",
+                    )
+                )
+                db.session.commit()
+
+        logs.append(f"Group '{next_group.name}' started!")
+        db.session.add(
+            ExperimentScheduleLog(
+                message=f"Group '{next_group.name}' started!", log_type="success"
             )
-            db.session.commit()
-
-    logs.append(f"Group '{next_group.name}' started!")
-    db.session.add(
-        ExperimentScheduleLog(
-            message=f"Group '{next_group.name}' started!", log_type="success"
         )
-    )
-    db.session.commit()
+        db.session.commit()
 
-    return jsonify(
-        {
+        return {
             "success": True,
             "is_running": True,
             "all_completed": True,
@@ -4928,7 +6080,6 @@ def check_schedule_progress():
             "next_group_id": next_group.id,
             "logs": logs,
         }
-    )
 
 
 @experiments.route("/admin/schedule/available_experiments", methods=["GET"])
@@ -5074,6 +6225,7 @@ def auto_create_groups():
 
     Expects JSON body with:
     - experiments_per_group: Number of experiments per group
+    - group_filter: Optional list of experiment group names to filter by
 
     Returns:
         JSON with created groups
@@ -5099,6 +6251,9 @@ def auto_create_groups():
             400,
         )
 
+    # Get optional group filter
+    group_filter = data.get("group_filter", None)
+
     # Get current user
     user = Admin_users.query.filter_by(username=current_user.username).first()
 
@@ -5111,6 +6266,12 @@ def auto_create_groups():
     experiments_list = experiments_query.filter(
         Exps.exp_status.in_(["stopped", "scheduled"])
     ).all()
+
+    # Apply group filter if specified
+    if group_filter:
+        experiments_list = [
+            exp for exp in experiments_list if exp.exp_group in group_filter
+        ]
 
     # Filter out experiments already in groups
     scheduled_exp_ids = set(
@@ -5146,6 +6307,11 @@ def auto_create_groups():
             400,
         )
 
+    # Separate HPC and Standard experiments
+    # HPC experiments can be grouped up to 4 per group
+    hpc_exps = [exp for exp in available_exps if exp.simulator_type == "HPC"]
+    standard_exps = [exp for exp in available_exps if exp.simulator_type != "HPC"]
+
     # Get current max order index
     max_order = (
         db.session.query(db.func.max(ExperimentScheduleGroup.order_index)).scalar() or 0
@@ -5155,8 +6321,41 @@ def auto_create_groups():
     created_groups = []
     group_num = 1
 
-    for i in range(0, len(available_exps), experiments_per_group):
-        group_exps = available_exps[i : i + experiments_per_group]
+    # Calculate HPC experiments per group: min of MAX_HPC_PER_GROUP and user-specified value
+    hpc_per_group = min(MAX_HPC_PER_GROUP, experiments_per_group)
+
+    # First, create groups for HPC experiments (respecting user input, capped at 4)
+    for i in range(0, len(hpc_exps), hpc_per_group):
+        group_hpc_exps = hpc_exps[i : i + hpc_per_group]
+
+        group = ExperimentScheduleGroup(
+            name=f"Auto Group {max_order + group_num} (HPC)",
+            order_index=max_order + group_num,
+            is_completed=0,
+        )
+        db.session.add(group)
+        db.session.commit()
+
+        # Add HPC experiments to the group
+        for idx, exp in enumerate(group_hpc_exps):
+            item = ExperimentScheduleItem(
+                group_id=group.id, experiment_id=exp.idexp, order_index=idx
+            )
+            db.session.add(item)
+        db.session.commit()
+
+        created_groups.append(
+            {
+                "id": group.id,
+                "name": group.name,
+                "experiment_count": len(group_hpc_exps),
+            }
+        )
+        group_num += 1
+
+    # Then, create groups for Standard experiments
+    for i in range(0, len(standard_exps), experiments_per_group):
+        group_exps = standard_exps[i : i + experiments_per_group]
 
         # Create group
         group = ExperimentScheduleGroup(
@@ -5554,3 +6753,1260 @@ def delete_opinion_distribution(dist_id):
     db.session.delete(dist)
     db.session.commit()
     return jsonify({"success": True})
+
+
+def generate_group_trends_data(expid, filter_day, filter_hour, filter_topic_id):
+    """
+    Generate opinion group volume trends over time.
+
+    For each timestamp up to (filter_day, filter_hour), calculates the percentage
+    of agents in each opinion group.
+
+    Args:
+        expid: Experiment ID
+        filter_day: Current day filter
+        filter_hour: Current hour filter
+        filter_topic_id: Topic ID filter (None for all topics)
+
+    Returns:
+        dict: Time series data with timestamps and group percentages
+    """
+    from sqlalchemy import and_, or_
+
+    from y_web.models import Agent_Opinion, Rounds
+
+    # Get opinion groups from dashboard database for binning
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+
+    # Find all rounds up to the specified day/hour for x-axis display
+    # We'll filter to hour==0 (day boundaries) for cleaner x-axis labels
+    # But first check if ANY rounds exist
+    all_rounds_check = (
+        db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
+    )
+
+    if not all_rounds_check:
+        return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
+
+    # Get rounds at day boundaries (hour==0) for x-axis display points
+    rounds_up_to_time = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            Rounds.hour == 0,  # Only day boundaries for display
+            Rounds.day <= filter_day,  # Up to current day
+        )
+        .order_by(Rounds.day, Rounds.hour)
+        .all()
+    )
+
+    # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
+    # fall back to selecting one round per day (this is expected for HPC experiments)
+    if not rounds_up_to_time:
+        # Group by day and take the first round from each day
+        from sqlalchemy import func
+
+        subquery = (
+            db.session.query(Rounds.day, func.min(Rounds.hour).label("min_hour"))
+            .filter(Rounds.day <= filter_day)
+            .group_by(Rounds.day)
+            .subquery()
+        )
+
+        rounds_up_to_time = (
+            db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+            .join(
+                subquery,
+                and_(Rounds.day == subquery.c.day, Rounds.hour == subquery.c.min_hour),
+            )
+            .order_by(Rounds.day, Rounds.hour)
+            .all()
+        )
+        current_app.logger.info(
+            f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}"
+        )
+
+    if not rounds_up_to_time:
+        current_app.logger.error(
+            f"No rounds found at all for exp {expid} - returning empty data"
+        )
+        return {"timestamps": [], "timestamp_mapping": {}, "groups": []}
+
+    # Create list of timestamps (simulation days, since hour==0)
+    simulation_days = [float(r.day) for r in rounds_up_to_time]
+
+    # Create timestamp mapping for tooltip context
+    timestamp_mapping = {}
+    for r in rounds_up_to_time:
+        sim_day = float(r.day)
+        timestamp_mapping[sim_day] = {
+            "day": r.day,
+            "hour": r.hour,
+            "absolute": r.day * 24 + r.hour,
+        }
+
+    # Query ALL opinions up to the maximum time (not just from hour==0 rounds)
+    # We need all opinions to correctly identify the latest opinion per agent at each timestamp
+    max_day = filter_day
+    max_hour = 23  # Get all opinions up to end of the last day
+
+    # Get all rounds up to the max time
+    all_rounds_query = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            or_(
+                Rounds.day < max_day,
+                and_(Rounds.day == max_day, Rounds.hour <= max_hour),
+            )
+        )
+        .order_by(Rounds.day, Rounds.hour)
+    )
+
+    all_rounds_list = all_rounds_query.all()
+
+    if not all_rounds_list:
+        return {
+            "timestamps": simulation_days,
+            "timestamp_mapping": timestamp_mapping,
+            "groups": [],
+        }
+
+    # Query all opinions with timestamp info for these rounds
+    base_query = (
+        db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Rounds.day,
+            Rounds.hour,
+        )
+        .join(Rounds, Agent_Opinion.tid == Rounds.id)
+        .filter(Agent_Opinion.tid.in_([r.id for r in all_rounds_list]))
+    )
+
+    # Apply topic filter if specified
+    if filter_topic_id is not None:
+        base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+
+    all_opinions = base_query.all()
+
+    if not all_opinions:
+        return {
+            "timestamps": simulation_days,
+            "timestamp_mapping": timestamp_mapping,
+            "groups": [],
+        }
+
+    # Organize opinions by (day, hour) for incremental processing
+    opinions_by_time = defaultdict(list)
+    for agent_id, topic_id, tid, opinion, opinion_day, opinion_hour in all_opinions:
+        opinions_by_time[(opinion_day, opinion_hour)].append(
+            (agent_id, topic_id, opinion)
+        )
+
+    # Sort time keys chronologically
+    sorted_times = sorted(opinions_by_time.keys())
+
+    # For each timestamp we want to display, calculate group percentages
+    # using incremental updates for efficiency
+    group_trends = {group.name: [] for group in opinion_groups}
+    latest_at_time = {}  # Running dictionary: (agent_id, topic_id) -> opinion
+    current_time_index = 0  # Track which times we've processed
+
+    for round_obj in rounds_up_to_time:
+        target_day = round_obj.day
+        target_hour = round_obj.hour
+
+        # Process all opinions up to the target time (incrementally)
+        while current_time_index < len(sorted_times):
+            time_day, time_hour = sorted_times[current_time_index]
+
+            # Stop if this time is beyond our target
+            if time_day > target_day or (
+                time_day == target_day and time_hour > target_hour
+            ):
+                break
+
+            # Update latest_at_time with opinions from this time
+            for agent_id, topic_id, opinion in opinions_by_time[(time_day, time_hour)]:
+                key = (agent_id, topic_id)
+                latest_at_time[key] = opinion
+
+            current_time_index += 1
+
+        # Bin the opinions at this timestamp
+        binned_counts = {group.name: 0 for group in opinion_groups}
+
+        for opinion_value in latest_at_time.values():
+            matched = False
+            for group in opinion_groups:
+                if group.lower_bound <= opinion_value <= group.upper_bound:
+                    binned_counts[group.name] += 1
+                    matched = True
+                    break
+
+            if not matched:
+                # Log warning for unmatched opinion value
+                current_app.logger.warning(
+                    f"Opinion value {opinion_value} does not match any opinion group in experiment {expid}"
+                )
+
+        # Calculate percentages using actual binned count (not total opinions)
+        # This ensures percentages sum to 100% even if some opinions don't match groups
+        total_binned = sum(binned_counts.values())
+
+        for group in opinion_groups:
+            percentage = (
+                (binned_counts[group.name] / total_binned * 100)
+                if total_binned > 0
+                else 0
+            )
+            group_trends[group.name].append(percentage)
+
+    # Prepare return data
+    groups_data = []
+    for group in opinion_groups:
+        groups_data.append({"name": group.name, "data": group_trends[group.name]})
+
+    return {
+        "timestamps": simulation_days,
+        "timestamp_mapping": timestamp_mapping,
+        "groups": groups_data,
+    }
+
+
+def get_or_sample_agents(expid, topic_id, sample_percentage, all_agent_ids):
+    """
+    Get or create a stable sample of agents for visualization.
+
+    This function ensures that the same set of agents is used across all
+    animation frames for stability and performance.
+
+    Args:
+        expid: Experiment ID
+        topic_id: Topic ID as string (None for all topics, supports int or UUID)
+        sample_percentage: Percentage of agents to sample
+        all_agent_ids: List of all available agent IDs
+
+    Returns:
+        List of sampled agent IDs
+    """
+    # Try to get existing sample
+    sample_entry = OpinionEvolutionSampledAgents.query.filter_by(
+        exp_id=expid, topic_id=topic_id, sample_percentage=sample_percentage
+    ).first()
+
+    # If sample exists and is recent (< 1 hour), use it
+    if sample_entry and (datetime.now() - sample_entry.created_at) < timedelta(hours=1):
+        return json.loads(sample_entry.sampled_agent_ids)
+
+    # Sample agents deterministically using experiment ID as seed for reproducibility
+    # This ensures the same sample is generated if we need to recreate it
+    # Handle topic_id which can be None, integer string, or UUID string
+    if topic_id is None:
+        topic_seed = 0
+    else:
+        # topic_id is a string (either int converted to string or UUID)
+        # Use hash for consistent seeding
+        topic_seed = abs(hash(topic_id)) % 1000000
+
+    random.seed(expid * 1000 + topic_seed + sample_percentage)
+    num_agents_to_sample = max(1, int(len(all_agent_ids) * sample_percentage / 100.0))
+    sampled_agent_ids = random.sample(
+        all_agent_ids, min(num_agents_to_sample, len(all_agent_ids))
+    )
+
+    # Store in database
+    if sample_entry:
+        # Update existing entry
+        sample_entry.sampled_agent_ids = json.dumps(sampled_agent_ids)
+        sample_entry.created_at = datetime.now()
+    else:
+        # Create new entry
+        sample_entry = OpinionEvolutionSampledAgents(
+            exp_id=expid,
+            topic_id=topic_id,
+            sample_percentage=sample_percentage,
+            sampled_agent_ids=json.dumps(sampled_agent_ids),
+        )
+        db.session.add(sample_entry)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error storing sampled agents: {str(e)}")
+        # Continue with the sampled agents even if storage fails
+        # This ensures the visualization still works
+
+    return sampled_agent_ids
+
+
+def generate_agent_timeseries_data(
+    expid, filter_day, filter_hour, filter_topic_id, sample_percentage=50
+):
+    """
+    Generate agent opinion time series data for visualization.
+
+    Args:
+        expid: Experiment ID
+        filter_day: Current day filter
+        filter_hour: Current hour filter
+        filter_topic_id: Topic ID filter (None for all topics)
+        sample_percentage: Percentage of agents to sample (10, 25, 50, 75, 100)
+
+    Returns:
+        dict: Time series data with timestamps, sampled agents, and their opinions
+    """
+    from sqlalchemy import and_, or_
+
+    from y_web.models import Agent_Opinion, Rounds
+
+    # Find all rounds up to the specified day/hour for x-axis display
+    # We'll filter to hour==0 (day boundaries) for cleaner x-axis labels
+    # But first check if ANY rounds exist
+    all_rounds_check = (
+        db.session.query(Rounds.id).filter(Rounds.day <= filter_day).limit(1).first()
+    )
+
+    if not all_rounds_check:
+        current_app.logger.warning(
+            f"No rounds found for exp {expid} in generate_agent_timeseries_data"
+        )
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
+    # Get rounds at day boundaries (hour==0) for x-axis display points
+    rounds_up_to_time = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            Rounds.hour == 0,  # Only day boundaries for display
+            Rounds.day <= filter_day,  # Up to current day
+        )
+        .order_by(Rounds.day, Rounds.hour)
+        .all()
+    )
+
+    current_app.logger.info(
+        f"Found {len(rounds_up_to_time)} hour==0 rounds for exp {expid} in generate_agent_timeseries_data"
+    )
+
+    # If no hour==0 rounds exist (e.g., HPC experiments with different hour values),
+    # fall back to selecting one round per day (this is expected for HPC experiments)
+    if not rounds_up_to_time:
+        current_app.logger.info(
+            f"No hour==0 rounds for exp {expid}, using fallback to first hour per day"
+        )
+        # Group by day and take the first round from each day
+        from sqlalchemy import func
+
+        subquery = (
+            db.session.query(Rounds.day, func.min(Rounds.hour).label("min_hour"))
+            .filter(Rounds.day <= filter_day)
+            .group_by(Rounds.day)
+            .subquery()
+        )
+
+        rounds_up_to_time = (
+            db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+            .join(
+                subquery,
+                and_(Rounds.day == subquery.c.day, Rounds.hour == subquery.c.min_hour),
+            )
+            .order_by(Rounds.day, Rounds.hour)
+            .all()
+        )
+        current_app.logger.info(
+            f"Fallback found {len(rounds_up_to_time)} rounds for exp {expid}"
+        )
+
+    if not rounds_up_to_time:
+        current_app.logger.error(
+            f"No rounds found at all in generate_agent_timeseries_data for exp {expid}"
+        )
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
+    # Create list of timestamps (simulation days)
+    simulation_days = [float(r.day) for r in rounds_up_to_time]
+
+    # Query ALL opinions up to the maximum time (not just from display rounds)
+    # This ensures alignment with group trends which uses all opinions
+    max_day = filter_day
+    max_hour = 23  # Get all opinions up to end of the last day
+
+    # Get all rounds up to the max time
+    all_rounds_query = (
+        db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+        .filter(
+            or_(
+                Rounds.day < max_day,
+                and_(Rounds.day == max_day, Rounds.hour <= max_hour),
+            )
+        )
+        .order_by(Rounds.day, Rounds.hour)
+    )
+
+    all_rounds_list = all_rounds_query.all()
+
+    if not all_rounds_list:
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
+    # Query all opinions with timestamp info for these rounds
+    base_query = (
+        db.session.query(
+            Agent_Opinion.agent_id,
+            Agent_Opinion.topic_id,
+            Agent_Opinion.tid,
+            Agent_Opinion.opinion,
+            Rounds.day,
+            Rounds.hour,
+        )
+        .join(Rounds, Agent_Opinion.tid == Rounds.id)
+        .filter(Agent_Opinion.tid.in_([r.id for r in all_rounds_list]))
+    )
+
+    # Apply topic filter if specified
+    if filter_topic_id is not None:
+        base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+
+    all_opinions = base_query.all()
+
+    if not all_opinions:
+        return {"timestamps": [], "agents": [], "sample_percentage": sample_percentage}
+
+    # Organize opinions by (day, hour) for incremental processing
+    opinions_by_time = defaultdict(list)
+    agent_first_opinion = {}  # Track first observed opinion for each agent
+
+    for agent_id, topic_id, tid, opinion, opinion_day, opinion_hour in all_opinions:
+        opinions_by_time[(opinion_day, opinion_hour)].append(
+            (agent_id, topic_id, opinion)
+        )
+        # Track first observed opinion for color coding (chronologically)
+        if agent_id not in agent_first_opinion:
+            agent_first_opinion[agent_id] = opinion
+
+    # Sort time keys chronologically
+    sorted_times = sorted(opinions_by_time.keys())
+
+    # Get all unique agents that appear in the data
+    all_agent_ids = list(agent_first_opinion.keys())
+
+    # Sample agents based on percentage - use stable sampling
+    # Convert topic_id to string for consistency (supports both int and UUID)
+    topic_id_str = str(filter_topic_id) if filter_topic_id is not None else None
+    sampled_agent_ids = get_or_sample_agents(
+        expid, topic_id_str, sample_percentage, all_agent_ids
+    )
+
+    # For each display timestamp, compute the latest opinion for each sampled agent
+    # Structure: {agent_id: {day: opinion_value}}
+    agent_data = {agent_id: {} for agent_id in sampled_agent_ids}
+
+    # Track latest opinion for each agent incrementally
+    latest_at_time = {}  # (agent_id, topic_id) -> opinion
+    latest_by_agent = (
+        {}
+    )  # agent_id -> opinion (for faster lookup when topic_id is None)
+    current_time_index = 0
+
+    for round_obj in rounds_up_to_time:
+        target_day = round_obj.day
+        target_hour = round_obj.hour
+
+        # Process all opinions up to the target time (incrementally)
+        while current_time_index < len(sorted_times):
+            time_day, time_hour = sorted_times[current_time_index]
+
+            # Stop if this time is beyond our target
+            if time_day > target_day or (
+                time_day == target_day and time_hour > target_hour
+            ):
+                break
+
+            # Update latest_at_time with opinions from this time
+            for agent_id, topic_id, opinion in opinions_by_time[(time_day, time_hour)]:
+                key = (agent_id, topic_id)
+                latest_at_time[key] = opinion
+                # Also maintain agent-only index for faster lookup
+                latest_by_agent[agent_id] = opinion
+
+            current_time_index += 1
+
+        # Store the latest opinion for each sampled agent at this timestamp
+        for agent_id in sampled_agent_ids:
+            if filter_topic_id is not None:
+                # Topic filter is specified - look up exact key
+                key = (agent_id, filter_topic_id)
+                if key in latest_at_time:
+                    agent_data[agent_id][target_day] = latest_at_time[key]
+            else:
+                # No topic filter - use agent-only index for O(1) lookup
+                if agent_id in latest_by_agent:
+                    agent_data[agent_id][target_day] = latest_by_agent[agent_id]
+
+    # Create mapping for tooltip display
+    timestamp_mapping = {}  # Maps day to (day, hour) for tooltips
+
+    for round_obj in rounds_up_to_time:
+        sim_day = float(round_obj.day)
+        timestamp_mapping[sim_day] = {
+            "day": round_obj.day,
+            "hour": round_obj.hour,
+            "absolute": round_obj.day * 24 + round_obj.hour,
+        }
+
+    # Get opinion groups for color coding
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+
+    # Define color palette matching the opinion distribution chart
+    color_palette = [
+        "rgba(239, 68, 68, 0.7)",  # Red - Strongly against
+        "rgba(251, 146, 60, 0.7)",  # Orange - Against
+        "rgba(250, 204, 21, 0.7)",  # Yellow - Neutral
+        "rgba(74, 222, 128, 0.7)",  # Light Green - In favor
+        "rgba(34, 197, 94, 0.7)",  # Green - Strongly in favor
+    ]
+
+    # Build agent time series with forward-fill
+    agents_timeseries = []
+    for agent_id in sampled_agent_ids:
+        agent_opinions = agent_data[agent_id]
+
+        # Forward-fill: replicate last observed value
+        filled_data = []
+        last_opinion = None
+
+        for day in simulation_days:
+            if day in agent_opinions:
+                last_opinion = agent_opinions[day]
+
+            if last_opinion is not None:
+                filled_data.append(last_opinion)
+            else:
+                filled_data.append(None)  # No data yet for this agent
+
+        # Determine initial opinion group for color coding
+        first_opinion = agent_first_opinion.get(agent_id)
+        initial_group = "Unknown"
+        color = "rgba(156, 163, 175, 0.7)"  # Default gray
+
+        if first_opinion is not None:
+            for idx, group in enumerate(opinion_groups):
+                if group.lower_bound <= first_opinion <= group.upper_bound:
+                    initial_group = group.name
+                    # Use color from palette if available
+                    if idx < len(color_palette):
+                        color = color_palette[idx]
+                    else:
+                        # Generate color if not in palette
+                        hue = idx * 360 / len(opinion_groups)
+                        color = f"hsla({hue}, 70%, 60%, 0.7)"
+                    break
+
+        agents_timeseries.append(
+            {
+                "agent_id": str(agent_id),
+                "data": filled_data,
+                "initial_group": initial_group,
+                "color": color,
+            }
+        )
+
+    return {
+        "timestamps": simulation_days,  # Simulation days (integers: 0, 1, 2, ...)
+        "timestamp_mapping": timestamp_mapping,  # Maps day to actual day/hour
+        "agents": agents_timeseries,
+        "sample_percentage": sample_percentage,
+    }
+
+
+def count_social_interactions(all_opinions):
+    """
+    Count social interactions from opinion data.
+
+    Social interactions: Count opinions where id_interacted_with is valid (has a value).
+
+    Args:
+        all_opinions: List of tuples (agent_id, topic_id, tid, opinion, id_interacted_with, day, hour)
+
+    Returns:
+        Number of social interactions
+    """
+    social_interactions = 0
+
+    for (
+        agent_id,
+        topic_id,
+        tid,
+        opinion,
+        id_interacted_with,
+        day,
+        hour,
+    ) in all_opinions:
+        # Check if interaction is valid: not null, not zero, and if string, not empty
+        if id_interacted_with is not None and id_interacted_with != 0:
+            # Convert to string and check if non-empty
+            id_str = str(id_interacted_with).strip()
+            if len(id_str) > 0 and id_str != "0":
+                social_interactions += 1
+
+    return social_interactions
+
+
+def get_or_compute_opinion_stats(expid, filter_day, filter_hour, filter_topic_id):
+    """
+    Get opinion statistics from cache or compute them incrementally.
+
+    This function implements incremental caching: if a previous time point is cached,
+    it queries only new opinions since that time and updates the cached state.
+    Otherwise, it computes from scratch.
+
+    Args:
+        expid: Experiment ID
+        filter_day: Day filter
+        filter_hour: Hour filter
+        filter_topic_id: Topic filter (None for all topics)
+
+    Returns:
+        Dict with statistics: {
+            'total_opinions': int,
+            'social_interactions': int,
+            'unique_agents': int,
+            'binned_data': dict
+        }
+    """
+    from sqlalchemy import and_, or_
+    from sqlalchemy.orm import defer
+
+    from y_web.models import Agent_Opinion, Rounds
+
+    # Check if incremental caching is supported (column exists)
+    incremental_supported = hasattr(OpinionEvolutionCache, "latest_opinions_state")
+
+    # Try to get exact cache match
+    # If latest_opinions_state column doesn't exist, defer it from the query
+    try:
+        query = OpinionEvolutionCache.query
+        if not incremental_supported:
+            # Defer the missing column to avoid SELECT errors
+            query = query.options(defer("latest_opinions_state"))
+
+        cache_entry = query.filter_by(
+            exp_id=expid, day=filter_day, hour=filter_hour, topic_id=filter_topic_id
+        ).first()
+    except Exception as e:
+        # Handle any other database errors - log only critical errors, not on every request
+        # to avoid performance degradation from excessive logging
+        cache_entry = None
+
+    # Cache hit - return cached data (no expiry, cache persists)
+    if cache_entry:
+        # Extract all needed data from cache_entry while session is still valid
+        cached_result = {
+            "total_opinions": cache_entry.total_opinions,
+            "social_interactions": cache_entry.social_interactions,
+            "unique_agents": cache_entry.unique_agents,
+            "binned_data": json.loads(cache_entry.binned_data),
+        }
+        return cached_result
+
+    # Cache miss - try incremental computation
+    # Find the most recent cached entry before the requested time
+    current_time_value = filter_day * 24 + filter_hour
+
+    previous_cache = None
+    if incremental_supported:
+        try:
+            previous_cache = (
+                OpinionEvolutionCache.query.filter(
+                    OpinionEvolutionCache.exp_id == expid,
+                    OpinionEvolutionCache.topic_id == filter_topic_id,
+                    or_(
+                        OpinionEvolutionCache.day < filter_day,
+                        and_(
+                            OpinionEvolutionCache.day == filter_day,
+                            OpinionEvolutionCache.hour < filter_hour,
+                        ),
+                    ),
+                )
+                .order_by(
+                    OpinionEvolutionCache.day.desc(), OpinionEvolutionCache.hour.desc()
+                )
+                .first()
+            )
+        except Exception as e:
+            # If query fails (e.g., column doesn't exist), fall back to full computation
+            # Reduce logging to avoid performance impact
+            previous_cache = None
+
+    if (
+        previous_cache
+        and incremental_supported
+        and hasattr(previous_cache, "latest_opinions_state")
+        and previous_cache.latest_opinions_state
+    ):
+        # Incremental computation from previous cache
+        prev_day = previous_cache.day
+        prev_hour = previous_cache.hour
+
+        # Load previous state
+        latest_opinions = {}
+        stored_state = json.loads(previous_cache.latest_opinions_state)
+        # Convert stored state back to the format we need
+        for agent_id_str, topics_dict in stored_state.items():
+            # Handle both integer agent_ids (standard) and UUID strings (HPC)
+            try:
+                agent_id = int(agent_id_str)
+            except ValueError:
+                agent_id = agent_id_str  # Keep as string for UUID
+            for topic_id_str, opinion_data in topics_dict.items():
+                # Handle both int and UUID topic_ids
+                if topic_id_str == "null":
+                    topic_id = None
+                else:
+                    try:
+                        topic_id = int(topic_id_str)
+                    except ValueError:
+                        topic_id = topic_id_str  # Keep as string for UUID
+                key = (agent_id, topic_id)
+                latest_opinions[key] = opinion_data
+
+        # Start with previous social interactions count
+        social_interactions = previous_cache.social_interactions
+
+        # Query only new opinions since previous cache time
+        rounds_in_range = (
+            db.session.query(Rounds.id, Rounds.day, Rounds.hour)
+            .filter(
+                or_(
+                    and_(Rounds.day == prev_day, Rounds.hour > prev_hour),
+                    and_(Rounds.day > prev_day, Rounds.day < filter_day),
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
+            )
+            .all()
+        )
+
+        if rounds_in_range:
+            round_time_map = {r.id: (r.day, r.hour) for r in rounds_in_range}
+            round_ids = [r.id for r in rounds_in_range]
+
+            # Query new opinions
+            new_opinions_query = db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+            ).filter(Agent_Opinion.tid.in_(round_ids))
+
+            if filter_topic_id is not None:
+                new_opinions_query = new_opinions_query.filter(
+                    Agent_Opinion.topic_id == filter_topic_id
+                )
+
+            new_opinions = new_opinions_query.all()
+
+            # Create list format for count_social_interactions
+            new_opinions_with_rounds = [
+                (
+                    agent_id,
+                    topic_id,
+                    tid,
+                    opinion,
+                    id_interacted_with,
+                    round_time_map[tid][0],
+                    round_time_map[tid][1],
+                )
+                for agent_id, topic_id, tid, opinion, id_interacted_with in new_opinions
+                if tid in round_time_map
+            ]
+
+            # Incrementally add new social interactions
+            new_social_interactions = count_social_interactions(
+                new_opinions_with_rounds
+            )
+            social_interactions += new_social_interactions
+
+            # Update latest_opinions with new data
+            for (
+                agent_id,
+                topic_id,
+                tid,
+                opinion,
+                id_interacted_with,
+                day,
+                hour,
+            ) in new_opinions_with_rounds:
+                key = (agent_id, topic_id)
+
+                # Update if this is newer than what we have
+                if key not in latest_opinions or (day, hour) > (
+                    latest_opinions[key]["day"],
+                    latest_opinions[key]["hour"],
+                ):
+                    latest_opinions[key] = {
+                        "tid": tid,
+                        "opinion": opinion,
+                        "id_interacted_with": id_interacted_with,
+                        "day": day,
+                        "hour": hour,
+                    }
+
+    else:
+        # No previous cache - compute from scratch
+        rounds_up_to_time = (
+            db.session.query(Rounds.id)
+            .filter(
+                or_(
+                    Rounds.day < filter_day,
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
+            )
+            .subquery()
+        )
+
+        base_query = (
+            db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+                Rounds.day,
+                Rounds.hour,
+            )
+            .join(Rounds, Agent_Opinion.tid == Rounds.id)
+            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        )
+
+        if filter_topic_id is not None:
+            base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+
+        all_opinions = base_query.all()
+
+        # Keep only the latest opinion per (agent_id, topic_id) pair
+        latest_opinions = {}
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
+            key = (agent_id, topic_id)
+            if key not in latest_opinions or (day, hour) > (
+                latest_opinions[key]["day"],
+                latest_opinions[key]["hour"],
+            ):
+                latest_opinions[key] = {
+                    "tid": tid,
+                    "opinion": opinion,
+                    "id_interacted_with": id_interacted_with,
+                    "day": day,
+                    "hour": hour,
+                }
+
+        social_interactions = count_social_interactions(all_opinions)
+
+    # Extract opinion values for binning
+    opinion_data = [data["opinion"] for data in latest_opinions.values()]
+
+    # Count unique agents
+    unique_agents = len(set(key[0] for key in latest_opinions.keys()))
+
+    # Get opinion groups and bin the data
+    opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+    binned_data = {group.name: 0 for group in opinion_groups}
+
+    for opinion_value in opinion_data:
+        for group in opinion_groups:
+            if group.lower_bound <= opinion_value <= group.upper_bound:
+                binned_data[group.name] += 1
+                break
+
+    # Prepare result before any database modifications
+    result = {
+        "total_opinions": len(opinion_data),
+        "social_interactions": social_interactions,
+        "unique_agents": unique_agents,
+        "binned_data": binned_data,
+    }
+
+    # Prepare latest_opinions state for storage (for next incremental update)
+    # Only store if incremental caching is supported
+    latest_opinions_for_storage = None
+    if incremental_supported:
+        latest_opinions_for_storage = {}
+        for (agent_id, topic_id), data in latest_opinions.items():
+            agent_key = str(agent_id)
+            topic_key = str(topic_id) if topic_id is not None else "null"
+
+            if agent_key not in latest_opinions_for_storage:
+                latest_opinions_for_storage[agent_key] = {}
+
+            latest_opinions_for_storage[agent_key][topic_key] = {
+                "opinion": data["opinion"],
+                "day": data["day"],
+                "hour": data["hour"],
+            }
+
+    # Store in cache (no expiry - cache persists indefinitely)
+    try:
+        # Create new cache entry
+        cache_data = {
+            "exp_id": expid,
+            "day": filter_day,
+            "hour": filter_hour,
+            "topic_id": filter_topic_id,
+            "total_opinions": result["total_opinions"],
+            "social_interactions": result["social_interactions"],
+            "unique_agents": result["unique_agents"],
+            "binned_data": json.dumps(result["binned_data"]),
+        }
+
+        # Add latest_opinions_state only if column exists
+        if incremental_supported and latest_opinions_for_storage is not None:
+            cache_data["latest_opinions_state"] = json.dumps(
+                latest_opinions_for_storage
+            )
+
+        cache_entry = OpinionEvolutionCache(**cache_data)
+        db.session.add(cache_entry)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error caching opinion stats: {str(e)}")
+
+    return result
+
+
+@experiments.route("/admin/opinion_evolution/<int:expid>")
+@login_required
+def opinion_evolution(expid):
+    """
+    Display opinion evolution page for an experiment.
+
+    Shows distribution of agent opinions over time.
+    For each (agent_id, topic_id) pair, shows the most recent opinion up to the selected day/hour.
+
+    Note: Agent_Opinion.tid is a UUID FK to Rounds.id, where day/hour values are stored.
+    """
+    check_privileges(current_user.username)
+
+    # Get experiment
+    experiment = Exps.query.filter_by(idexp=expid).first()
+    if not experiment:
+        flash("Experiment not found.")
+        return redirect("/admin/experiments")
+
+    # Check if opinions are enabled for this experiment
+    if not experiment.annotations or "opinions" not in experiment.annotations:
+        flash("Opinion dynamics is not enabled for this experiment.")
+        return redirect(f"/admin/experiment_details/{expid}")
+
+    # Activate experiment if not active (to access its database)
+    from y_web.experiment_context import register_experiment_database
+
+    bind_key = f"db_exp_{expid}"
+
+    # Ensure the experiment database is registered
+    if bind_key not in current_app.config["SQLALCHEMY_BINDS"]:
+        register_experiment_database(current_app, expid, experiment.db_name)
+
+    # Temporarily switch to experiment database
+    old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
+    current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+        "SQLALCHEMY_BINDS"
+    ][bind_key]
+
+    try:
+        # Import experiment-specific models
+        from sqlalchemy import and_, func, or_
+
+        from y_web.models import Agent_Opinion, Interests, Rounds
+
+        # Get available topics from experiment database
+        topics_query = db.session.query(Interests).all()
+        # Convert to dictionaries immediately to avoid ObjectDeletedError when session closes
+        topics = [{"iid": t.iid, "interest": t.interest} for t in topics_query]
+
+        # Get max day and hour from Rounds table (start at day 1 hour 1 as per requirements)
+        max_round = (
+            db.session.query(Rounds)
+            .order_by(Rounds.day.desc(), Rounds.hour.desc())
+            .first()
+        )
+        max_day = max_round.day if max_round else 1
+        max_hour = max_round.hour if max_round else 1
+
+        # Get filter parameters from request (default to max values)
+        filter_day = request.args.get("day", type=int, default=max_day)
+        filter_hour = request.args.get("hour", type=int, default=max_hour)
+        # Default to first topic on initial page load (to match UI which shows first topic as active)
+        default_topic_id = topics[0]["iid"] if topics else None
+        # Parse topic_id as string to support both integer and UUID topic_ids (HPC experiments)
+        filter_topic_id_str = request.args.get(
+            "topic_id",
+            default=str(default_topic_id) if default_topic_id is not None else None,
+        )
+        if filter_topic_id_str:
+            try:
+                filter_topic_id = int(filter_topic_id_str)
+            except ValueError:
+                filter_topic_id = filter_topic_id_str  # Keep as string for UUID
+        else:
+            filter_topic_id = default_topic_id
+
+        # Find all rounds up to the specified day/hour
+        # Rounds where (day < filter_day) OR (day == filter_day AND hour <= filter_hour)
+        rounds_up_to_time = (
+            db.session.query(Rounds.id)
+            .filter(
+                or_(
+                    Rounds.day < filter_day,
+                    and_(Rounds.day == filter_day, Rounds.hour <= filter_hour),
+                )
+            )
+            .subquery()
+        )
+
+        # Get all opinions where tid (FK to Rounds) is in the rounds up to our time
+        base_query = (
+            db.session.query(
+                Agent_Opinion.agent_id,
+                Agent_Opinion.topic_id,
+                Agent_Opinion.tid,
+                Agent_Opinion.opinion,
+                Agent_Opinion.id_interacted_with,
+                Rounds.day,
+                Rounds.hour,
+            )
+            .join(Rounds, Agent_Opinion.tid == Rounds.id)
+            .filter(Agent_Opinion.tid.in_(rounds_up_to_time))
+        )
+
+        # Apply topic filter if specified
+        if filter_topic_id is not None:
+            base_query = base_query.filter(Agent_Opinion.topic_id == filter_topic_id)
+
+        # Get all opinions up to the selected time
+        all_opinions = base_query.all()
+
+        # Keep only the latest opinion per (agent_id, topic_id) pair
+        # Latest means highest (day, hour) combination
+        latest_opinions = {}
+        for (
+            agent_id,
+            topic_id,
+            tid,
+            opinion,
+            id_interacted_with,
+            day,
+            hour,
+        ) in all_opinions:
+            key = (agent_id, topic_id)
+            if key not in latest_opinions or (day, hour) > (
+                latest_opinions[key]["day"],
+                latest_opinions[key]["hour"],
+            ):
+                latest_opinions[key] = {
+                    "tid": tid,
+                    "opinion": opinion,
+                    "id_interacted_with": id_interacted_with,
+                    "day": day,
+                    "hour": hour,
+                }
+
+        # Extract opinion values for binning
+        opinion_data = [data["opinion"] for data in latest_opinions.values()]
+
+        # Count social interactions from ALL opinions up to this time (not just latest)
+        social_interactions = count_social_interactions(all_opinions)
+
+        # Count unique agents that have an opinion on the selected topic up to current timestamp
+        # Extract unique agent_ids from latest_opinions keys (which are (agent_id, topic_id) tuples)
+        unique_agents = len(
+            set(key[0] for key in latest_opinions.keys())
+        )  # key[0] is agent_id
+
+        # Get opinion groups from dashboard database for binning
+        opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+
+        # Bin the opinions according to opinion_groups
+        binned_data = {group.name: 0 for group in opinion_groups}
+        unmatched_count = 0
+
+        for opinion_value in opinion_data:
+            # Find which bin this opinion belongs to
+            matched = False
+            for group in opinion_groups:
+                if group.lower_bound <= opinion_value <= group.upper_bound:
+                    binned_data[group.name] += 1
+                    matched = True
+                    break
+
+            if not matched:
+                unmatched_count += 1
+                current_app.logger.warning(
+                    f"Opinion value {opinion_value} does not match any opinion group for experiment {expid}"
+                )
+
+        # Prepare data for chart
+        chart_labels = [group.name for group in opinion_groups]
+        chart_values = [binned_data[group.name] for group in opinion_groups]
+
+        # Generate group trends data (opinion group volumes over time)
+        group_trends_data = generate_group_trends_data(
+            expid, filter_day, filter_hour, filter_topic_id
+        )
+
+        # Generate agent time series data (default 50% sample)
+        sample_percentage = request.args.get("sample_percentage", type=int, default=50)
+        timeseries_data = generate_agent_timeseries_data(
+            expid, filter_day, filter_hour, filter_topic_id, sample_percentage
+        )
+
+    finally:
+        # Restore old bind if it existed, otherwise remove the temporary bind
+        if old_bind is not None:
+            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+        else:
+            # If no previous bind existed, remove the temporary one
+            current_app.config["SQLALCHEMY_BINDS"].pop("db_exp", None)
+
+    return render_template(
+        "admin/opinion_evolution.html",
+        experiment=experiment,
+        topics=topics,
+        max_day=max_day,
+        max_hour=max_hour,
+        filter_day=filter_day,
+        filter_hour=filter_hour,
+        filter_topic_id=filter_topic_id,
+        chart_labels=chart_labels,
+        chart_values=chart_values,
+        total_opinions=len(opinion_data),
+        social_interactions=social_interactions,
+        unique_agents=unique_agents,
+        group_trends_data=group_trends_data,
+        timeseries_data=timeseries_data,
+    )
+
+
+@experiments.route("/admin/opinion_evolution_data/<int:expid>")
+@login_required
+def opinion_evolution_data(expid):
+    """
+    API endpoint for getting opinion evolution data without page reload.
+
+    Returns JSON with chart data based on filter parameters.
+    For each (agent_id, topic_id) pair, returns the most recent opinion up to the selected day/hour.
+    """
+    check_privileges(current_user.username)
+
+    # Get experiment
+    experiment = Exps.query.filter_by(idexp=expid).first()
+    if not experiment:
+        return jsonify({"error": "Experiment not found"}), 404
+
+    # Check if opinions are enabled for this experiment
+    if not experiment.annotations or "opinions" not in experiment.annotations:
+        return jsonify({"error": "Opinion dynamics not enabled"}), 400
+
+    # Activate experiment if not active (to access its database)
+    from y_web.experiment_context import register_experiment_database
+
+    bind_key = f"db_exp_{expid}"
+
+    # Ensure the experiment database is registered
+    if bind_key not in current_app.config["SQLALCHEMY_BINDS"]:
+        register_experiment_database(current_app, expid, experiment.db_name)
+
+    # Temporarily switch to experiment database
+    old_bind = current_app.config["SQLALCHEMY_BINDS"].get("db_exp")
+    current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = current_app.config[
+        "SQLALCHEMY_BINDS"
+    ][bind_key]
+
+    try:
+        # Import experiment-specific models
+        from sqlalchemy import and_, or_
+
+        from y_web.models import Agent_Opinion, Rounds
+
+        # Get filter parameters from request
+        filter_day = request.args.get("day", type=int, default=1)
+        filter_hour = request.args.get("hour", type=int, default=1)
+
+        # Get topic_id as string to support both integers and UUIDs (HPC experiments)
+        filter_topic_id_str = request.args.get("topic_id", type=str, default=None)
+
+        # Handle empty string or 'null' as None
+        if filter_topic_id_str in ("", "null", None):
+            filter_topic_id = None
+        else:
+            # Try to convert to int if it's a numeric string (standard experiments)
+            # Otherwise keep as string (UUID for HPC experiments)
+            try:
+                filter_topic_id = int(filter_topic_id_str)
+            except (ValueError, TypeError):
+                filter_topic_id = filter_topic_id_str
+
+        # Use caching for statistics computation
+        stats = get_or_compute_opinion_stats(
+            expid, filter_day, filter_hour, filter_topic_id
+        )
+
+        # Get opinion groups from dashboard database for binning
+        opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+
+        # Prepare data for chart
+        chart_labels = [group.name for group in opinion_groups]
+        chart_values = [
+            stats["binned_data"].get(group.name, 0) for group in opinion_groups
+        ]
+
+        # Get sample percentage from request
+        sample_percentage = request.args.get("sample_percentage", type=int, default=50)
+
+        # Check if we should skip generating group trends data (for performance during animation)
+        # Parse as string since type=bool doesn't work correctly in Flask (bool("false") == True)
+        skip_trends_str = request.args.get("skip_trends", type=str, default="false")
+        skip_trends = skip_trends_str.lower() in ("true", "1", "yes")
+
+        # Generate group trends data (opinion group volumes over time) - unless skipped
+        if not skip_trends:
+            group_trends_data = generate_group_trends_data(
+                expid, filter_day, filter_hour, filter_topic_id
+            )
+        else:
+            group_trends_data = None
+
+        # Generate agent time series data
+        timeseries_data = generate_agent_timeseries_data(
+            expid, filter_day, filter_hour, filter_topic_id, sample_percentage
+        )
+
+        return jsonify(
+            {
+                "chart_labels": chart_labels,
+                "chart_values": chart_values,
+                "total_opinions": stats["total_opinions"],
+                "social_interactions": stats["social_interactions"],
+                "unique_agents": stats["unique_agents"],
+                "filter_day": filter_day,
+                "filter_hour": filter_hour,
+                "group_trends_data": group_trends_data,
+                "timeseries_data": timeseries_data,
+            }
+        )
+
+    finally:
+        # Restore old bind if it existed, otherwise remove the temporary bind
+        if old_bind is not None:
+            current_app.config["SQLALCHEMY_BINDS"]["db_exp"] = old_bind
+        else:
+            current_app.config["SQLALCHEMY_BINDS"].pop("db_exp", None)
