@@ -33,11 +33,11 @@
             id: 'stopped-experiments',
             selector: '#box-stopped',
             title: '⚫ Stopped/Scheduled Experiments',
-            description: `<p>Experiments that are <b>paused or waiting</b> to run:</p>
+            description: `<p>Experiments that are <b>configured and ready</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li>Resume stopped experiments</li>
-                    <li>Start scheduled experiments manually</li>
-                    <li>View and manage experiment queue</li>
+                    <li>Review configuration and metadata</li>
+                    <li>Inspect assigned populations and clients</li>
+                    <li>Prepare experiments for export or analysis</li>
                 </ul>`,
             position: 'bottom'
         },
@@ -54,20 +54,6 @@
                     <li><b>Annotations</b> - Enable toxicity, sentiment, emotion detection</li>
                 </ul>`,
             position: 'right'
-        },
-        {
-            id: 'schedule',
-            selector: '#box-schedule',
-            title: '📅 Experiment Schedule',
-            description: `<p>Organize and run <b>experiments in batches</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Groups</b> - Create groups of experiments to run together</li>
-                    <li><b>Drag & Drop</b> - Move experiments between groups</li>
-                    <li><b>Sequential Execution</b> - Groups run one after another</li>
-                    <li><b>Parallel Execution</b> - Experiments in a group run simultaneously</li>
-                    <li><b>Log</b> - Monitor schedule execution progress</li>
-                </ul>`,
-            position: 'bottom'
         },
         {
             id: 'copy-experiment',

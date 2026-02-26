@@ -238,7 +238,6 @@ def start_desktop_app(
     debug=False,
     host="localhost",
     port=8080,
-    llm_backend=None,
     notebook=False,
     window_title="YSocial - Social Media Digital Twin",
     window_width=1280,  # Default window width (0 for fullscreen)
@@ -252,7 +251,6 @@ def start_desktop_app(
         debug: Enable Flask debug mode
         host: Host address for Flask server
         port: Port for Flask server
-        llm_backend: LLM backend to use
         notebook: Enable Jupyter notebook support
         window_title: Title for the desktop window
         window_width: Width of the desktop window (default: 1280, use 0 for fullscreen)
@@ -286,7 +284,6 @@ def start_desktop_app(
             debug=debug,
             host=host,
             port=port,
-            llm_backend=llm_backend,
             notebook=notebook,
             desktop_mode=True,  # Enable desktop mode
         )
@@ -398,12 +395,6 @@ if __name__ == "__main__":
         help="Database type (default: sqlite)",
     )
     parser.add_argument(
-        "-l",
-        "--llm-backend",
-        default=None,
-        help="LLM backend to use: 'ollama', 'vllm', or custom URL (host:port)",
-    )
-    parser.add_argument(
         "-n",
         "--no_notebook",
         action="store_false",
@@ -431,7 +422,6 @@ if __name__ == "__main__":
             debug=args.debug,
             host=args.host,
             port=args.port,
-            llm_backend=args.llm_backend,
             notebook=args.notebook,
             window_width=args.width,
             window_height=args.height,

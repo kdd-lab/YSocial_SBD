@@ -132,9 +132,9 @@
             title: '🟢 Running Experiments',
             description: `<p>This section shows all <b>currently active experiments</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Client Progress</b> - Real-time progress bars for each simulation client</li>
-                    <li><b>Play/Pause/Stop</b> - Control individual clients or the entire experiment</li>
-                    <li><b>JupyterLab</b> - Start analysis environment for data exploration</li>
+                    <li><b>Client Overview</b> - Read-only client state summary</li>
+                    <li><b>Experiment Details</b> - Inspect current configuration</li>
+                    <li><b>Analysis</b> - Open available metrics and logs</li>
                 </ul>`,
             position: 'bottom'
         },
@@ -154,11 +154,11 @@
             id: 'stopped-experiments',
             selector: '#box-stopped-experiments',
             title: '⚫ Stopped/Scheduled Experiments',
-            description: `<p>Experiments that are <b>paused or scheduled</b> to run:</p>
+            description: `<p>Experiments that are <b>not currently active</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li>Resume stopped experiments</li>
-                    <li>Manage scheduled experiment queues</li>
-                    <li>Configure experiment timing</li>
+                    <li>Inspect setup and ownership</li>
+                    <li>Review related populations and clients</li>
+                    <li>Export or clone experiment configurations</li>
                 </ul>`,
             position: 'left'
         },

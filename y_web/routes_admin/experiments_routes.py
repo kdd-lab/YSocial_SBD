@@ -102,6 +102,8 @@ MAX_HPC_PER_GROUP = 4  # Maximum number of HPC experiments allowed per schedule 
 
 # Lock to prevent concurrent schedule advancement (from HTTP endpoint and background monitor)
 _schedule_check_lock = threading.Lock()
+EXECUTION_DISABLED_MSG = "Experiment execution is disabled in this build."
+SCHEDULER_DISABLED_MSG = "Experiment scheduling is disabled in this build."
 
 
 def get_experiment_uid_from_db_name(db_name):
@@ -3079,6 +3081,8 @@ def client_logs(client_id):
 @login_required
 def start_experiment(uid):
     """Handle start experiment operation."""
+    flash(EXECUTION_DISABLED_MSG, "warning")
+    return experiment_details(uid)
     check_privileges(current_user.username)
 
     # get experiment
@@ -3117,6 +3121,8 @@ def stop_experiment(uid):
     3. Stop the server process
     4. Update server execution status in database
     """
+    flash(EXECUTION_DISABLED_MSG, "warning")
+    return experiment_details(uid)
     check_privileges(current_user.username)
 
     # get experiment
@@ -5224,6 +5230,7 @@ def get_schedule_groups():
         JSON with groups and their associated experiments
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     # Only show non-completed groups
     groups = (
@@ -5281,6 +5288,7 @@ def create_schedule_group():
         JSON with created group details
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     data = request.get_json()
     if not data or "name" not in data:
@@ -5321,6 +5329,7 @@ def delete_schedule_group(group_id):
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     group = ExperimentScheduleGroup.query.get(group_id)
     if not group:
@@ -5360,6 +5369,7 @@ def add_experiment_to_group(group_id):
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     data = request.get_json()
     if not data or "experiment_id" not in data:
@@ -5492,6 +5502,7 @@ def remove_experiment_from_group(item_id):
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     item = ExperimentScheduleItem.query.get(item_id)
     if not item:
@@ -5529,6 +5540,7 @@ def reorder_schedule_groups():
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     data = request.get_json()
     if not data or "group_ids" not in data:
@@ -5553,6 +5565,7 @@ def get_schedule_status():
         JSON with schedule status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     status = ExperimentScheduleStatus.query.first()
     if not status:
@@ -5625,6 +5638,7 @@ def start_schedule():
     import time
 
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     # Check if already running
     status = ExperimentScheduleStatus.query.first()
@@ -5793,6 +5807,7 @@ def stop_schedule():
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     status = ExperimentScheduleStatus.query.first()
     if not status or not status.is_running:
@@ -5855,7 +5870,7 @@ def check_schedule_progress():
         JSON with progress status
     """
     check_privileges(current_user.username)
-    return jsonify(_do_check_schedule_progress())
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
 
 def _do_check_schedule_progress():
@@ -5867,6 +5882,8 @@ def _do_check_schedule_progress():
     Returns:
         dict suitable for jsonify
     """
+
+    return {"success": False, "message": SCHEDULER_DISABLED_MSG}
 
     with _schedule_check_lock:
         status = ExperimentScheduleStatus.query.first()
@@ -6095,6 +6112,7 @@ def get_available_experiments_for_schedule():
         JSON with available experiments
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     # Get current user
     user = Admin_users.query.filter_by(username=current_user.username).first()
@@ -6171,6 +6189,7 @@ def get_schedule_logs():
         JSON with log entries
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     # Get last 100 logs, ordered by most recent first
     logs = (
@@ -6210,6 +6229,7 @@ def clear_schedule_logs():
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     ExperimentScheduleLog.query.delete()
     db.session.commit()
@@ -6231,6 +6251,7 @@ def auto_create_groups():
         JSON with created groups
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     data = request.get_json()
     if not data or "experiments_per_group" not in data:
@@ -6408,6 +6429,7 @@ def cleanup_completed_groups():
         JSON with success status
     """
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": SCHEDULER_DISABLED_MSG}), 410
 
     # Find and delete completed groups
     completed_groups = ExperimentScheduleGroup.query.filter_by(is_completed=1).all()

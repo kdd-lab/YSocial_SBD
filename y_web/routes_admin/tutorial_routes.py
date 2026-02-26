@@ -58,6 +58,7 @@ from y_web.utils.miscellanea import check_privileges
 from y_web.utils.path_utils import get_resource_path, get_writable_path
 
 tutorial = Blueprint("tutorial", __name__)
+EXECUTION_DISABLED_MSG = "Experiment execution is disabled in this build."
 
 
 @tutorial.route("/admin/tutorial/check_status")
@@ -909,10 +910,8 @@ def run_tutorial_simulation():
     Returns:
         JSON with success status
     """
-    from y_web.utils import start_client, start_hpc_client
-    from y_web.utils.external_processes import start_server
-
     check_privileges(current_user.username)
+    return jsonify({"success": False, "message": EXECUTION_DISABLED_MSG}), 410
 
     data = request.get_json()
     if not data:

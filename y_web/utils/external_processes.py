@@ -3157,3 +3157,92 @@ def _register_client_with_watchdog(exp, cli, population, pid, log_dir):
     # Start watchdog if not already running
     if not watchdog.is_running:
         watchdog.start()
+
+
+# ---------------------------------------------------------------------------
+# Disabled external orchestration / LLM integration layer
+# ---------------------------------------------------------------------------
+
+EXTERNAL_SERVICES_DISABLED_MSG = (
+    "External service orchestration is disabled in this build."
+)
+LLM_FEATURES_DISABLED_MSG = "LLM integrations are disabled in this build."
+
+
+def _disabled(*_args, **_kwargs):
+    raise RuntimeError(EXTERNAL_SERVICES_DISABLED_MSG)
+
+
+def is_ollama_installed():
+    return False
+
+
+def is_ollama_running():
+    return False
+
+
+def start_ollama_server():
+    print(LLM_FEATURES_DISABLED_MSG)
+    return None
+
+
+def pull_ollama_model(model_name):
+    print(f"{LLM_FEATURES_DISABLED_MSG} Ignoring pull request for '{model_name}'.")
+    return None
+
+
+def start_ollama_pull(model_name):
+    print(f"{LLM_FEATURES_DISABLED_MSG} Ignoring pull request for '{model_name}'.")
+    return None
+
+
+def get_ollama_models():
+    return []
+
+
+def delete_ollama_model(model_name):
+    print(f"{LLM_FEATURES_DISABLED_MSG} Ignoring delete request for '{model_name}'.")
+    return None
+
+
+def is_vllm_installed():
+    return False
+
+
+def is_vllm_running():
+    return False
+
+
+def start_vllm_server(model_name=None):
+    print(
+        f"{LLM_FEATURES_DISABLED_MSG} Ignoring start request for model '{model_name}'."
+    )
+    return None
+
+
+def get_vllm_models():
+    return []
+
+
+def get_llm_models(llm_url=None):
+    return []
+
+
+def start_server(exp):
+    _disabled(exp=exp)
+
+
+def start_hpc_server(exp):
+    _disabled(exp=exp)
+
+
+def start_hpc_client(exp, cli, population):
+    _disabled(exp=exp, cli=cli, population=population)
+
+
+def start_server_screen(exp):
+    _disabled(exp=exp)
+
+
+def start_client(exp, cli, population, resume=True):
+    _disabled(exp=exp, cli=cli, population=population, resume=resume)

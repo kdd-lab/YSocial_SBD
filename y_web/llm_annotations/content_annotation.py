@@ -1,92 +1,15 @@
-"""
-Content annotation using Large Language Models.
+"""Content annotation helpers (LLM-disabled build)."""
 
-Provides the ContentAnnotator class for analyzing text content using LLMs
-to extract emotions (GoEmotions taxonomy) and topics from social media posts.
-Uses the Autogen framework for agent-based interaction with LLMs.
-"""
-
-import os
 import re
-
-from autogen import AssistantAgent
 
 
 class ContentAnnotator(object):
-    """
-    LLM-based content annotator for emotion and topic extraction.
-
-    Uses Autogen's multi-agent framework with a Handler and Annotator agent
-    to analyze text content for emotional content and topics.
-    """
+    """No-op annotator preserving API compatibility."""
 
     def __init__(self, llm=None, llm_url=None):
-        """
-        Initialize the content annotator with LLM configuration.
-
-        Args:
-            llm: LLM model name/identifier (e.g., from Ollama). If None,
-                 annotator is disabled and methods return empty results.
-            llm_url: Optional custom LLM server URL. If None, uses
-                     environment variable or defaults based on backend.
-        """
-
-        if llm is not None:
-            if llm_url is not None:
-                base_url = llm_url
-            else:
-                # Get base URL from environment variable (set by y_social.py)
-                base_url = os.getenv("LLM_URL")
-                if not base_url:
-                    # Fallback to determining URL based on LLM backend for backward compatibility
-                    llm_backend = os.getenv("LLM_BACKEND")
-                    if llm_backend == "vllm":
-                        base_url = "http://127.0.0.1:8000/v1"
-                    elif llm_backend == "ollama":
-                        base_url = "http://127.0.0.1:11434/v1"
-                    else:
-                        # No backend specified, cannot initialize
-                        self.annotator = None
-                        self.handler = None
-                        self.config_list = None
-                        return
-
-            self.config_list = [
-                {
-                    "model": llm,
-                    "base_url": base_url,
-                    "timeout": 10000,
-                    "api_type": "open_ai",
-                    "api_key": "NULL",
-                    "price": [0, 0],
-                }
-            ]
-
-            self.annotator = AssistantAgent(
-                name=f"Annotator",
-                llm_config={
-                    "config_list": self.config_list,
-                    "temperature": 0,
-                    "max_tokens": -1,
-                },
-                system_message="You are a clever and efficient text annotator. Act as specified by the Handler.",
-                max_consecutive_auto_reply=1,
-            )
-
-            self.handler = AssistantAgent(
-                name=f"Handler",
-                llm_config={
-                    "config_list": self.config_list,
-                    "temperature": 0,
-                    "max_tokens": -1,
-                },
-                system_message="You are the Handler which provides task details to the annotator.",
-                max_consecutive_auto_reply=0,
-            )
-        else:
-            self.annotator = None
-            self.handler = None
-            self.config_list = None
+        self.annotator = None
+        self.handler = None
+        self.config_list = None
 
     def annotate_emotions(self, text):
         """
@@ -101,21 +24,7 @@ class ContentAnnotator(object):
         Returns:
             List of emotion labels found in the text (e.g., ['joy', 'excitement'])
         """
-        if self.annotator is None:
-            return []
-
-        self.handler.initiate_chat(
-            self.annotator,
-            silent=True,
-            message=f"""Read the following text and annotate it with the emotions it elicits. 
-                - Use the GoEmotions taxonomy, which includes: admiration, amusement, anger, annoyance, approval, caring, confusion, curiosity, desire, disappointment, disapproval, disgust, embarrassment, excitement, fear, gratitude, grief, joy, love, nervousness, optimism, pride, realization, relief, remorse, sadness, surprise, and trust.
-                - Do not write additional text to the identified emotions. 
-                \n\n##START TEXT##\n\n{text}\n\n#END TEXT##""",
-        )
-
-        res = self.handler.chat_messages[self.annotator][-1]["content"]
-        emotions = self.__clean_emotion(res)
-        return emotions
+        return []
 
     def annotate_topics(self, text):
         """
@@ -130,25 +39,7 @@ class ContentAnnotator(object):
         Returns:
             List of topic strings (e.g., ['climate change', 'renewable energy'])
         """
-        if self.annotator is None:
-            return []
-
-        self.handler.initiate_chat(
-            self.annotator,
-            silent=True,
-            message=f"""Read the following text and detect 3 general topic discussed in it; 
-                    - Each topic must be described 2 words; 
-                    - Format your response as follows. 
-                    \n\n #T: First Topic; #T: Second Topic; #T: Third Topic.",
-                    \n\n##START TEXT##\n\n{text}\n\n#END TEXT##""",
-        )
-
-        res = self.handler.chat_messages[self.annotator][-1]["content"]
-
-        topics = re.findall(r"[#T]: \w+ \w+", res)
-        topics = [x.split(": ")[1] for x in topics if "Topic" not in x]
-
-        return topics
+        return []
 
     def __clean_emotion(self, text):
         """

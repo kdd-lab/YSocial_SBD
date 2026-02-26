@@ -698,3 +698,30 @@ def stop_all_jupyter_instances():
             inst.process = None
             inst.port = -1
             db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Disabled notebook orchestration layer
+# ---------------------------------------------------------------------------
+
+JUPYTER_DISABLED_MSG = "JupyterLab orchestration is disabled in this build."
+
+
+def start_jupyter(expid, notebook_dir=None, current_host=None, current_port=5000):
+    return False, JUPYTER_DISABLED_MSG, None
+
+
+def stop_jupyter(instance_id=None):
+    return False, JUPYTER_DISABLED_MSG
+
+
+def get_jupyter_instances():
+    return []
+
+
+def create_notebook_with_template(filename="start_here.ipynb", notebook_dir=None):
+    raise RuntimeError(JUPYTER_DISABLED_MSG)
+
+
+def stop_all_jupyter_instances():
+    return True

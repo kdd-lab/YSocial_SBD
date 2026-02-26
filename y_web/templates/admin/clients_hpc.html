@@ -579,8 +579,10 @@
                                             <span class="left">Model</span>
                                             <span class="right" style="width: 70%;"><input type="text"
                                                                                            name="llm_model"
+                                                                                           id="llm_model"
                                                                                            class="input"
-                                                                                           value="AMead10/Llama-3.2-3B-Instruct-AWQ"></span>
+                                                                                           value="llama3.2"
+                                                                                           readonly></span>
                                         </div>
 
                                         <!-- Advanced Settings Toggle -->
@@ -682,7 +684,8 @@
                                                                                                name="llm_v_model"
                                                                                                id="llm_v_model"
                                                                                                class="input"
-                                                                                               value="openbmb/MiniCPM-V-2_6-int4"></span>
+                                                                                               value="minicpm-v"
+                                                                                               readonly></span>
                                             </div>
                                             <div class="box-line">
                                                 <span class="left">Vision Temperature</span>
@@ -725,26 +728,13 @@
 
                                     <!-- Ollama Fields (hidden by default) -->
                                     <div id="ollama_fields" style="display: none;">
-                                        <div class="box-line">
-                                            <span class="left">LLM Server URL</span>
-                                            <span class="right" style="width: 70%;">
-                                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                                    <input type="text" id="custom_llm_url_client" name="llm" class="input" placeholder="e.g., localhost:8000" value="http://127.0.0.1:11434/v1" style="flex: 1;">
-                                                    <button type="button" class="button is-solid primary-button" onclick="fetchModelsForClient()">
-                                                        Fetch Models
-                                                    </button>
-                                                </div>
-                                                <div id="llm_url_status_client" style="min-height: 24px; font-size: 0.9rem;"></div>
-                                            </span>
-                                        </div>
+                                        <input type="hidden" id="custom_llm_url_client" name="llm" value="http://127.0.0.1:11434/v1">
                                         <div class="box-line">
                                             <span class="left">LLM Model</span>
                                             <div class="select">
                                                 <select name="user_type" id="models_select_client">
-                                                    <option value=""></option>
-                                                    {% for model in models %}
-                                                    <option value="{{ model }}">{{ model }}</option>
-                                                    {% endfor %}
+                                                    <option value="llama3.2">llama3.2</option>
+                                                    <option value="minicpm-v">minicpm-v (image only)</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -781,18 +771,7 @@
                                                                                            class="input"
                                                                                            value="minicpm-v"></span>
                                         </div>
-                                        <div class="box-line">
-                                            <span class="left">LLM Server URL</span>
-                                            <span class="right" style="width: 70%;">
-                                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                                                    <input type="text" id="custom_llm_url_v_client" name="llm_v" class="input" placeholder="e.g., localhost:8000" value="http://127.0.0.1:11434/v1" style="flex: 1;">
-                                                    <button type="button" class="button is-solid primary-button" onclick="validateImageLLMModel()">
-                                                        Validate Model
-                                                    </button>
-                                                </div>
-                                                <div id="llm_v_url_status_client" style="min-height: 24px; font-size: 0.9rem;"></div>
-                                            </span>
-                                        </div>
+                                        <input type="hidden" id="custom_llm_url_v_client" name="llm_v" value="http://127.0.0.1:11434/v1">
                                         <div class="box-line">
                                             <span class="left">API Key</span>
                                             <span class="right" style="width: 70%;"><input type="text"
@@ -826,6 +805,8 @@
                                             const vllmFields = document.getElementById('vllm_fields');
                                             const ollamaFields = document.getElementById('ollama_fields');
                                             const imageTranscriptionCheckbox = document.getElementById('enable_image_transcription');
+                                            const llmModelInput = document.getElementById('llm_model');
+                                            const llmVModelInput = document.getElementById('llm_v_model');
                                             
                                             if (!backendElement) return;
                                             const backend = backendElement.value;
@@ -833,6 +814,14 @@
                                             if (backend === 'vllm') {
                                                 vllmFields.style.display = 'block';
                                                 ollamaFields.style.display = 'none';
+                                                if (llmModelInput) {
+                                                    llmModelInput.value = 'llama3.2';
+                                                    llmModelInput.readOnly = true;
+                                                }
+                                                if (llmVModelInput) {
+                                                    llmVModelInput.value = 'minicpm-v';
+                                                    llmVModelInput.readOnly = true;
+                                                }
                                                 // vLLM doesn't need model fetching, enable submit button
                                                 updateFormButtonStateForBackend('vllm');
                                                 
@@ -845,6 +834,8 @@
                                             } else {
                                                 vllmFields.style.display = 'none';
                                                 ollamaFields.style.display = 'block';
+                                                if (llmModelInput) llmModelInput.readOnly = true;
+                                                if (llmVModelInput) llmVModelInput.readOnly = true;
                                                 // Ollama requires model fetching
                                                 updateFormButtonStateForBackend('ollama');
                                                 // When not vLLM, disable Image action (since Ollama handles it differently)
@@ -1938,8 +1929,8 @@
                                             });
 
 // Track if models have been fetched and validated
-let llmModelsFetched = false;
-let llmModelSelected = false;
+let llmModelsFetched = true;
+let llmModelSelected = true;
 
 // Enable disabled inputs before form submission so their values are included
 
@@ -1983,48 +1974,27 @@ function updateFormButtonState() {
 
 // Fetch models for client LLM configuration
 function fetchModelsForClient() {
-    const urlInput = document.getElementById('custom_llm_url_client');
     const select = document.getElementById('models_select_client');
     const status = document.getElementById('llm_url_status_client');
-    const llmUrl = urlInput.value.trim();
-    
-    if (!llmUrl) {
-        alert('Please enter an LLM server URL');
-        return;
+    select.innerHTML = '';
+    const models = [
+        { value: 'llama3.2', label: 'llama3.2' },
+        { value: 'minicpm-v', label: 'minicpm-v (image only)' }
+    ];
+    models.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.value;
+        option.textContent = model.label;
+        select.appendChild(option);
+    });
+    select.value = 'llama3.2';
+    llmModelsFetched = true;
+    llmModelSelected = true;
+    updateFormButtonState();
+    if (status) {
+        status.innerHTML = '<span style="color: green;"><i class="mdi mdi-check"></i> Restricted model set loaded</span>';
+        setTimeout(() => { status.innerHTML = ''; }, 2500);
     }
-    
-    status.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Fetching...';
-    
-    fetch(`/admin/api/fetch_models?llm_url=${encodeURIComponent(llmUrl)}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> ' + data.error + '</span>';
-                llmModelsFetched = false;
-                updateFormButtonState();
-                setTimeout(() => { status.innerHTML = ''; }, 5000);
-            } else {
-                select.innerHTML = '<option value="">Select a model</option>';
-                data.models.forEach(model => {
-                    const option = document.createElement('option');
-                    option.value = model;
-                    option.textContent = model;
-                    select.appendChild(option);
-                });
-                status.innerHTML = '<span style="color: green;"><i class="mdi mdi-check"></i> ' + data.models.length + ' models loaded</span>';
-                llmModelsFetched = true;
-                // Reset model selection since we just loaded new models
-                llmModelSelected = false;
-                updateFormButtonState();
-                setTimeout(() => { status.innerHTML = ''; }, 3000);
-            }
-        })
-        .catch(error => {
-            status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Connection failed</span>';
-            llmModelsFetched = false;
-            updateFormButtonState();
-            setTimeout(() => { status.innerHTML = ''; }, 5000);
-        });
 }
 
 // Validate that minicpm-v:latest is available for image transcription
@@ -2040,28 +2010,28 @@ function validateImageLLMModel() {
         return;
     }
     
-    status.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Validating...';
+    if (status) status.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Validating...';
     
     fetch(`/admin/api/fetch_models?llm_url=${encodeURIComponent(llmVUrl)}`)
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> ' + data.error + '</span>';
+                if (status) status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> ' + data.error + '</span>';
                 validationStatus.value = 'false';
                 disableImageAction();
                 alert('Unable to connect to the LLM server. Image sharing/commenting functionality will remain disabled.');
-                setTimeout(() => { status.innerHTML = ''; }, 5000);
+                if (status) setTimeout(() => { status.innerHTML = ''; }, 5000);
             } else {
                 // Check if minicpm-v:latest model exists in fetched models
                 const modelExists = data.models.includes(modelName);
                 
                 if (modelExists) {
-                    status.innerHTML = '<span style="color: green;"><i class="mdi mdi-check"></i> Model "' + modelName + '" found and validated!</span>';
+                    if (status) status.innerHTML = '<span style="color: green;"><i class="mdi mdi-check"></i> Model "' + modelName + '" found and validated!</span>';
                     validationStatus.value = 'true';
                     enableImageAction();
-                    setTimeout(() => { status.innerHTML = ''; }, 3000);
+                    if (status) setTimeout(() => { status.innerHTML = ''; }, 3000);
                 } else {
-                    status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Model "' + modelName + '" not found on this server!</span>';
+                    if (status) status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Model "' + modelName + '" not found on this server!</span>';
                     validationStatus.value = 'false';
                     disableImageAction();
                     alert('The minicpm-v:latest model is not available on the specified server. Image sharing/commenting functionality will remain disabled.');
@@ -2069,11 +2039,11 @@ function validateImageLLMModel() {
             }
         })
         .catch(error => {
-            status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Connection failed</span>';
+            if (status) status.innerHTML = '<span style="color: red;"><i class="mdi mdi-alert"></i> Connection failed</span>';
             validationStatus.value = 'false';
             disableImageAction();
             alert('Failed to connect to the LLM server. Image sharing/commenting functionality will remain disabled.');
-            setTimeout(() => { status.innerHTML = ''; }, 5000);
+            if (status) setTimeout(() => { status.innerHTML = ''; }, 5000);
         });
 }
 
@@ -2085,15 +2055,12 @@ function disableImageAction() {
     
     if (imageScaleWrapper) {
         const numberBoxes = imageScaleWrapper.querySelectorAll('.number-box');
+        // Keep action enabled, defaulting to value 0.
         numberBoxes.forEach(box => {
-            if (box.dataset.value !== '0') {
-                box.style.opacity = '0.3';
-                box.style.pointerEvents = 'none';
-                box.style.cursor = 'not-allowed';
-            }
+            box.style.opacity = '1';
+            box.style.pointerEvents = 'auto';
+            box.style.cursor = 'pointer';
         });
-        
-        // Force selection to 0
         numberBoxes.forEach(box => box.classList.remove('selected'));
         numberBoxes[0].classList.add('selected');
         imageScale.value = '0';
@@ -2221,12 +2188,15 @@ function displayNetworkFileNameCreate(input) {
 
 // On page load, disable image action by default and setup form validation
 document.addEventListener('DOMContentLoaded', function() {
-    {% if llm_agents_enabled %}
-    disableImageAction();
-    {% else %}
-    // When LLM agents are disabled, enable image action automatically
     enableImageAction();
-    {% endif %}
+    const imageScale = document.getElementById('image');
+    const imageScaleWrapper = imageScale ? imageScale.closest('.scale-wrapper') : null;
+    if (imageScaleWrapper) {
+        const numberBoxes = imageScaleWrapper.querySelectorAll('.number-box');
+        numberBoxes.forEach(box => box.classList.remove('selected'));
+        if (numberBoxes[0]) numberBoxes[0].classList.add('selected');
+    }
+    if (imageScale) imageScale.value = '0';
     
     // Initialize button state based on backend
     const backendSelect = document.getElementById('llm_backend');

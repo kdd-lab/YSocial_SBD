@@ -241,7 +241,7 @@ def main():
         except Exception as e:
             print(f"Warning: Could not initialize installation ID: {e}")
 
-    parser = ArgumentParser(description="YSocial - LLM-powered Social Media Twin")
+    parser = ArgumentParser(description="YSocial - Social Media Twin")
 
     parser.add_argument(
         "-x",
@@ -261,12 +261,6 @@ def main():
         choices=["sqlite", "postgresql"],
         default="sqlite",
         help="Database type (default: sqlite)",
-    )
-    parser.add_argument(
-        "-l",
-        "--llm-backend",
-        default=None,
-        help="LLM backend to use: 'ollama', 'vllm', or custom URL (host:port). If not specified, LLM features will be disabled.",
     )
     parser.add_argument(
         "--browser",
@@ -354,7 +348,6 @@ def main():
                     debug=args.debug,
                     host=args.host,
                     port=args.port,
-                    llm_backend=args.llm_backend,
                     notebook=notebook,
                     window_width=args.window_width,
                     window_height=args.window_height,
@@ -462,7 +455,6 @@ def main():
                 debug=args.debug,
                 host=args.host,
                 port=args.port,
-                llm_backend=args.llm_backend,
                 notebook=notebook,
             )
         except KeyboardInterrupt:

@@ -32,19 +32,6 @@
                 </span>
                 <span class="right" style="display: flex; gap: 8px; align-items: center;">
                     <div style="display: flex; gap: 3px; padding-right: 8px; border-right: 1px solid #ddd;">
-                        {% if experiments[exp]['experiment'].running == 0 %}
-                        <a class="link-tooltip" href="#" onclick="startExperimentServer('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Run Experiment">
-                            <i class="mdi mdi-play-box-outline" style="font-size: 24px;"></i>
-                        </a>
-                        {% endif %}
-                        {% if experiments[exp]['experiment'].running == 1 %}
-                        <a class="link-tooltip" href="#" onclick="stopExperimentServer('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Stop Experiment">
-                            <i class="mdi mdi-stop active" style="font-size: 24px;"></i>
-                        </a>
-                        {% endif %}
-                        <a class="link-tooltip" href="#" onclick="selectExperiment('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Load Experiment">
-                            <i class="mdi mdi-select-all {% if experiments[exp]['experiment'].status == 1 %}active{%endif%}" style="font-size: 24px;"></i>
-                        </a>
                         {% if experiments[exp]['experiment'].status == 1 %}
                         <a class="link-tooltip" href="#" onclick="joinExperiment('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Join This Experiment">
                             <i class="mdi mdi-login" style="font-size: 24px;"></i>
@@ -238,19 +225,6 @@
                     {% endif %}
                 </span>
                 <span class="right" style="display: flex; gap: 2px; align-items: center; flex-shrink: 0;">
-                    {% if experiments[exp]['experiment'].running == 0 %}
-                    <a class="link-tooltip" href="#" onclick="startExperimentServer('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Run">
-                        <i class="mdi mdi-play-box-outline" style="font-size: 16px;"></i>
-                    </a>
-                    {% endif %}
-                    {% if experiments[exp]['experiment'].running == 1 %}
-                    <a class="link-tooltip" href="#" onclick="stopExperimentServer('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Stop">
-                        <i class="mdi mdi-stop active" style="font-size: 16px;"></i>
-                    </a>
-                    {% endif %}
-                    <a class="link-tooltip" href="#" onclick="selectExperiment('{{ experiments[exp]['experiment'].idexp }}'); return false;" title="Load">
-                        <i class="mdi mdi-select-all {% if experiments[exp]['experiment'].status == 1 %}active{%endif%}" style="font-size: 16px;"></i>
-                    </a>
                     <a href="/admin/experiment_details/{{ experiments[exp]['experiment'].idexp }}" class="link-tooltip" title="Details">
                         <i class="mdi mdi-open-in-new" style="font-size: 14px; color: #039be5;"></i>
                     </a>
@@ -335,7 +309,7 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Completed and Stopped/Scheduled on the same row -->
+                    <!-- Completed and Configured on the same row -->
                     <div class="columns is-multiline" style="margin-bottom: 0; display: flex; align-items: stretch;">
                         <!-- Completed Experiments - Half width on desktop -->
                         {% if len(completed_experiments) > 0 %}
@@ -356,13 +330,13 @@
                         </div>
                         {% endif %}
                         
-                        <!-- Stopped/Scheduled Experiments - Half width on desktop -->
+                        <!-- Configured Experiments - Half width on desktop -->
                         {% if len(stopped_experiments) > 0 %}
                         <div class="column is-6-desktop is-12-tablet is-12-mobile" style="display: flex;">
                             <div class="dashboard-box" id="box-stopped-experiments" style="flex: 1; margin-bottom: 0; display: flex; flex-direction: column;">
                                  <h3 class="title is-6 is-thin" style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                                     <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d;"></span>
-                                    Stopped / Scheduled
+                                    Configured
                                     <span style="font-size: 0.7em; color: #666; font-weight: normal;">({{ total_stopped }} total)</span>
                                  </h3>
                                  <p style="font-size: 0.8em; color: #666; margin-bottom: 0.8em;">
@@ -586,13 +560,11 @@
 <script>
     // Experiment server control functions
     function startExperimentServer(expId) {
-        showLoading('Starting experiment server...');
-        window.location.href = `/admin/start_experiment/${expId}`;
+        alert('Experiment execution is disabled in this build.');
     }
 
     function stopExperimentServer(expId) {
-        showLoading('Stopping experiment server...');
-        window.location.href = `/admin/stop_experiment/${expId}`;
+        alert('Experiment execution is disabled in this build.');
     }
 
     function selectExperiment(expId) {
@@ -615,14 +587,6 @@
         
         const clientCountBadge = clientCount > 0 ?
             `<span style="background: #e0e0e0; color: #666; font-size: 0.6em; padding: 0 4px; border-radius: 6px; line-height: 1.4;" title="Clients">${clientCount}</span>` : '';
-        
-        const runButton = exp.running === 0 ?
-            `<a class="link-tooltip" href="#" onclick="startExperimentServer('${exp.idexp}'); return false;" title="Run">
-                <i class="mdi mdi-play-box-outline" style="font-size: 16px;"></i>
-            </a>` :
-            `<a class="link-tooltip" href="#" onclick="stopExperimentServer('${exp.idexp}'); return false;" title="Stop">
-                <i class="mdi mdi-stop active" style="font-size: 16px;"></i>
-            </a>`;
         
         const deleteExpButton = exp.status === 0 ?
             `<a class="link-tooltip" href="javascript:void(0);" 
@@ -653,10 +617,6 @@
                         ${infiniteBadge}
                     </span>
                     <span class="right" style="display: flex; gap: 2px; align-items: center; flex-shrink: 0;">
-                        ${runButton}
-                        <a class="link-tooltip" href="#" onclick="selectExperiment('${exp.idexp}'); return false;" title="Load">
-                            <i class="mdi mdi-select-all ${exp.status === 1 ? 'active' : ''}" style="font-size: 16px;"></i>
-                        </a>
                         <a href="/admin/experiment_details/${exp.idexp}" class="link-tooltip" title="Details">
                             <i class="mdi mdi-open-in-new" style="font-size: 14px; color: #039be5;"></i>
                         </a>
@@ -727,14 +687,6 @@
         const infiniteBadge = hasInfiniteClient ? 
             `<span style="background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%); color: white; font-size: 0.7em; padding: 2px 6px; border-radius: 10px; font-weight: 600;" title="This experiment has at least one client set to run until manually stopped">∞ Infinite</span>` : '';
         
-        const runButton = exp.running === 0 ?
-            `<a class="link-tooltip" href="#" onclick="startExperimentServer('${exp.idexp}'); return false;" title="Run Experiment">
-                <i class="mdi mdi-play-box-outline" style="font-size: 24px;"></i>
-            </a>` :
-            `<a class="link-tooltip" href="#" onclick="stopExperimentServer('${exp.idexp}'); return false;" title="Stop Experiment">
-                <i class="mdi mdi-stop active" style="font-size: 24px;"></i>
-            </a>`;
-        
         const joinButton = exp.status === 1 ?
             `<a class="link-tooltip" href="#" onclick="joinExperiment('${exp.idexp}'); return false;" title="Join This Experiment">
                 <i class="mdi mdi-login" style="font-size: 24px;"></i>
@@ -775,10 +727,6 @@
                     </span>
                     <span class="right" style="display: flex; gap: 8px; align-items: center;">
                         <div style="display: flex; gap: 3px; padding-right: 8px; border-right: 1px solid #ddd;">
-                            ${runButton}
-                            <a class="link-tooltip" href="#" onclick="selectExperiment('${exp.idexp}'); return false;" title="Load Experiment">
-                                <i class="mdi mdi-select-all ${exp.status === 1 ? 'active' : ''}" style="font-size: 24px;"></i>
-                            </a>
                             ${joinButton}
                             ${deleteExpButton}
                         </div>

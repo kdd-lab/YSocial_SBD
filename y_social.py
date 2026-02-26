@@ -9,73 +9,21 @@ def start_app(
     debug=False,
     host="localhost",
     port=8080,
-    llm_backend=None,
     notebook=False,
     desktop_mode=False,
 ):
     import sys
 
     import nltk
-    import requests
 
     # Download NLTK data only when not running from PyInstaller bundle
     # In PyInstaller mode, NLTK data is bundled and the runtime hook sets up the path
     if not getattr(sys, "frozen", False):
         nltk.download("vader_lexicon")
 
-    # Parse and validate LLM backend
-    llm_url = None
-    if llm_backend is None:
-        # No LLM backend specified - skip LLM configuration
-        print("No LLM backend specified. LLM features will be disabled.")
-    elif llm_backend == "ollama":
-        llm_url = "http://127.0.0.1:11434/v1"
-    elif llm_backend == "vllm":
-        llm_url = "http://127.0.0.1:8000/v1"
-    elif ":" in llm_backend:
-        # Custom URL provided
-        if not llm_backend.startswith("http"):
-            llm_url = f"http://{llm_backend}/v1"
-        else:
-            llm_url = (
-                llm_backend if llm_backend.endswith("/v1") else f"{llm_backend}/v1"
-            )
-    else:
-        print(f"Error: Invalid LLM backend '{llm_backend}'")
-        print("Valid options: 'ollama', 'vllm', or custom URL (host:port)")
-        sys.exit(1)
-
-    # Check if LLM server is reachable (only if backend is specified)
-    if llm_backend is not None:
-        try:
-            # Try to reach the models endpoint
-            models_url = (
-                llm_url.replace("/v1", "/v1/models")
-                if "/v1" in llm_url
-                else f"{llm_url}/models"
-            )
-            response = requests.get(models_url, timeout=5)
-            if response.status_code not in [
-                200,
-                404,
-            ]:  # 404 is ok, means endpoint exists but no route
-                print(
-                    f"Warning: LLM server at {llm_url} responded with status {response.status_code}"
-                )
-        except requests.exceptions.RequestException as e:
-            print(f"Error: Cannot reach LLM server at {llm_url}")
-            print(f"Details: {e}")
-            print("\nMake sure the LLM server is running before starting YSocial.")
-            sys.exit(1)
-
-    # Set the LLM backend and URL as environment variables for the app to use
-    if llm_backend is not None:
-        os.environ["LLM_BACKEND"] = llm_backend
-        os.environ["LLM_URL"] = llm_url
-    else:
-        # Clear any existing LLM environment variables
-        os.environ.pop("LLM_BACKEND", None)
-        os.environ.pop("LLM_URL", None)
+    # LLM integrations are disabled in this build.
+    os.environ.pop("LLM_BACKEND", None)
+    os.environ.pop("LLM_URL", None)
 
     app = create_app(db_type=db_type, desktop_mode=desktop_mode)
 
@@ -87,7 +35,9 @@ def start_app(
             exp.status = 0
         db.session.commit()
 
-    app.config["ENABLE_NOTEBOOK"] = notebook
+    if notebook:
+        print("Jupyter Notebook integration is disabled in this build.")
+    app.config["ENABLE_NOTEBOOK"] = False
 
     if db_type.lower() == "sqlite":
         app.run(debug=debug, host=host, port=port, threaded=False)
@@ -113,12 +63,6 @@ if __name__ == "__main__":
         help="Database type",
     )
     parser.add_argument(
-        "-l",
-        "--llm-backend",
-        default=None,
-        help="LLM backend to use: 'ollama', 'vllm', or custom URL (host:port). If not specified, LLM features will be disabled.",
-    )
-    parser.add_argument(
         "-n",
         "--no_notebook",
         action="store_false",
@@ -142,6 +86,5 @@ if __name__ == "__main__":
         debug=args.debug,
         host=args.host,
         port=args.port,
-        llm_backend=args.llm_backend,
         notebook=args.no_notebook,
     )

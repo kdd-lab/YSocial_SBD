@@ -29,6 +29,7 @@ from y_web.utils.external_processes import get_llm_models
 from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama_status
 
 users = Blueprint("users", __name__)
+WATCHDOG_DISABLED_MSG = "Watchdog functionality is disabled in this build."
 
 # Validation pattern constants for consistency between server and client
 PASSWORD_SPECIAL_CHARS_PATTERN = r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\\/;'`~]"
@@ -227,16 +228,8 @@ def user_details(uid):
     llm_backend = llm_backend_status()
     models = get_llm_models(llm_backend["url"]) if llm_backend["url"] else []
 
-    # Get watchdog interval for admin users
-    watchdog_interval = 15  # Default
-    if current_admin_user.role == "admin":
-        try:
-            from y_web.utils.process_watchdog import get_watchdog
-
-            watchdog = get_watchdog()
-            watchdog_interval = watchdog.run_interval_minutes
-        except Exception:
-            pass
+    # Watchdog features are disabled
+    watchdog_interval = 15
 
     return render_template(
         "admin/user_details.html",
@@ -1146,21 +1139,7 @@ def watchdog_status():
     Returns:
         JSON response with watchdog status
     """
-    # Check if user is admin
-    current_admin_user = Admin_users.query.filter_by(
-        username=current_user.username
-    ).first()
-
-    if not current_admin_user or current_admin_user.role != "admin":
-        return jsonify({"error": "Access denied"}), 403
-
-    try:
-        from y_web.utils.process_watchdog import get_watchdog_status
-
-        status = get_watchdog_status()
-        return jsonify(status), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"success": False, "message": WATCHDOG_DISABLED_MSG}), 410
 
 
 @users.route("/admin/watchdog_run_now", methods=["POST"])
@@ -1172,26 +1151,7 @@ def watchdog_run_now():
     Returns:
         JSON response with the results of the watchdog run
     """
-    # Check if user is admin
-    current_admin_user = Admin_users.query.filter_by(
-        username=current_user.username
-    ).first()
-
-    if not current_admin_user or current_admin_user.role != "admin":
-        return jsonify({"error": "Access denied"}), 403
-
-    try:
-        from y_web.utils.process_watchdog import run_watchdog_once
-
-        results = run_watchdog_once()
-        flash(
-            f"Watchdog check complete: {results['processes_checked']} checked, "
-            f"{results['processes_restarted']} restarted",
-            "success",
-        )
-        return jsonify(results), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"success": False, "message": WATCHDOG_DISABLED_MSG}), 410
 
 
 @users.route("/admin/watchdog_set_interval", methods=["POST"])
@@ -1207,54 +1167,10 @@ def watchdog_set_interval():
     """
     user_id = request.form.get("user_id")
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or not user_id
-
-    # Check if user is admin
-    current_admin_user = Admin_users.query.filter_by(
-        username=current_user.username
-    ).first()
-
-    if not current_admin_user or current_admin_user.role != "admin":
-        if is_ajax:
-            return jsonify({"success": False, "message": "Access denied"}), 403
-        flash(
-            "Access denied. Only administrators can modify watchdog settings.", "error"
-        )
-        return redirect(url_for("admin.dashboard"))
-
-    # Get interval from form
-    try:
-        from y_web.utils.process_watchdog import MAX_RUN_INTERVAL_MINUTES
-
-        interval_minutes = int(request.form.get("watchdog_interval", 15))
-        if interval_minutes < 1:
-            interval_minutes = 1
-        elif interval_minutes > MAX_RUN_INTERVAL_MINUTES:
-            interval_minutes = MAX_RUN_INTERVAL_MINUTES
-    except (ValueError, TypeError):
-        interval_minutes = 15
-
-    try:
-        from y_web.utils.process_watchdog import set_watchdog_interval
-
-        set_watchdog_interval(interval_minutes)
-
-        if is_ajax:
-            return jsonify({"success": True, "interval_minutes": interval_minutes}), 200
-
-        flash(f"Watchdog interval set to {interval_minutes} minutes.", "success")
-    except Exception as e:
-        if is_ajax:
-            return jsonify({"success": False, "message": str(e)}), 500
-        flash(f"Error setting watchdog interval: {str(e)}", "error")
-
-    # Validate user_id for redirect
-    try:
-        user_id_int = int(user_id)
-    except (ValueError, TypeError):
-        flash("Invalid user ID.", "error")
-        return redirect(url_for("admin.dashboard"))
-
-    return redirect(url_for("users.user_details", uid=user_id_int))
+    if is_ajax:
+        return jsonify({"success": False, "message": WATCHDOG_DISABLED_MSG}), 410
+    flash(WATCHDOG_DISABLED_MSG, "warning")
+    return redirect(url_for("admin.dashboard"))
 
 
 @users.route("/admin/watchdog_toggle", methods=["POST"])
@@ -1269,36 +1185,4 @@ def watchdog_toggle():
     Returns:
         JSON response with success status
     """
-    # Check if user is admin
-    current_admin_user = Admin_users.query.filter_by(
-        username=current_user.username
-    ).first()
-
-    if not current_admin_user or current_admin_user.role != "admin":
-        return jsonify({"success": False, "message": "Access denied"}), 403
-
-    try:
-        data = request.get_json()
-        enabled = data.get("enabled", True) if data else True
-
-        from y_web.utils.process_watchdog import get_watchdog
-
-        watchdog = get_watchdog()
-
-        if enabled:
-            watchdog.start_scheduler()
-        else:
-            watchdog.stop_scheduler()
-
-        return (
-            jsonify(
-                {
-                    "success": True,
-                    "enabled": watchdog.is_running,
-                    "message": f"Watchdog {'enabled' if enabled else 'disabled'}",
-                }
-            ),
-            200,
-        )
-    except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+    return jsonify({"success": False, "message": WATCHDOG_DISABLED_MSG}), 410

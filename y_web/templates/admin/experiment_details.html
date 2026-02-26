@@ -129,6 +129,7 @@
                 <div class="column is-12-mobile is-4-tablet" style="display: flex; flex-direction: column;">
                     <!--Box-->
 
+                    {% if false %}
                     <div id="server-controls-section" class="dashboard-box">
                         <h3 class="title is-5 is-thin">Server & Analysis Controls</h3>
                         
@@ -342,13 +343,11 @@
                     <script>
                         // Experiment server control functions
                         function startExperimentServer(expId) {
-                            showLoading('Starting experiment server...');
-                            window.location.href = `/admin/start_experiment/${expId}`;
+                            alert('Experiment execution is disabled in this build.');
                         }
 
                         function stopExperimentServer(expId) {
-                            showLoading('Stopping experiment server...');
-                            window.location.href = `/admin/stop_experiment/${expId}`;
+                            alert('Experiment execution is disabled in this build.');
                         }
 
                         function selectExperiment(expId) {
@@ -395,6 +394,7 @@
                         }
                     </script>
                     {% endif %}
+                    {% endif %}
 
                     <div id="simulation-clients-section" class="dashboard-box" style="flex: 1 1 auto; display: flex; flex-direction: column;">
                         <h3 class="title is-5 is-thin">Simulation Clients</h3>
@@ -427,16 +427,6 @@
                                             </div>
                                         </div>
                                         <div style="display: flex; gap: 3px;">
-                                            {% if client.status == 0 and (experiment.running == 1 or experiment.is_remote == 1) %}
-                                            <a class="link-tooltip" href="/admin/run_client/{{ client.id }}/{{ experiment.idexp }}" title="Run Client" onclick="event.preventDefault(); showLoading('Starting client...'); setTimeout(() => { window.location.href = this.href; }, 100);">
-                                                <i class="mdi mdi-play-box-outline" style="font-size: 20px;"></i>
-                                            </a>
-                                            {% endif %}
-                                            {% if client.status == 1 %}
-                                            <a class="link-tooltip" href="/admin/pause_client/{{ client.id }}/{{ experiment.idexp }}" title="Pause Client" onclick="event.preventDefault(); showLoading('Pausing client...'); setTimeout(() => { window.location.href = this.href; }, 100);">
-                                                <i class="mdi mdi-pause active" style="font-size: 20px;"></i>
-                                            </a>
-                                            {% endif %}
                                             {% if client.status == 0 %}
                                             <a class="link-tooltip" href="/admin/delete_client/{{ client.id }}" 
                                                onclick="showLoading('Deleting client...');" 
@@ -529,27 +519,23 @@
                         <div class="help-block" style="flex: 1;">
 
                             <p>
-                                <b>Server & Analysis Controls</b><br>
-                                Unified control panel for managing the simulation server, web interface, and data analysis tools.<br><br>
-                                <i class="mdi mdi-play-box-outline" style="font-size: 16px;"></i> Start the experiment server<br>
-                                <i class="mdi mdi-stop" style="font-size: 16px;"></i> Stop the experiment server<br>
-                                <i class="mdi mdi-select-all" style="font-size: 16px;"></i> Load experiment's web interface<br>
-                                <i class="mdi mdi-plus-box" style="font-size: 16px;"></i> Join the web interface<br>
-                                {% if notebooks %}
-                                <i class="mdi mdi-flask-outline" style="font-size: 16px;"></i> Start/Stop JupyterLab for data analysis<br>
-                                {% endif %}
+                                <b>Quick Operations</b><br>
+                                Review experiment configuration and access the web interface.<br><br>
+                                <i class="mdi mdi-select-all" style="font-size: 16px;"></i> Load experiment web interface<br>
+                                <i class="mdi mdi-plus-box" style="font-size: 16px;"></i> Join loaded experiment<br>
+                                <i class="mdi mdi-delete" style="font-size: 16px;"></i> Remove inactive clients<br>
                             </p>
                             <hr>
                             <p>
                                 <b>LLM Prompts</b><br>
-                                Define the instructions that LLM agents follow during the experiment.<br><br>
-                                <i class="mdi mdi-credit-card" style="font-size: 16px;"></i> Edit prompts to customize agent behavior
+                                Review and edit prompt templates used by the experiment configuration.<br><br>
+                                <i class="mdi mdi-credit-card" style="font-size: 16px;"></i> Open prompt editor
                             </p>
 
                         </div>
                     </div>
 
-                    {% if experiment.annotations and 'opinions' in experiment.annotations and experiment.is_remote == 0 %}
+                    {% if false and experiment.annotations and 'opinions' in experiment.annotations and experiment.is_remote == 0 %}
                     <!--Opinion Evolution Box-->
                     <div class="dashboard-box is-compact" style="flex: 0 0 auto; display: flex; flex-direction: column; margin-top: 1.5rem;">
                         <h3 class="title is-5 is-thin">Opinion Evolution</h3>
@@ -573,6 +559,7 @@
 
             </div>
 
+            {% if false %}
             <!-- Server Trends Visualization Section -->
             <div class="columns">
                 <div class="column is-12">
@@ -1896,6 +1883,7 @@
                 });
             </script>
             {% endif %}
+            {% endif %}
 
             <!-- Additional Row for Registered Users and Error Reporting -->
             <div class="columns is-multiline">
@@ -1923,7 +1911,7 @@
                 </div>
                 {% endif %}
 
-                {% if telemetry_enabled %}
+                {% if false and telemetry_enabled %}
                 <div class="column is-12-mobile is-6-tablet is-6-desktop">
                     <div class="dashboard-box" style="height: 100%;">
                         <h3 class="title is-5 is-thin">Something went wrong?</h3>

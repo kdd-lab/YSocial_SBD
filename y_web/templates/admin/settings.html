@@ -313,11 +313,11 @@
                             </div>
                         </div>
 
-                        <!-- Stopped/Scheduled Experiments Section -->
+                        <!-- Configured Experiments Section -->
                         <div id="box-stopped" class="dashboard-box experiment-box" style="display: none;">
                             <h3 class="title is-6 is-thin" style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
                                 <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d;"></span>
-                                Stopped / Scheduled
+                                Configured
                             </h3>
                             <div class="box-content" style="flex: 1;">
                                 <div id="groups-stopped" class="experiment-groups"></div>
@@ -422,25 +422,11 @@
 
     // Functions to start/stop experiment servers
     function startExperimentServer(expId) {
-        if (!confirm('Start the experiment server?')) return;
-        
-        // Show loading
-        const btn = event.target.closest('a');
-        if (btn) btn.innerHTML = '<i class="mdi mdi-loading mdi-spin" style="font-size: 18px;"></i>';
-        
-        // Navigate to start endpoint
-        window.location.href = `/admin/start_experiment/${expId}`;
+        alert('Experiment execution is disabled in this build.');
     }
     
     function stopExperimentServer(expId) {
-        if (!confirm('Stop the experiment server?')) return;
-        
-        // Show loading
-        const btn = event.target.closest('a');
-        if (btn) btn.innerHTML = '<i class="mdi mdi-loading mdi-spin" style="font-size: 18px;"></i>';
-        
-        // Navigate to stop endpoint
-        window.location.href = `/admin/stop_experiment/${expId}`;
+        alert('Experiment execution is disabled in this build.');
     }
 
 
@@ -1033,14 +1019,6 @@
                                         ${statusFilter === EXP_STATUS.ACTIVE && exp.progress !== undefined ? `<span class="exp-tag" style="background: #039be5;">${exp.progress}%</span>` : ''}
                                     </div>
                                     <div style="display: flex; gap: 4px;">
-                                        ${exp.running === 'Running' ? 
-                                            `<a href="#" onclick="stopExperimentServer(${exp.idexp}); return false;" title="Stop Server"><i class="mdi mdi-stop" style="font-size: 18px; color: #dc3545;"></i></a>` : 
-                                            `<a href="#" onclick="startExperimentServer(${exp.idexp}); return false;" title="Start Server"><i class="mdi mdi-play-box-outline" style="font-size: 18px; color: #28a745;"></i></a>`
-                                        }
-                                        ${exp.web === 'Loaded' ? 
-                                            `<a href="/admin/select_experiment/${exp.idexp}" title="Loaded (click to unload)"><i class="mdi mdi-select-all" style="font-size: 18px; color: #28a745;"></i></a>` : 
-                                            `<a href="/admin/select_experiment/${exp.idexp}" title="Load Web Interface"><i class="mdi mdi-select-all" style="font-size: 18px; color: #6c757d;"></i></a>`
-                                        }
                                         <a href="/admin/experiment_details/${exp.idexp}" title="View Details"><i class="mdi mdi-open-in-new" style="font-size: 18px; color: #039be5;"></i></a>
                                         <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
                                     </div>
@@ -1408,9 +1386,21 @@
 <script>
     let scheduleCheckInterval = null;
     let currentRunningGroupId = null;
+    const schedulingDisabled = true;
 
     // Load schedule data on page load
     document.addEventListener('DOMContentLoaded', function() {
+        if (schedulingDisabled) {
+            const container = document.getElementById('schedule-groups');
+            if (container) {
+                container.innerHTML = '<p style="color:#999; font-size:0.9em; text-align:center; padding:20px;">Scheduling is disabled in this build.</p>';
+            }
+            const available = document.getElementById('available-experiments');
+            if (available) {
+                available.innerHTML = '<p style="color:#999; font-size:0.85em; text-align:center; padding:20px;">Scheduling is disabled.</p>';
+            }
+            return;
+        }
         loadAvailableExperiments();
         loadScheduleGroups();
         loadPersistentLogs();
@@ -1682,6 +1672,7 @@
     }
 
     function startSchedule() {
+        if (schedulingDisabled) { addLogMessage('Scheduling is disabled in this build.'); return; }
         // Clear previous logs display
         const logDiv = document.getElementById('schedule-log');
         if (logDiv) {
@@ -1710,6 +1701,7 @@
     }
 
     function stopSchedule() {
+        if (schedulingDisabled) { addLogMessage('Scheduling is disabled in this build.'); return; }
         if (!confirm('Stop the schedule? This will stop all running experiments.')) return;
 
         addLogMessage('Stopping schedule...');
@@ -1733,6 +1725,7 @@
     }
 
     function checkScheduleStatus() {
+        if (schedulingDisabled) { return; }
         fetch('/admin/schedule/status')
             .then(response => response.json())
             .then(data => {
@@ -1770,6 +1763,7 @@
     }
 
     function checkScheduleProgress() {
+        if (schedulingDisabled) { return; }
         fetch('/admin/schedule/check_progress', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
@@ -1872,7 +1866,7 @@
                                         </span>
                                     </div>
 
-                                    <div class="box-line">
+                                    <div class="box-line" style="display: none;">
                                         <span class="left">Experiment Type</span>
                                         <span class="right" style="width: 70%;">
                                             <div id="remote-experiment-container" style="display: flex; align-items: center; gap: 8px;">
@@ -1971,7 +1965,7 @@
                                         <span class="left">Generated Content Annotation</span>
                                         <span class="right" style="width: 70%;">
                                             <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                <div style="display: none; align-items: center; gap: 8px;">
                                                     <label class="switch-small">
                                                         <input type="checkbox" id="toxicity_annotation_toggle" name="toxicity_annotation" value="true">
                                                         <span class="slider-small round"></span>
@@ -2011,7 +2005,7 @@
                                     </div>
 
                                     <!-- Redis Configuration Box (shown only for HPC, collapsed by default) -->
-                                    <div id="redis-config-box" class="box-line" style="display: none;">
+                                    <div id="redis-config-box" class="box-line" style="display: none !important;">
                                         <span class="left">Advanced Settings</span>
                                         <span class="right" style="width: 70%;">
                                             <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);">
@@ -2349,7 +2343,7 @@
                                 // Show/hide HPC info box as overlay
                                 if (isHPC) {
                                     hpcInfoInline.style.display = 'block';
-                                    redisConfigBox.style.display = 'flex';
+                                    redisConfigBox.style.display = 'none';
                                     
                                     // Filter platform type to show only microblogging for HPC
                                     platformTypeSelect.value = 'microblogging';
@@ -2492,6 +2486,7 @@
                 </div>
                 <!-- End of New Experiment column -->
                 
+                {% if false %}
                 <!-- Upload Experiment Column (right 1/3) -->
                 <div class="column is-4">
                     <div id="box-upload-experiment" class="dashboard-box">
@@ -2600,11 +2595,89 @@
                         }
                     </script>
                 </div>
+                {% endif %}
 
+                <!-- Copy Experiment Column (right 1/3) -->
+                <div class="column is-4">
+                    <div id="box-copy-experiment" class="dashboard-box">
+                        <h3 class="title is-5 is-thin">Copy Experiment</h3>
+                        <div class="box-content">
+                            <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
+                                <div class="box-lines">
+                                    <div class="box-line">
+                                        <span class="left">New Name</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="new_exp_name" 
+                                                   name="new_exp_name" 
+                                                   class="input" 
+                                                   placeholder="Enter new name..." 
+                                                   required>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Source Experiment</span>
+                                        <span class="right" style="width: 70%;">
+                                            <div class="select" style="width: 100%;">
+                                                <select id="source_exp_id" name="source_exp_id" style="width: 100%;" required>
+                                                    <option value="">Select experiment...</option>
+                                                    {% for exp in all_experiments %}
+                                                    <option value="{{ exp.idexp }}">{{ exp.exp_name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Number of Copies</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="number" 
+                                                   id="num_copies" 
+                                                   name="num_copies" 
+                                                   class="input" 
+                                                   value="1" 
+                                                   min="1"
+                                                   max="20"
+                                                   style="width: 100%;">
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                If &gt;1, creates copies named: name_1, name_2, etc.
+                                            </p>
+                                        </span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Experiment Group</span>
+                                        <span class="right" style="width: 70%;">
+                                            <input type="text" 
+                                                   id="copy_exp_group" 
+                                                   name="exp_group" 
+                                                   list="exp_groups_datalist_copy" 
+                                                   class="input" 
+                                                   placeholder="Enter or select a group...">
+                                            <datalist id="exp_groups_datalist_copy">
+                                                {% for group in exp_groups %}
+                                                <option value="{{ group }}">
+                                                {% endfor %}
+                                            </datalist>
+                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
+                                                Optional: Group experiments together
+                                            </p>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="button-wrap">
+                                    <button type="submit" class="button is-solid primary-button is-fullwidth">
+                                        Copy Experiment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <!-- ROW 3: Experiment Schedule (left 2/3) + Copy Experiment (right 1/3) -->
+            <!-- ROW 3: Experiment Schedule -->
             <div class="columns">
+                {% if false %}
                 <div class="column is-8">
                     <div id="box-schedule" class="dashboard-box">
                         <h3 class="title is-5 is-thin" style="display: flex; align-items: center; justify-content: space-between;">
@@ -2683,83 +2756,7 @@
                         </div>
                     </div>
                 </div>
-                
-                <!-- Copy Experiment Column (right 1/3) -->
-                <div class="column is-4">
-                    <div id="box-copy-experiment" class="dashboard-box">
-                        <h3 class="title is-5 is-thin">Copy Experiment</h3>
-                        <div class="box-content">
-                            <form action="/admin/copy_experiment" method="POST" onsubmit="showLoading('Copying experiment...');">
-                                <div class="box-lines">
-                                    <div class="box-line">
-                                        <span class="left">New Name</span>
-                                        <span class="right" style="width: 70%;">
-                                            <input type="text" 
-                                                   id="new_exp_name" 
-                                                   name="new_exp_name" 
-                                                   class="input" 
-                                                   placeholder="Enter new name..." 
-                                                   required>
-                                        </span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Source Experiment</span>
-                                        <span class="right" style="width: 70%;">
-                                            <div class="select" style="width: 100%;">
-                                                <select id="source_exp_id" name="source_exp_id" style="width: 100%;" required>
-                                                    <option value="">Select experiment...</option>
-                                                    {% for exp in all_experiments %}
-                                                    <option value="{{ exp.idexp }}">{{ exp.exp_name }}</option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                        </span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Number of Copies</span>
-                                        <span class="right" style="width: 70%;">
-                                            <input type="number" 
-                                                   id="num_copies" 
-                                                   name="num_copies" 
-                                                   class="input" 
-                                                   value="1" 
-                                                   min="1"
-                                                   max="20"
-                                                   style="width: 100%;">
-                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
-                                                If &gt;1, creates copies named: name_1, name_2, etc.
-                                            </p>
-                                        </span>
-                                    </div>
-                                    <div class="box-line">
-                                        <span class="left">Experiment Group</span>
-                                        <span class="right" style="width: 70%;">
-                                            <input type="text" 
-                                                   id="copy_exp_group" 
-                                                   name="exp_group" 
-                                                   list="exp_groups_datalist_copy" 
-                                                   class="input" 
-                                                   placeholder="Enter or select a group...">
-                                            <datalist id="exp_groups_datalist_copy">
-                                                {% for group in exp_groups %}
-                                                <option value="{{ group }}">
-                                                {% endfor %}
-                                            </datalist>
-                                            <p style="font-size: 0.75em; color: #6b7280; margin-top: 4px;">
-                                                Optional: Group experiments together
-                                            </p>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="button-wrap">
-                                    <button type="submit" class="button is-solid primary-button is-fullwidth">
-                                        Copy Experiment
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -66,6 +66,7 @@ clientsr = Blueprint("clientsr", __name__)
 
 # Constants for opinion distribution sampling
 DISTRIBUTION_SCALE_FACTOR = 10.0  # Scale factor for gamma/lognormal distributions
+EXECUTION_DISABLED_MSG = "Experiment execution controls are disabled in this build."
 
 
 def allocate_topics_by_percentage(topics, topic_percentages):
@@ -386,43 +387,7 @@ def run_client(uid, idexp):
     from .experiments_routes import experiment_details
 
     check_privileges(current_user.username)
-
-    # get experiment
-    exp = Exps.query.filter_by(idexp=idexp).first()
-    # get the client
-    client = Client.query.filter_by(id=uid).first()
-
-    # For remote experiments, allow running clients without server check
-    # For local experiments, check if the experiment is already running
-    if exp.is_remote == 0 and exp.running == 0:
-        return redirect(request.referrer)
-
-    # get population of the experiment
-    population = Population.query.filter_by(id=client.population_id).first()
-
-    try:
-        if exp.simulator_type == "HPC":
-            start_hpc_client(exp, client, population)
-        else:
-            start_client(exp, client, population, resume=True)
-
-        # set the client running status
-        db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
-        db.session.commit()
-
-        # For remote experiments, set experiment to running when first client starts
-        if exp.is_remote == 1 and exp.running == 0:
-            db.session.query(Exps).filter_by(idexp=idexp).update(
-                {Exps.running: 1, Exps.exp_status: "active"}
-            )
-            db.session.commit()
-    except FileNotFoundError as e:
-        # Display the error message to the user
-        flash(f"Error starting client: {str(e)}", "error")
-    except Exception as e:
-        # Catch any other errors
-        flash(f"Unexpected error starting client: {str(e)}", "error")
-
+    flash(EXECUTION_DISABLED_MSG, "warning")
     return experiment_details(idexp)
 
 
@@ -433,43 +398,7 @@ def resume_client(uid, idexp):
     from .experiments_routes import experiment_details
 
     check_privileges(current_user.username)
-
-    # get experiment
-    exp = Exps.query.filter_by(idexp=idexp).first()
-    # get the client
-    client = Client.query.filter_by(id=uid).first()
-
-    # For remote experiments, allow running clients without server check
-    # For local experiments, check if the experiment is already running
-    if exp.is_remote == 0 and exp.running == 0:
-        return redirect(request.referrer)
-
-    # get population of the experiment
-    population = Population.query.filter_by(id=client.population_id).first()
-
-    try:
-        if exp.simulator_type == "HPC":
-            start_hpc_client(exp, client, population)
-        else:
-            start_client(exp, client, population, resume=True)
-
-        # set the client running status
-        db.session.query(Client).filter_by(id=uid).update({Client.status: 1})
-        db.session.commit()
-
-        # For remote experiments, set experiment to running when first client starts
-        if exp.is_remote == 1 and exp.running == 0:
-            db.session.query(Exps).filter_by(idexp=idexp).update(
-                {Exps.running: 1, Exps.exp_status: "active"}
-            )
-            db.session.commit()
-    except FileNotFoundError as e:
-        # Display the error message to the user
-        flash(f"Error starting client: {str(e)}", "error")
-    except Exception as e:
-        # Catch any other errors
-        flash(f"Unexpected error starting client: {str(e)}", "error")
-
+    flash(EXECUTION_DISABLED_MSG, "warning")
     return experiment_details(idexp)
 
 
@@ -480,31 +409,7 @@ def pause_client(uid, idexp):
     from .experiments_routes import experiment_details
 
     check_privileges(current_user.username)
-
-    # get population_experiment and update the client_running status
-    db.session.query(Client).filter_by(id=uid).update({Client.status: 0})
-    db.session.commit()
-
-    # get client and experiment
-    client = Client.query.filter_by(id=uid).first()
-    exp = Exps.query.filter_by(idexp=idexp).first()
-
-    if exp.simulator_type == "HPC":
-        stop_hpc_client(client)
-    else:
-        terminate_client(client, pause=True)
-
-    # For remote experiments, check if all clients are stopped
-    if exp.is_remote == 1:
-        all_clients = Client.query.filter_by(id_exp=idexp).all()
-        any_running = any(c.status == 1 for c in all_clients)
-        if not any_running and exp.running == 1:
-            # All clients stopped, set experiment to stopped
-            db.session.query(Exps).filter_by(idexp=idexp).update(
-                {Exps.running: 0, Exps.exp_status: "stopped"}
-            )
-            db.session.commit()
-
+    flash(EXECUTION_DISABLED_MSG, "warning")
     return experiment_details(idexp)  # redirect(request.referrer)
 
 
@@ -515,31 +420,7 @@ def stop_client(uid, idexp):
     from .experiments_routes import experiment_details
 
     check_privileges(current_user.username)
-
-    # get population_experiment and update the client_running status
-    db.session.query(Client).filter_by(id=uid).update({Client.status: 0})
-    db.session.commit()
-
-    # get client and experiment
-    client = Client.query.filter_by(id=uid).first()
-    exp = Exps.query.filter_by(idexp=idexp).first()
-
-    if exp.simulator_type == "HPC":
-        stop_hpc_client(client)
-    else:
-        terminate_client(client, pause=False)
-
-    # For remote experiments, check if all clients are stopped
-    if exp.is_remote == 1:
-        all_clients = Client.query.filter_by(id_exp=idexp).all()
-        any_running = any(c.status == 1 for c in all_clients)
-        if not any_running and exp.running == 1:
-            # All clients stopped, set experiment to stopped
-            db.session.query(Exps).filter_by(idexp=idexp).update(
-                {Exps.running: 0, Exps.exp_status: "stopped"}
-            )
-            db.session.commit()
-
+    flash(EXECUTION_DISABLED_MSG, "warning")
     return experiment_details(idexp)  # redirect(request.referrer)
 
 
@@ -2790,43 +2671,14 @@ def get_progress(client_id):
     For finite clients: returns progress percentage (0-100)
     For infinite clients (expected_duration_rounds = -1): returns elapsed time info
     """
-    # get client_execution
-    client_execution = Client_Execution.query.filter_by(client_id=client_id).first()
-
-    if client_execution is None:
-        return json.dumps({"progress": 0, "infinite": False})
-
-    # Check if this is an infinite client (expected_duration_rounds = -1)
-    if client_execution.expected_duration_rounds == -1:
-        # Return elapsed time info for infinite clients
-        elapsed_hours = client_execution.elapsed_time
-        elapsed_days = elapsed_hours // 24
-        remaining_hours = elapsed_hours % 24
-        return json.dumps(
-            {
-                "progress": -1,
-                "infinite": True,
-                "elapsed_time": client_execution.elapsed_time,
-                "elapsed_days": elapsed_days,
-                "elapsed_hours": remaining_hours,
-                "last_active_day": client_execution.last_active_day,
-                "last_active_hour": client_execution.last_active_hour,
-            }
-        )
-
-    # Calculate progress and cap at 100%
-    if client_execution.expected_duration_rounds > 0:
-        progress = int(
-            100
-            * float(client_execution.elapsed_time)
-            / float(client_execution.expected_duration_rounds)
-        )
-        # Cap progress at 100% to prevent overflow
-        progress = min(100, max(0, progress))
-    else:
-        progress = 0
-
-    return json.dumps({"progress": progress, "infinite": False})
+    return json.dumps(
+        {
+            "progress": 0,
+            "infinite": False,
+            "disabled": True,
+            "message": "Execution status tracking is disabled in this build.",
+        }
+    )
 
 
 @clientsr.route("/admin/set_network/<int:uid>", methods=["POST"])

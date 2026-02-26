@@ -560,9 +560,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
     from .admin_dashboard import admin as admin_blueprint
 
     app.register_blueprint(admin_blueprint)
-    from .routes_admin.ollama_routes import ollama as ollama_blueprint
-
-    app.register_blueprint(ollama_blueprint)
     from .routes_admin.populations_routes import population as population_blueprint
 
     app.register_blueprint(population_blueprint)
@@ -584,10 +581,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
     from .error_routes import errors as errors_blueprint
 
     app.register_blueprint(errors_blueprint)
-
-    from .routes_admin.jupyterlab_routes import lab as lab_blueprint
-
-    app.register_blueprint(lab_blueprint)
 
     from .routes_admin.tutorial_routes import tutorial as tutorial_blueprint
 
@@ -1091,24 +1084,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
     except Exception as e:
         print(f"Failed to log start event: {e}")
 
-    # Start the log sync scheduler for automatic periodic log reading
-    try:
-        from y_web.utils.log_sync_scheduler import init_log_sync_scheduler
-
-        init_log_sync_scheduler(app)
-        print("✓ Log sync scheduler started")
-    except Exception as e:
-        print(f"Failed to start log sync scheduler: {e}")
-
-    # Start the experiment schedule monitor for automatic group advancement
-    try:
-        from y_web.utils.experiment_schedule_monitor import (
-            init_experiment_schedule_monitor,
-        )
-
-        init_experiment_schedule_monitor(app)
-        print("✓ Experiment schedule monitor started")
-    except Exception as e:
-        print(f"Failed to start experiment schedule monitor: {e}")
+    # Execution/scheduling/watchdog background monitors are disabled in this build.
 
     return app

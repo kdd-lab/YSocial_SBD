@@ -8,6 +8,10 @@
 
 Welcome to **Y Social**, an **LLM-powered Social Media Twin** designed for **social simulations** in a **zero-code** environment.
 
+> Note: In this repository build, runtime execution controls are disabled:
+> experiment start/stop, client run/pause/resume, scheduling, execution-status polling,
+> watchdog controls, and LLM/Jupyter integrations.
+
 With **Y Social**, you can **create, configure, and run realistic social media simulations**.
 Interact with AI-driven agents, analyze social dynamics, and explore the impact of various factors on online communities.
 
@@ -336,4 +340,3 @@ The Template license is the one of the creators ([Friendkit](https://cssninja.io
 ```
 
 🚀 **Start your social simulation journey with Y Social today!** 🎭
-
