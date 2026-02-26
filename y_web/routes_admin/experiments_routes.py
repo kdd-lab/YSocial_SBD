@@ -51,7 +51,6 @@ from y_web.models import (
     ExperimentScheduleStatus,
     Exps,
     HpcMonitorSettings,
-    Jupyter_instances,
     Languages,
     Leanings,
     LogFileOffset,
@@ -85,7 +84,6 @@ from y_web.utils import (
     terminate_server_process,
 )
 from y_web.utils.desktop_file_handler import send_file_desktop
-from y_web.utils.jupyter_utils import stop_process
 from y_web.utils.miscellanea import (
     check_privileges,
     llm_backend_status,
@@ -856,13 +854,6 @@ def upload_experiment():
             exp_id=exp.idexp, rounds=0, agents=0, posts=0, reactions=0, mentions=0
         )
         db.session.add(exp_stats)
-        db.session.commit()
-
-        # Create Jupyter instance record
-        jupyter_instance = Jupyter_instances(
-            port=-1, notebook_dir="", exp_id=exp.idexp, status="stopped"
-        )
-        db.session.add(jupyter_instance)
         db.session.commit()
 
         # Reconstruct exp_topic entries from config_server.json
@@ -1887,12 +1878,6 @@ def create_experiment():
             db.session.add(exp_topic)
             db.session.commit()
 
-    jn_instance = Jupyter_instances(
-        port=-1, notebook_dir="", exp_id=exp.idexp, status="stopped"
-    )
-    db.session.add(jn_instance)
-    db.session.commit()
-
     from y_web.telemetry import Telemetry
 
     telemetry = Telemetry(user=current_user)
@@ -2029,15 +2014,6 @@ def delete_simulation(exp_id):
         db.session.query(Exp_Topic).filter_by(exp_id=exp_id).delete()
         db.session.commit()
 
-        # delete jupyter instances
-        instances = db.session.query(Jupyter_instances).filter_by(exp_id=exp_id).all()
-        try:
-            stop_process(instances.process, instances.exp_id)
-        except Exception:
-            pass
-        db.session.query(Jupyter_instances).filter_by(exp_id=exp_id).delete()
-        db.session.commit()
-
     return settings()
 
 
@@ -2118,22 +2094,6 @@ def experiments_data():
     # response
     res = query.all()
 
-    # Get JupyterLab status for each experiment
-    import psutil
-
-    jupyter_status = {}
-    jupyter_instances = Jupyter_instances.query.all()
-    for jupyter in jupyter_instances:
-        is_running = False
-        if jupyter.process is not None:
-            try:
-                proc = psutil.Process(int(jupyter.process))
-                if proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE:
-                    is_running = True
-            except (psutil.NoSuchProcess, ValueError, TypeError):
-                pass
-        jupyter_status[jupyter.exp_id] = is_running
-
     # Calculate average progress for running experiments
     exp_progress = {}
     # Track experiments with infinite clients
@@ -2183,9 +2143,7 @@ def experiments_data():
                 "web": "Loaded" if exp.status == 1 else "Not loaded",
                 "running": "Running" if exp.running == 1 else "Stopped",
                 "exp_status": getattr(exp, "exp_status", "stopped"),
-                "jupyter_status": (
-                    "Active" if jupyter_status.get(exp.idexp, False) else "Inactive"
-                ),
+                "jupyter_status": "Inactive",
                 "annotations": exp.annotations if exp.annotations else "",
                 "progress": exp_progress.get(exp.idexp, 0),
                 "has_infinite_client": exp_has_infinite.get(exp.idexp, False),
@@ -2367,10 +2325,6 @@ def experiment_details(uid):
     elif current_app.config["SQLALCHEMY_BINDS"]["db_exp"].startswith("postgresql"):
         dbtype = "postgresql"
 
-    # get jupyter instance for this experiment if exists
-
-    jupyter_instance = Jupyter_instances.query.filter_by(exp_id=uid).first()
-
     # Pass telemetry flag independently to avoid issues with current_user object
     # User is already authenticated due to @login_required decorator
     telemetry_enabled = getattr(current_user, "telemetry_enabled", True)
@@ -2384,8 +2338,8 @@ def experiment_details(uid):
         users=users,
         len=len,
         dbtype=dbtype,
-        jupyter_instance=jupyter_instance,
-        notebooks=current_app.config["ENABLE_NOTEBOOK"],
+        jupyter_instance=None,
+        notebooks=False,
         telemetry_enabled=telemetry_enabled,
     )
 
@@ -5113,13 +5067,6 @@ def _create_single_experiment_copy(source_exp, new_exp_name, exp_group=""):
 
     # Note: Rounds table is in the experiment database (db_exp)
     # The clean database template already has the initial round (day=0, hour=0)
-
-    # Create Jupyter instance record
-    jupyter_instance = Jupyter_instances(
-        port=-1, notebook_dir="", exp_id=new_exp.idexp, status="stopped"
-    )
-    db.session.add(jupyter_instance)
-    db.session.commit()
 
     return True
 

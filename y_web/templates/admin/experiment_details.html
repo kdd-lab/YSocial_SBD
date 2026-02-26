@@ -304,22 +304,6 @@
                                             </a>
                                             {% endif %}
                                         </div>
-                                        {% if notebooks %}
-                                        <div id="jupyter-controls" style="display: flex; gap: 3px; padding-left: 8px; border-left: 1px solid #ddd;">
-                                            {% if jupyter_instance.status!='stopped' %}
-                                            <a class="link-tooltip" href="#" onclick="stopJupyter('{{ jupyter_instance.exp_id }}'); return false;" title="Stop JupyterLab">
-                                                <i class="mdi mdi-flask-empty-outline" style="font-size: 24px; color: #dc3545;"></i>
-                                            </a>
-                                            <a class="link-tooltip" href="/admin/lab/{{ experiment.idexp }}" {% if not is_pyinstaller %}target="_blank"{% endif %} title="Open JupyterLab">
-                                                <i class="mdi mdi-open-in-new" style="font-size: 24px; color: #039be5;"></i>
-                                            </a>
-                                            {% else %}
-                                            <a id="start-jupyter-btn" class="link-tooltip" href="#" onclick="startJupyter('{{ experiment.idexp }}'); return false;" title="Start JupyterLab">
-                                                <i class="mdi mdi-flask-outline" style="font-size: 24px; color: #039be5;"></i>
-                                            </a>
-                                            {% endif %}
-                                        </div>
-                                        {% endif %}
                                     </span>
                                 </div>
                             </div>
@@ -361,39 +345,6 @@
                         }
                     </script>
 
-                    {% if notebooks %}
-                    <script>
-                        function startJupyter(expId) {
-                            showLoading('Starting JupyterLab...');
-                            fetch(`/admin/lab_start/${expId}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    location.reload();
-                                })
-                                .catch(error => {
-                                    console.error('Error starting JupyterLab:', error);
-                                    hideLoading();
-                                    showToast('Error starting JupyterLab', 'error');
-                                    setTimeout(() => location.reload(), 1500);
-                                });
-                        }
-
-                        function stopJupyter(instanceId) {
-                            showLoading('Stopping JupyterLab...');
-                            fetch(`/admin/lab_stop/${instanceId}`)
-                                .then(response => response.json())
-                                .then(data => {
-                                    location.reload();
-                                })
-                                .catch(error => {
-                                    console.error('Error stopping JupyterLab:', error);
-                                    hideLoading();
-                                    showToast('Error stopping JupyterLab', 'error');
-                                    setTimeout(() => location.reload(), 1500);
-                                });
-                        }
-                    </script>
-                    {% endif %}
                     {% endif %}
 
                     <div id="simulation-clients-section" class="dashboard-box" style="flex: 1 1 auto; display: flex; flex-direction: column;">

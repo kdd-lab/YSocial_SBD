@@ -1,9 +1,5 @@
 """
 Desktop File Handler - Utility for handling file downloads in desktop mode.
-
-This module provides utilities for handling file downloads when running in
-PyInstaller desktop mode with PyWebview. It uses PyWebview's API to expose
-download functionality to JavaScript, allowing proper file save dialogs.
 """
 
 import base64
@@ -37,13 +33,7 @@ def get_webview_window():
     if window:
         return window
 
-    # If not in config, try to get directly from desktop module
-    try:
-        from y_web.pyinstaller_utils.y_social_desktop import get_desktop_window
-
-        return get_desktop_window()
-    except ImportError:
-        return None
+    return None
 
 
 def send_file_desktop(

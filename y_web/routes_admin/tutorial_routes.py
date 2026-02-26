@@ -43,7 +43,6 @@ from y_web.models import (
     Exp_Topic,
     Exps,
     Follow_Recsys,
-    Jupyter_instances,
     Leanings,
     Population,
     Population_Experiment,
@@ -575,13 +574,6 @@ def create_tutorial_experiment():
             db.session.add(exp_topic)
             db.session.commit()
 
-        # Create Jupyter instance record
-        jupyter_instance = Jupyter_instances(
-            port=-1, notebook_dir="", exp_id=exp.idexp, status="stopped"
-        )
-        db.session.add(jupyter_instance)
-        db.session.commit()
-
         # ============== STEP 3: Create Client ==============
 
         # Associate population with experiment
@@ -859,25 +851,6 @@ def create_tutorial_experiment():
         if user:
             user.tutorial_shown = True
             db.session.commit()
-
-        # Log telemetry
-        try:
-            from y_web.telemetry import Telemetry
-
-            telemetry = Telemetry(user=current_user)
-            telemetry.log_event(
-                {
-                    "action": "tutorial_complete",
-                    "data": {
-                        "population_size": population_size,
-                        "simulation_days": simulation_days,
-                    },
-                }
-            )
-        except Exception as telemetry_error:
-            current_app.logger.debug(
-                f"Telemetry logging skipped: {str(telemetry_error)}"
-            )
 
         return jsonify(
             {

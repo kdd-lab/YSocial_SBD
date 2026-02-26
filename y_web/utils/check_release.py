@@ -1,9 +1,4 @@
-import platform
-import sys
-
 import requests
-
-import y_web.pyinstaller_utils.installation_id as installation_id
 
 
 def check_for_updates():
@@ -12,11 +7,9 @@ def check_for_updates():
 
     Returns:
         dict: Information about the latest release and download links.
-              - If PyInstaller app: returns platform-specific download URL if available
-              - If not PyInstaller: returns GitHub release page URL
     """
 
-    current_version = installation_id.get_version()
+    current_version = "0.0.0"
     if current_version is None:
         return None
 
@@ -30,27 +23,11 @@ def check_for_updates():
     latest_tag = latest_release["tag"].strip("v")
 
     if version_tuple(latest_tag) > version_tuple(current_version):
-        # Check if running under PyInstaller
-        is_pyinstaller = getattr(sys, "frozen", False)
-
-        if is_pyinstaller:
-            # PyInstaller app: try to get platform-specific download
-            os = __get_os()
-            url, published, size, sha = __get_release_link_by_platform(
-                latest_release, os
-            )
-
-            # If platform-specific download not available, fall back to GitHub release page
-            if url is None:
-                url = f"https://github.com/YSocialTwin/YSocial/releases/tag/{latest_release['tag']}"
-                size = None
-                sha = None
-        else:
-            # Not PyInstaller (development mode): always use GitHub release page
-            url = f"https://github.com/YSocialTwin/YSocial/releases/tag/{latest_release['tag']}"
-            published = latest_release.get("published_at")
-            size = None
-            sha = None
+        # Source build: always use GitHub release page.
+        url = f"https://github.com/YSocialTwin/YSocial/releases/tag/{latest_release['tag']}"
+        published = latest_release.get("published_at")
+        size = None
+        sha = None
 
         return {
             "latest_version": latest_tag,
@@ -62,27 +39,6 @@ def check_for_updates():
         }
     else:
         return None
-
-
-def __get_os():
-    system = platform.system()
-    machine = platform.machine().lower()
-
-    if system == "Darwin":
-        return "macos"
-
-    elif system == "Windows":
-        # Detect Windows ARM (e.g., Snapdragon PCs)
-        # Common machine values: AMD64, x86, ARM64
-        if "arm" in machine:
-            return "windows-arm"
-        else:
-            return "windows-x86"
-
-    elif system == "Linux":
-        return "linux"
-
-    return "source"
 
 
 def version_tuple(v):
@@ -109,40 +65,6 @@ def __get_latest_release():
     else:
         print(f"Error: {response.status_code} — {response.text}")
         return None
-
-
-def __get_release_link_by_platform(release_data, platform_keyword):
-    """
-    Get the download link for a specific platform from the release data.
-
-    Args:
-        release_data (dict): Release information containing assets.
-        platform_keyword (str): Keyword to identify the platform in asset names.
-    Returns:
-        str: Download URL for the specified platform or None if not found.
-    """
-
-    tag = release_data["tag"].removeprefix("v")
-    url = f"https://releases.y-not.social/latest/release.json"
-    response = requests.get(url, headers={"Accept": "application/json"})
-    if response.status_code == 200:
-        data = response.json()
-        version = data["version"].removeprefix("v")
-        published = data["published"]
-        files = data["files"]
-        if platform_keyword in files and tag == version:
-            name = files[platform_keyword]["filename"]
-            url = f"https://releases.y-not.social/latest/{name}"
-            return (
-                url,
-                published,
-                files[platform_keyword]["size"],
-                files[platform_keyword]["sha256"],
-            )
-        return None, None, None, None
-
-    else:
-        return response.status_code, None, None, None
 
 
 def download_file(url, dest_path, exp_size, exp_sha256):

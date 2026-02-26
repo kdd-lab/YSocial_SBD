@@ -25,11 +25,16 @@ from werkzeug.security import generate_password_hash
 
 from y_web import db  # , app
 from y_web.models import Admin_users, Exps, User_Experiment, User_mgmt
-from y_web.utils.external_processes import get_llm_models
-from y_web.utils.miscellanea import check_privileges, llm_backend_status, ollama_status
+from y_web.utils.miscellanea import (
+    check_privileges,
+    get_llm_models,
+    llm_backend_status,
+    ollama_status,
+)
 
 users = Blueprint("users", __name__)
 WATCHDOG_DISABLED_MSG = "Watchdog functionality is disabled in this build."
+TELEMETRY_DISABLED_MSG = "Telemetry functionality is disabled in this build."
 
 # Validation pattern constants for consistency between server and client
 PASSWORD_SPECIAL_CHARS_PATTERN = r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\\/;'`~]"
@@ -930,48 +935,8 @@ def update_telemetry_preference():
     Returns:
         Redirect to user details page
     """
-    user_id = request.form.get("user_id")
-
-    # Validate user_id
-    try:
-        user_id_int = int(user_id)
-    except (ValueError, TypeError):
-        flash("Invalid user ID.", "error")
-        return redirect(url_for("admin.dashboard"))
-
-    # Check if user is admin
-    current_admin_user = Admin_users.query.filter_by(
-        username=current_user.username
-    ).first()
-
-    if not current_admin_user or current_admin_user.role != "admin":
-        flash(
-            "Access denied. Only administrators can modify telemetry settings.", "error"
-        )
-        return redirect(url_for("admin.dashboard"))
-
-    # Only allow admins to update their own telemetry settings
-    if current_admin_user.id != user_id_int:
-        flash("You can only modify your own telemetry settings.", "error")
-        return redirect(url_for("users.user_details", uid=user_id_int))
-
-    # Get telemetry preference from form
-    telemetry_enabled = request.form.get("telemetry_enabled") == "1"
-
-    # Update user's telemetry preference
-    user = Admin_users.query.filter_by(id=user_id_int).first()
-    if not user:
-        flash("User not found.", "error")
-        return redirect(url_for("users.user_data"))
-
-    user.telemetry_enabled = telemetry_enabled
-    db.session.commit()
-
-    flash(
-        f"Telemetry {'enabled' if telemetry_enabled else 'disabled'} successfully.",
-        "success",
-    )
-    return redirect(url_for("users.user_details", uid=user_id_int))
+    flash(TELEMETRY_DISABLED_MSG, "warning")
+    return redirect(url_for("admin.dashboard"))
 
 
 @users.route("/admin/update_telemetry_preference_ajax", methods=["POST"])
@@ -983,25 +948,7 @@ def update_telemetry_preference_ajax():
     Returns:
         JSON response with success status
     """
-    # Check if user is admin
-    current_admin_user = Admin_users.query.filter_by(
-        username=current_user.username
-    ).first()
-
-    if not current_admin_user or current_admin_user.role != "admin":
-        return jsonify({"success": False, "message": "Access denied"}), 403
-
-    data = request.get_json()
-    if data is None:
-        return jsonify({"success": False, "message": "No data provided"}), 400
-
-    telemetry_enabled = data.get("telemetry_enabled", False)
-
-    # Update current admin user's telemetry preference
-    current_admin_user.telemetry_enabled = telemetry_enabled
-    db.session.commit()
-
-    return jsonify({"success": True, "enabled": telemetry_enabled})
+    return jsonify({"success": False, "message": TELEMETRY_DISABLED_MSG}), 410
 
 
 @users.route("/admin/check_for_updates", methods=["POST"])

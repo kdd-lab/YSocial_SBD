@@ -7,21 +7,12 @@ similar to the release_info table.
 
 import os
 import sqlite3
-import sys
 
 
 def migrate_dashboard_db():
     """Add blog_posts table to the dashboard database if it doesn't exist."""
-    # Determine the database path based on execution mode
-    if getattr(sys, "frozen", False):
-        # Running from PyInstaller - use writable location
-        from y_web.utils.path_utils import get_writable_path
-
-        db_dir = os.path.join(get_writable_path(), "y_web", "db")
-    else:
-        # Running from source
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        db_dir = os.path.join(base_dir, "db")
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_dir = os.path.join(base_dir, "db")
 
     db_path = os.path.join(db_dir, "dashboard.db")
 

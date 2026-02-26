@@ -484,30 +484,18 @@
                 formatter: (cell, row) => {
                     // Get the web value from hidden cell (shifted by 1 due to has_infinite_client column)
                     const web = row.cells[5].data;      // web is at index 5
-                    {% if enable_notebook %}
-                    const jupyter = row.cells[6].data;  // jupyter_status is at index 6
-                    {% endif %}
-                    
+                                        
                     const webColor = web === 'Loaded' ? '#28a745' : '#6c757d';
-                    {% if enable_notebook %}
-                    const jupyterColor = jupyter === 'Active' ? '#28a745' : '#6c757d';
-                    {% endif %}
-                    
+                                        
                     return gridjs.html(`
                         <div class="status-indicators">
                             <span class="status-dot" style="background-color: ${webColor};" title="Web: ${web}"></span>
-                            {% if enable_notebook %}
-                            <span class="status-dot" style="background-color: ${jupyterColor};" title="Lab: ${jupyter}"></span>
-                            {% endif %}
-                        </div>
+                                                    </div>
                     `);
                 }
             },
             { id: 'web', hidden: true },
-            {% if enable_notebook %}
-            { id: 'jupyter_status', hidden: true },
-            {% endif %}
-            {
+                        {
                 id: 'details',
                 name: '',
                 sort: false,
@@ -580,30 +568,18 @@
                 formatter: (cell, row) => {
                     // Get the web value from hidden cell (shifted by 1 due to has_infinite_client column)
                     const web = row.cells[5].data;      // web is at index 5
-                    {% if enable_notebook %}
-                    const jupyter = row.cells[6].data;  // jupyter_status is at index 6
-                    {% endif %}
-                    
+                                        
                     const webColor = web === 'Loaded' ? '#28a745' : '#6c757d';
-                    {% if enable_notebook %}
-                    const jupyterColor = jupyter === 'Active' ? '#28a745' : '#6c757d';
-                    {% endif %}
-                    
+                                        
                     return gridjs.html(`
                         <div class="status-indicators">
                             <span class="status-dot" style="background-color: ${webColor};" title="Web: ${web}"></span>
-                            {% if enable_notebook %}
-                            <span class="status-dot" style="background-color: ${jupyterColor};" title="Lab: ${jupyter}"></span>
-                            {% endif %}
-                        </div>
+                                                    </div>
                     `);
                 }
             },
             { id: 'web', hidden: true },
-            {% if enable_notebook %}
-            { id: 'jupyter_status', hidden: true },
-            {% endif %}
-            {
+                        {
                 id: 'details',
                 name: '',
                 sort: false,
@@ -812,30 +788,18 @@
                 formatter: (cell, row) => {
                     // Get the web value from hidden cell (shifted by 1 due to checkbox and has_infinite_client column)
                     const web = row.cells[6].data;      // web is at index 6 (shifted +1)
-                    {% if enable_notebook %}
-                    const jupyter = row.cells[7].data;  // jupyter_status is at index 7 (shifted +1)
-                    {% endif %}
-                    
+                                        
                     const webColor = web === 'Loaded' ? '#28a745' : '#6c757d';
-                    {% if enable_notebook %}
-                    const jupyterColor = jupyter === 'Active' ? '#28a745' : '#6c757d';
-                    {% endif %}
-                    
+                                        
                     return gridjs.html(`
                         <div class="status-indicators">
                             <span class="status-dot" style="background-color: ${webColor};" title="Web: ${web}"></span>
-                            {% if enable_notebook %}
-                            <span class="status-dot" style="background-color: ${jupyterColor};" title="Lab: ${jupyter}"></span>
-                            {% endif %}
-                        </div>
+                                                    </div>
                     `);
                 }
             },
             { id: 'web', hidden: true },
-            {% if enable_notebook %}
-            { id: 'jupyter_status', hidden: true },
-            {% endif %}
-            {
+                        {
                 id: 'details',
                 name: '',
                 sort: false,

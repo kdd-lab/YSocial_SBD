@@ -217,16 +217,6 @@ def create_population():
 
     generate_population(name, percentages, actions_config, profession_backgrounds)
 
-    from y_web.telemetry import Telemetry
-
-    telemetry = Telemetry(user=current_user)
-    telemetry.log_event(
-        {
-            "action": "create_population",
-            "data": {"n_agents": n_agents},
-        }
-    )
-
     return populations()
 
 

@@ -187,30 +187,12 @@ def create_postgresql_db(app):
     admin_engine.dispose()
 
 
-def cleanup_db_jupyter_with_new_app():
+def cleanup_db_with_new_app():
     """
     Create a fresh app instance to get a valid app context, then run DB cleanup.
     Call this from the main runner's shutdown handler or as final step in atexit.
     """
     print("Cleaning up db...")
-
-    # Stop the log sync scheduler
-    try:
-        from y_web.utils.log_sync_scheduler import stop_log_sync_scheduler
-
-        stop_log_sync_scheduler()
-        print("Log sync scheduler stopped")
-    except Exception as e:
-        print(f"Failed to stop log sync scheduler: {e}")
-
-    # Log service stop event
-    try:
-        from y_web.telemetry import Telemetry
-
-        telemetry = Telemetry()
-        telemetry.log_event({"action": "stop"})
-    except Exception as e:
-        print(f"Failed to log stop event: {e}")
 
     try:
         # Try to use existing app context first
@@ -229,11 +211,6 @@ def cleanup_db_jupyter_with_new_app():
         if app_context_exists:
             # Use existing context
             from y_web import db
-            from y_web.utils.external_processes import stop_all_exps
-            from y_web.utils.jupyter_utils import stop_all_jupyter_instances
-
-            stop_all_jupyter_instances()
-            stop_all_exps()
 
             # Ensure changes are committed
             db.session.commit()
@@ -251,11 +228,6 @@ def cleanup_db_jupyter_with_new_app():
                     app = create_app(dbms)
                     with app.app_context():
                         from y_web import db
-                        from y_web.utils.external_processes import stop_all_exps
-                        from y_web.utils.jupyter_utils import stop_all_jupyter_instances
-
-                        stop_all_jupyter_instances()
-                        stop_all_exps()
                         # For PostgreSQL, ensure changes are committed by explicitly closing the session
                         db.session.commit()
                         db.session.close()
@@ -276,7 +248,7 @@ def cleanup_db_jupyter_with_new_app():
 # Only register atexit handler for the main application process, not subprocesses
 # Client subprocesses set Y_CLIENT_SUBPROCESS=1 to indicate they should not run cleanup
 if os.environ.get("Y_CLIENT_SUBPROCESS") != "1":
-    atexit.register(cleanup_db_jupyter_with_new_app)
+    atexit.register(cleanup_db_with_new_app)
 
 
 def create_app(db_type="sqlite", desktop_mode=False):
@@ -306,15 +278,8 @@ def create_app(db_type="sqlite", desktop_mode=False):
     app.config["DESKTOP_MODE"] = desktop_mode
 
     if db_type == "sqlite":
-        # Determine the database directory based on execution mode
-        if getattr(sys, "frozen", False):
-            # Running from PyInstaller - use writable location for database
-            from y_web.utils.path_utils import get_writable_path
-
-            db_dir = os.path.join(get_writable_path(), "y_web", "db")
-        else:
-            # Running from source - use BASE_DIR
-            db_dir = f"{BASE_DIR}{os.sep}db"
+        # Source-only build: keep databases under the project db directory.
+        db_dir = f"{BASE_DIR}{os.sep}db"
 
         # Ensure db directory exists
         os.makedirs(db_dir, exist_ok=True)
@@ -413,16 +378,7 @@ def create_app(db_type="sqlite", desktop_mode=False):
         """Setup experiment context and desktop mode for each request."""
         setup_experiment_context()
 
-        # If in desktop mode, ensure webview window is accessible
-        if app.config.get("DESKTOP_MODE"):
-            try:
-                from y_web.pyinstaller_utils.y_social_desktop import get_desktop_window
-
-                window = get_desktop_window()
-                if window:
-                    app.config["WEBVIEW_WINDOW"] = window
-            except ImportError:
-                pass  # Desktop module not available
+        # Desktop integrations are intentionally disabled in this build.
 
     @app.teardown_request
     def teardown_request_handler(exception=None):
@@ -586,14 +542,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
 
     app.register_blueprint(tutorial_blueprint)
 
-    # Add context processor to detect PyInstaller mode
-    @app.context_processor
-    def inject_pyinstaller_mode():
-        """Inject PyInstaller mode detection into all templates."""
-        import sys
-
-        return dict(is_pyinstaller=getattr(sys, "frozen", False))
-
     # Run database migrations at startup
     with app.app_context():
         try:
@@ -605,30 +553,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
             # For PostgreSQL, the table is created via the schema file
         except Exception as e:
             print(f"Failed to run blog_posts table migration: {e}")
-
-        try:
-            # Run migration to add telemetry columns if needed
-            if db_type == "sqlite":
-                from y_web.migrations.add_telemetry_columns import migrate_sqlite
-
-                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
-                if dashboard_db_path:
-                    migrate_sqlite(dashboard_db_path)
-            elif db_type == "postgresql":
-                from y_web.migrations.add_telemetry_columns import migrate_postgresql
-
-                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
-                pg_host = os.getenv("PG_HOST", "localhost")
-                pg_port = os.getenv("PG_PORT", "5432")
-                pg_database = os.getenv("PG_DBNAME", "dashboard")
-                pg_user = os.getenv("PG_USER", "postgres")
-                pg_password = os.getenv("PG_PASSWORD", "")
-                if pg_password:
-                    migrate_postgresql(
-                        pg_host, pg_port, pg_database, pg_user, pg_password
-                    )
-        except Exception as e:
-            print(f"Failed to run telemetry columns migration: {e}")
 
         try:
             # Run migration to add log metrics tables if needed
@@ -653,34 +577,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     )
         except Exception as e:
             print(f"Failed to run log metrics tables migration: {e}")
-
-        try:
-            # Run migration to add HPC monitor settings table and remove log sync settings
-            if db_type == "sqlite":
-                from y_web.migrations.add_hpc_monitor_settings import (
-                    migrate_sqlite as migrate_hpc_monitor_sqlite,
-                )
-
-                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
-                if dashboard_db_path:
-                    migrate_hpc_monitor_sqlite(dashboard_db_path)
-            elif db_type == "postgresql":
-                from y_web.migrations.add_hpc_monitor_settings import (
-                    migrate_postgresql as migrate_hpc_monitor_postgresql,
-                )
-
-                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
-                pg_host = os.getenv("PG_HOST", "localhost")
-                pg_port = os.getenv("PG_PORT", "5432")
-                pg_database = os.getenv("PG_DBNAME", "dashboard")
-                pg_user = os.getenv("PG_USER", "postgres")
-                pg_password = os.getenv("PG_PASSWORD", "")
-                if pg_password:
-                    migrate_hpc_monitor_postgresql(
-                        pg_host, pg_port, pg_database, pg_user, pg_password
-                    )
-        except Exception as e:
-            print(f"Failed to run HPC monitor settings migration: {e}")
 
         try:
             # Run migration to add exp_status column to exps table if needed
@@ -709,62 +605,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     )
         except Exception as e:
             print(f"Failed to run exp_status column migration: {e}")
-
-        try:
-            # Run migration to add experiment schedule tables if needed
-            if db_type == "sqlite":
-                from y_web.migrations.add_experiment_schedule_tables import (
-                    migrate_sqlite as migrate_schedule_sqlite,
-                )
-
-                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
-                if dashboard_db_path:
-                    migrate_schedule_sqlite(dashboard_db_path)
-            elif db_type == "postgresql":
-                from y_web.migrations.add_experiment_schedule_tables import (
-                    migrate_postgresql as migrate_schedule_postgresql,
-                )
-
-                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
-                pg_host = os.getenv("PG_HOST", "localhost")
-                pg_port = os.getenv("PG_PORT", "5432")
-                pg_database = os.getenv("PG_DBNAME", "dashboard")
-                pg_user = os.getenv("PG_USER", "postgres")
-                pg_password = os.getenv("PG_PASSWORD", "")
-                if pg_password:
-                    migrate_schedule_postgresql(
-                        pg_host, pg_port, pg_database, pg_user, pg_password
-                    )
-        except Exception as e:
-            print(f"Failed to run experiment schedule tables migration: {e}")
-
-        # Run watchdog settings migration
-        try:
-            if db_type == "sqlite":
-                from y_web.migrations.add_watchdog_settings import (
-                    migrate_sqlite as migrate_watchdog_sqlite,
-                )
-
-                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
-                if dashboard_db_path:
-                    migrate_watchdog_sqlite(dashboard_db_path)
-            elif db_type == "postgresql":
-                from y_web.migrations.add_watchdog_settings import (
-                    migrate_postgresql as migrate_watchdog_postgresql,
-                )
-
-                # Get PostgreSQL connection details from environment variables (same as create_postgresql_db)
-                pg_host = os.getenv("PG_HOST", "localhost")
-                pg_port = os.getenv("PG_PORT", "5432")
-                pg_database = os.getenv("PG_DBNAME", "dashboard")
-                pg_user = os.getenv("PG_USER", "postgres")
-                pg_password = os.getenv("PG_PASSWORD", "")
-                if pg_password:
-                    migrate_watchdog_postgresql(
-                        pg_host, pg_port, pg_database, pg_user, pg_password
-                    )
-        except Exception as e:
-            print(f"Failed to run watchdog settings migration: {e}")
 
         # Run tutorial_shown column migration
         try:
@@ -1075,15 +915,6 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to check for blog posts at startup: {e}")
 
-    # Log service start event
-    try:
-        from y_web.telemetry import Telemetry
-
-        telemetry = Telemetry()
-        telemetry.log_event({"action": "start"})
-    except Exception as e:
-        print(f"Failed to log start event: {e}")
-
-    # Execution/scheduling/watchdog background monitors are disabled in this build.
+    # Execution/scheduling/watchdog/telemetry background subsystems are disabled in this build.
 
     return app

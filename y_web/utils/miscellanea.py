@@ -13,12 +13,6 @@ from y_web.models import (
     Admin_users,
     User_mgmt,
 )
-from y_web.utils import (
-    is_ollama_installed,
-    is_ollama_running,
-    is_vllm_installed,
-    is_vllm_running,
-)
 
 
 def check_privileges(username):
@@ -72,6 +66,16 @@ def llm_backend_status():
         "status": False,
         "installed": False,
     }
+
+
+def get_llm_models(llm_url=None):
+    """
+    Return the fixed, local model set.
+
+    Args:
+        llm_url: Unused; kept for compatibility with previous call sites.
+    """
+    return ["llama3.2", "minicpm-v"]
 
 
 def check_connection():
