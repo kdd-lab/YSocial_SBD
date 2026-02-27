@@ -43,6 +43,7 @@ from y_web.models import (
     Client_Execution,
     ClientLogMetrics,
     Education,
+    ExperimentNotification,
     Exp_stats,
     Exp_Topic,
     ExperimentScheduleGroup,
@@ -2296,6 +2297,17 @@ def experiment_details(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+    if not experiment:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    # Mark related unread notifications as read when opening experiment details.
+    (
+        ExperimentNotification.query.filter_by(
+            recipient_username=current_user.username, exp_id=uid, is_read=False
+        ).update({"is_read": True}, synchronize_session=False)
+    )
+    db.session.commit()
 
     # get experiment populations along with population names and ids
     experiment_populations = (
@@ -2402,6 +2414,17 @@ def submit_experiment(uid):
         if exp_status in ("stopped", "scheduled") and exp.running == 0:
             exp.exp_status = "active"
             exp.running = 1
+            admin_users = Admin_users.query.filter_by(role="admin").all()
+            for admin_user in admin_users:
+                db.session.add(
+                    ExperimentNotification(
+                        recipient_username=admin_user.username,
+                        exp_id=exp.idexp,
+                        notification_type="submitted",
+                        message=f"Experiment '{exp.exp_name}' was submitted by {current_user.username}.",
+                        is_read=False,
+                    )
+                )
             db.session.commit()
             flash(f"Experiment '{exp.exp_name}' submitted for asynchronous execution.")
         else:
@@ -2478,6 +2501,15 @@ def complete_experiment(uid):
     exp.exp_status = "completed"
     exp.running = 0
     exp.results_download_link = results_link
+    db.session.add(
+        ExperimentNotification(
+            recipient_username=exp.owner,
+            exp_id=exp.idexp,
+            notification_type="completed",
+            message=f"Experiment '{exp.exp_name}' has been marked as completed.",
+            is_read=False,
+        )
+    )
     db.session.commit()
 
     flash(

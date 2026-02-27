@@ -15,13 +15,13 @@
         },
         {
             id: 'sidebar-users',
-            selector: '#sidebar-users, #sidebar-profile',
-            title: '👥 Users / My Profile',
-            description: `<p>Manage <b>user accounts</b> (admin) or view your <b>profile settings</b>:</p>
+            selector: '#sidebar-users',
+            title: '👥 Users',
+            description: `<p>Manage <b>user accounts</b> (admin only):</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
                     <li>Create and manage users</li>
                     <li>Set per-user submission limits</li>
-                    <li>Update profile information</li>
+                    <li>Review user roles and access</li>
                 </ul>`,
             position: 'right'
         },
@@ -119,10 +119,10 @@
             position: 'bottom'
         },
         {
-            id: 'logout-btn',
-            selector: 'a[href="/logout"]',
-            title: '🚪 Log Out',
-            description: `<p>Click to <b>log out</b> of your YSocial session.</p>`,
+            id: 'user-menu-btn',
+            selector: '#user-menu-toggle',
+            title: '👤 Account Menu',
+            description: `<p>Open this menu to access <b>My Profile</b> and <b>Log Out</b>.</p>`,
             position: 'bottom'
         },
         // Dashboard Content

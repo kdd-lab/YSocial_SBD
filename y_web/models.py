@@ -973,6 +973,22 @@ class BlogPost(db.Model):
     latest_check_on = db.Column(db.String(50), nullable=True)
 
 
+class ExperimentNotification(db.Model):
+    """
+    Per-user experiment notifications for admin header and notifications page.
+    """
+
+    __bind_key__ = "db_admin"
+    __tablename__ = "experiment_notifications"
+    id = db.Column(db.Integer, primary_key=True)
+    recipient_username = db.Column(db.String(50), nullable=False, index=True)
+    exp_id = db.Column(db.Integer, db.ForeignKey("exps.idexp"), nullable=False)
+    notification_type = db.Column(db.String(20), nullable=False)  # submitted/completed
+    message = db.Column(db.String(500), nullable=False)
+    is_read = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.now())
+
+
 class LogFileOffset(db.Model):
     """
     Track last read offset for log files to enable incremental reading.

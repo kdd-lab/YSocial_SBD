@@ -468,6 +468,39 @@ def create_app(db_type="sqlite", desktop_mode=False):
                 print(f"Error injecting blog post info: {e}")
         return dict(new_blog_post_available=False, blog_post=None)
 
+    @app.context_processor
+    def inject_experiment_notifications():
+        """Inject unread experiment notifications for current admin/researcher."""
+        from flask_login import current_user
+
+        from .models import Admin_users, ExperimentNotification
+
+        if current_user.is_authenticated:
+            try:
+                admin_user = Admin_users.query.filter_by(
+                    username=current_user.username
+                ).first()
+                if admin_user and admin_user.role in ["admin", "researcher"]:
+                    unread = (
+                        ExperimentNotification.query.filter_by(
+                            recipient_username=admin_user.username, is_read=False
+                        )
+                        .order_by(ExperimentNotification.created_at.desc())
+                        .all()
+                    )
+                    return dict(
+                        unread_notifications_count=len(unread),
+                        unread_header_notifications=unread[:5],
+                        unread_notifications_has_more=len(unread) > 5,
+                    )
+            except Exception as e:
+                print(f"Error injecting experiment notifications: {e}")
+        return dict(
+            unread_notifications_count=0,
+            unread_header_notifications=[],
+            unread_notifications_has_more=False,
+        )
+
     # Add custom Jinja filter for user ID to image mapping
     # This supports both int IDs (Standard experiments) and UUID IDs (HPC experiments)
     @app.template_filter("user_image_id")
@@ -573,6 +606,33 @@ def create_app(db_type="sqlite", desktop_mode=False):
                     )
         except Exception as e:
             print(f"Failed to run log metrics tables migration: {e}")
+
+        try:
+            # Run migration to add experiment notifications table if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_experiment_notifications_table import (
+                    migrate_sqlite as migrate_notifications_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_notifications_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_experiment_notifications_table import (
+                    migrate_postgresql as migrate_notifications_postgresql,
+                )
+
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_notifications_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run experiment_notifications table migration: {e}")
 
         try:
             # Run migration to add exp_status column to exps table if needed

@@ -24,7 +24,13 @@ from flask_login import current_user, login_required
 from werkzeug.security import generate_password_hash
 
 from y_web import db  # , app
-from y_web.models import Admin_users, Exps, User_Experiment, User_mgmt
+from y_web.models import (
+    Admin_users,
+    ExperimentNotification,
+    Exps,
+    User_Experiment,
+    User_mgmt,
+)
 from y_web.utils.miscellanea import (
     check_privileges,
     get_llm_models,
@@ -1040,6 +1046,63 @@ def mark_blog_post_read(post_id):
         print(f"Error marking blog post {post_id} as read: {e}")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+@users.route("/admin/notifications")
+@login_required
+def notifications_page():
+    """Show the full unread notification list for the current admin/researcher."""
+    privilege_check = check_privileges(current_user.username)
+    if privilege_check:
+        return privilege_check
+
+    unread_notifications = (
+        ExperimentNotification.query.filter_by(
+            recipient_username=current_user.username, is_read=False
+        )
+        .order_by(ExperimentNotification.created_at.desc())
+        .all()
+    )
+    read_notifications = (
+        ExperimentNotification.query.filter_by(
+            recipient_username=current_user.username, is_read=True
+        )
+        .order_by(ExperimentNotification.created_at.desc())
+        .all()
+    )
+    return render_template(
+        "admin/notifications.html",
+        unread_notifications=unread_notifications,
+        read_notifications=read_notifications,
+    )
+
+
+@users.route("/admin/notifications/mark_read/<int:notification_id>", methods=["GET", "POST"])
+@login_required
+def mark_notification_read(notification_id):
+    """Mark a single notification as read."""
+    privilege_check = check_privileges(current_user.username)
+    if privilege_check:
+        if request.method == "POST":
+            return jsonify({"error": "Access denied"}), 403
+        return privilege_check
+
+    notification = ExperimentNotification.query.get(notification_id)
+    if not notification or notification.recipient_username != current_user.username:
+        if request.method == "POST":
+            return jsonify({"error": "Notification not found"}), 404
+        flash("Notification not found.", "warning")
+        return redirect(url_for("users.notifications_page"))
+
+    notification.is_read = True
+    db.session.commit()
+
+    next_url = request.args.get("next", "").strip()
+    if request.method == "POST":
+        return jsonify({"success": True}), 200
+    if next_url.startswith("/"):
+        return redirect(next_url)
+    return redirect(url_for("users.notifications_page"))
 
 
 @users.route("/admin/open_external_url", methods=["POST"])

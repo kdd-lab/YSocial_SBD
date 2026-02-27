@@ -1,0 +1,68 @@
+{% include "admin/head.html" %}
+
+<div class="view-wrapper is-dashboard">
+    <div id="creator-dashboard" class="dashboard-container">
+        {% include "admin/dash_head.html" %}
+
+        <div class="dashboard-body">
+            <div class="columns">
+                <div class="column is-12">
+                    <div class="dashboard-box">
+                        Notifications
+                    </div>
+                </div>
+            </div>
+
+            <div class="columns is-multiline">
+                <div class="column is-12-mobile is-8-tablet">
+                    <div class="dashboard-box">
+                        <h3 class="title is-5 is-thin">Unread Notifications</h3>
+                        <div class="box-content">
+                            {% if unread_notifications %}
+                                {% for n in unread_notifications %}
+                                <div class="box-line" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee;">
+                                    <span style="flex: 1; min-width: 0;">
+                                        <a href="/admin/notifications/mark_read/{{ n.id }}?next=/admin/experiment_details/{{ n.exp_id }}" style="color: #363636; text-decoration: none;">
+                                            {{ n.message }}
+                                        </a>
+                                        <small style="display: block; color: #888;">{{ n.created_at }}</small>
+                                    </span>
+                                    <span style="display: flex; gap: 8px;">
+                                        <a class="button is-small" href="/admin/experiment_details/{{ n.exp_id }}">Open</a>
+                                        <form method="POST" action="/admin/notifications/mark_read/{{ n.id }}">
+                                            <button class="button is-small is-light" type="submit">Mark Read</button>
+                                        </form>
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p style="color: #777;">No unread notifications.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="column is-12-mobile is-4-tablet">
+                    <div class="dashboard-box is-compact">
+                        <h3 class="title is-6 is-thin">Read Notifications</h3>
+                        <div class="box-content" style="max-height: 520px; overflow-y: auto;">
+                            {% if read_notifications %}
+                                {% for n in read_notifications %}
+                                <div class="box-line" style="padding: 8px 0; border-bottom: 1px solid #f1f1f1;">
+                                    <a href="/admin/experiment_details/{{ n.exp_id }}" style="color: #555; text-decoration: none; font-size: 0.9em;">
+                                        {{ n.message }}
+                                    </a>
+                                    <small style="display: block; color: #999;">{{ n.created_at }}</small>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p style="color: #777; font-size: 0.9em;">No read notifications.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "admin/footer.html" %}

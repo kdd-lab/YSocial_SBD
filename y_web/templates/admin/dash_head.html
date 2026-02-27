@@ -181,19 +181,97 @@ function dismissBlogPost(postId) {
                     }
                 }
             </script>
+            <div style="position: relative;">
+                <button id="notifications-toggle" class="button is-solid has-icon" type="button" title="Notifications">
+                    <i data-feather="bell"></i>
+                    <span class="btn-text">Notifications</span>
+                    {% if unread_notifications_count > 0 %}
+                    <span style="display: inline-block; min-width: 18px; padding: 0 6px; height: 18px; line-height: 18px; text-align: center; border-radius: 9px; background: #e53935; color: #fff; font-size: 11px; margin-left: 6px;">
+                        {{ unread_notifications_count }}
+                    </span>
+                    {% endif %}
+                </button>
+                <div id="notifications-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); width: 360px; max-width: 85vw; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 1100;">
+                    <div style="padding: 10px 12px; border-bottom: 1px solid #eee; font-weight: 600;">
+                        Notifications
+                    </div>
+                    <div style="max-height: 320px; overflow-y: auto;">
+                        {% if unread_header_notifications %}
+                            {% for n in unread_header_notifications %}
+                            <div style="padding: 10px 12px; border-bottom: 1px solid #f1f1f1;">
+                                <a href="/admin/notifications/mark_read/{{ n.id }}?next=/admin/experiment_details/{{ n.exp_id }}" style="color: #333; text-decoration: none; display: block;">
+                                    <div style="font-size: 13px;">{{ n.message }}</div>
+                                    <small style="color: #888;">{{ n.created_at }}</small>
+                                </a>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding: 12px; color: #777; font-size: 13px;">No unread notifications.</div>
+                        {% endif %}
+                    </div>
+                    <div style="padding: 10px 12px; border-top: 1px solid #eee; text-align: right;">
+                        <a href="/admin/notifications" style="font-size: 13px;">Open full list</a>
+                    </div>
+                </div>
+            </div>
             {% if active_experiments %}
             <a class="button is-solid live-button has-icon" href="/admin/join_experiment/{{ active_experiments[0].idexp }}">
                 <i data-feather="video"></i>
                 <span class="btn-text">Join {{ active_experiments[0].exp_name }}</span>
             </a>
             {% endif %}
-            <a class="button is-solid has-icon" href="/logout">
-                <i data-feather="log-out"></i>
-                <span class="btn-text">Log Out</span>
-            </a>
+            <div style="position: relative;">
+                <button id="user-menu-toggle" class="button is-solid has-icon" type="button" title="Account">
+                    <i data-feather="user"></i>
+                    <span class="btn-text">{{ current_user.username if current_user and current_user.is_authenticated else 'Account' }}</span>
+                </button>
+                <div id="user-menu" style="display: none; position: absolute; right: 0; top: calc(100% + 6px); width: 220px; background: #fff; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 1100;">
+                    <a href="/admin/user_details/{{ current_user_id }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: #333; text-decoration: none; border-bottom: 1px solid #f1f1f1;">
+                        <i data-feather="user" style="width: 14px; height: 14px;"></i>
+                        <span>My Profile</span>
+                    </a>
+                    <a href="/logout" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: #333; text-decoration: none;">
+                        <i data-feather="log-out" style="width: 14px; height: 14px;"></i>
+                        <span>Log Out</span>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.getElementById('notifications-toggle');
+    const menu = document.getElementById('notifications-menu');
+    if (!toggle || !menu) return;
+
+    toggle.addEventListener('click', function(event) {
+        event.stopPropagation();
+        menu.style.display = menu.style.display === 'none' || menu.style.display === '' ? 'block' : 'none';
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!menu.contains(event.target) && event.target !== toggle && !toggle.contains(event.target)) {
+            menu.style.display = 'none';
+        }
+    });
+
+    const userToggle = document.getElementById('user-menu-toggle');
+    const userMenu = document.getElementById('user-menu');
+    if (!userToggle || !userMenu) return;
+
+    userToggle.addEventListener('click', function(event) {
+        event.stopPropagation();
+        userMenu.style.display = userMenu.style.display === 'none' || userMenu.style.display === '' ? 'block' : 'none';
+    });
+
+    document.addEventListener('click', function(event) {
+        if (!userMenu.contains(event.target) && event.target !== userToggle && !userToggle.contains(event.target)) {
+            userMenu.style.display = 'none';
+        }
+    });
+});
+</script>
 
 <!-- Header Responsive Styles -->
 <style>
