@@ -20,7 +20,7 @@
             description: `<p>Manage <b>user accounts</b> (admin) or view your <b>profile settings</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
                     <li>Create and manage users</li>
-                    <li>Configure LLM settings</li>
+                    <li>Set per-user submission limits</li>
                     <li>Update profile information</li>
                 </ul>`,
             position: 'right'
@@ -32,8 +32,8 @@
             description: `<p>Create and configure new <b>experiments</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
                     <li>Define experiment parameters</li>
-                    <li>Schedule experiment execution</li>
-                    <li>Copy or upload experiments</li>
+                    <li>Create and configure clients</li>
+                    <li>Submit or unsubmit experiments</li>
                 </ul>`,
             position: 'right'
         },
@@ -77,11 +77,11 @@
             id: 'sidebar-miscellanea',
             selector: '#sidebar-miscellanea',
             title: '⚙️ Miscellanea',
-            description: `<p>Access <b>system settings</b> and configurations:</p>
+            description: `<p>Access additional <b>platform configurations</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li>LLM server management</li>
                     <li>Demographics and content settings</li>
-                    <li>System updates and logs</li>
+                    <li>Client behavior defaults</li>
+                    <li>Platform maintenance options</li>
                 </ul>`,
             position: 'right'
         },
@@ -129,12 +129,12 @@
         {
             id: 'running-experiments',
             selector: '#box-running-experiments',
-            title: '🟢 Running Experiments',
-            description: `<p>This section shows all <b>currently active experiments</b>:</p>
+            title: '🟢 Submitted Experiments',
+            description: `<p>This section shows all <b>submitted experiments</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Client Overview</b> - Read-only client state summary</li>
-                    <li><b>Experiment Details</b> - Inspect current configuration</li>
-                    <li><b>Analysis</b> - Open available metrics and logs</li>
+                    <li>Open experiment details</li>
+                    <li>Unsubmit when you need to edit clients/prompts</li>
+                    <li>Track ownership and grouping</li>
                 </ul>`,
             position: 'bottom'
         },
@@ -153,12 +153,12 @@
         {
             id: 'stopped-experiments',
             selector: '#box-stopped-experiments',
-            title: '⚫ Stopped/Scheduled Experiments',
-            description: `<p>Experiments that are <b>not currently active</b>:</p>
+            title: '⚫ Configured Experiments',
+            description: `<p>Experiments that are <b>configured but not submitted</b>:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
                     <li>Inspect setup and ownership</li>
                     <li>Review related populations and clients</li>
-                    <li>Export or clone experiment configurations</li>
+                    <li>Submit when configuration is ready</li>
                 </ul>`,
             position: 'left'
         },
@@ -166,26 +166,13 @@
             id: 'quick-reference',
             selector: '#box-quick-reference',
             title: '📚 Quick Reference Guide',
-            description: `<p>A helpful <b>step-by-step guide</b> for running experiments:</p>
+            description: `<p>A helpful <b>step-by-step guide</b> for configuring and submitting experiments:</p>
                 <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
                     <li>How to create populations and agents</li>
                     <li>Setting up simulation clients</li>
-                    <li>Starting and monitoring experiments</li>
+                    <li>Submitting and un-submitting experiments</li>
                 </ul>`,
-            position: 'left'
-        },
-        // Services Indicator
-        {
-            id: 'services-indicator',
-            selector: '#services-indicator',
-            title: '📊 Services Status',
-            description: `<p>Monitor the status of <b>backend services</b>:</p>
-                <ul style="margin: 10px 0 0 18px; padding: 0; list-style: disc;">
-                    <li><b>Database</b> - Connection status to SQLite or PostgreSQL</li>
-                    <li><b>LLM Server</b> - Status of the AI language model service</li>
-                </ul>
-                <p style="margin-top: 10px;">Green indicators show healthy connections.</p>`,
-            position: 'top',
+            position: 'left',
             isLast: true
         }
     ];

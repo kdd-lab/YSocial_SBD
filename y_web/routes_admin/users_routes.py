@@ -112,8 +112,8 @@ def users_data():
         for s in sort.split(","):
             direction = s[0]
             name = s[1:]
-            if name not in ["username", "role", "email"]:
-                name = "name"
+            if name not in ["username", "role", "email", "max_submitted_experiments"]:
+                name = "username"
             col = getattr(Admin_users, name)
             if direction == "-":
                 col = col.desc()
@@ -139,6 +139,9 @@ def users_data():
                 "password": user.password,
                 "last_seen": user.last_seen,
                 "role": user.role,
+                "max_submitted_experiments": user.max_submitted_experiments
+                if user.max_submitted_experiments is not None
+                else 3,
             }
             for user in res
         ],
@@ -170,6 +173,8 @@ def update():
     ).first()
 
     user = Admin_users.query.get(data["id"])
+    if not user:
+        abort(404)
 
     # Handle role changes with restrictions
     if "role" in data:
@@ -188,7 +193,27 @@ def update():
             elif user.id == current_admin_user.id and new_role != "admin":
                 del data["role"]
 
-    for field in ["username", "password", "email", "last_seen", "role"]:
+    if "max_submitted_experiments" in data:
+        if current_admin_user.role != "admin":
+            del data["max_submitted_experiments"]
+        else:
+            raw_value = str(data["max_submitted_experiments"]).strip()
+            try:
+                parsed_value = int(raw_value)
+            except (TypeError, ValueError):
+                abort(400, "max_submitted_experiments must be an integer")
+            if parsed_value < 0:
+                abort(400, "max_submitted_experiments must be >= 0")
+            data["max_submitted_experiments"] = parsed_value
+
+    for field in [
+        "username",
+        "password",
+        "email",
+        "last_seen",
+        "role",
+        "max_submitted_experiments",
+    ]:
         if field in data:
             setattr(user, field, data[field])
     db.session.commit()
@@ -276,6 +301,20 @@ def add_user():
     role = request.form.get("role")
     llm = request.form.get("llm")
     profile_pic = request.form.get("profile_pic")
+    raw_max_submitted = request.form.get("max_submitted_experiments", "3").strip()
+
+    try:
+        max_submitted_experiments = int(raw_max_submitted)
+    except ValueError:
+        flash("Max submitted experiments must be an integer.", "error")
+        return redirect(url_for("users.user_data"))
+
+    if max_submitted_experiments < 0:
+        flash("Max submitted experiments must be greater than or equal to 0.", "error")
+        return redirect(url_for("users.user_data"))
+
+    if current_admin_user.role != "admin":
+        max_submitted_experiments = 3
 
     # Enforce role restrictions: researchers can only create 'user' role
     if current_admin_user.role != "admin" and role in ["admin", "researcher"]:
@@ -292,6 +331,7 @@ def add_user():
         role=role,
         llm=llm,
         profile_pic=profile_pic,
+        max_submitted_experiments=max_submitted_experiments,
     )
 
     db.session.add(user)
@@ -780,6 +820,7 @@ def bulk_create_users():
                 password=generate_password_hash(password),
                 role=role,
                 last_seen="",
+                max_submitted_experiments=3,
             )
             db.session.add(new_user)
             created += 1

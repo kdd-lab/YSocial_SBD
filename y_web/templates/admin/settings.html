@@ -277,11 +277,11 @@
 
                     <!-- Three experiment sections in a row (responsive) -->
                     <div class="experiments-row">
-                        <!-- Active Experiments Section -->
+                        <!-- Submitted Experiments Section -->
                         <div id="box-active" class="dashboard-box experiment-box" style="display: none;">
                             <h3 class="title is-6 is-thin" style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
                                 <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #28a745;"></span>
-                                Running
+                                Submitted
                             </h3>
                             <div class="box-content" style="flex: 1;">
                                 <div id="groups-active" class="experiment-groups"></div>
@@ -430,7 +430,7 @@
     }
 
 
-    // Function to create compact table columns configuration for Running Experiments
+    // Function to create compact table columns configuration for Submitted Experiments
     function getRunningTableColumns() {
         return [
             { id: 'idexp', hidden: true },
@@ -980,14 +980,14 @@
                                         ${exp.simulator_type === 'HPC' ? '<span class="exp-tag hpc">HPC</span>' : ''}
                                         ${exp.is_remote === 1 ? '<span class="exp-tag remote">Remote</span>' : ''}
                                         ${exp.has_infinite_client ? '<span class="exp-tag infinite">∞</span>' : ''}
-                                        ${statusFilter === EXP_STATUS.ACTIVE && exp.progress !== undefined ? `<span class="exp-tag" style="background: #039be5;">${exp.progress}%</span>` : ''}
                                     </div>
                                     <div style="display: flex; gap: 4px;">
                                         <a href="/admin/experiment_details/${exp.idexp}" title="View Details"><i class="mdi mdi-open-in-new" style="font-size: 18px; color: #039be5;"></i></a>
-                                        <a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>
+                                        ${statusFilter === EXP_STATUS.ACTIVE
+                                            ? `<a href="/admin/unsubmit_experiment/${exp.idexp}" onclick="return confirm('Unsubmit this experiment and move it back to Configured?')" title="Unsubmit"><i class="mdi mdi-undo-variant" style="font-size: 18px; color: #f59e0b;"></i></a>`
+                                            : `<a href="/admin/delete_simulation/${exp.idexp}" onclick="return confirm('Delete this experiment?')" title="Delete"><i class="mdi mdi-delete" style="font-size: 18px; color: #dc3545;"></i></a>`}
                                     </div>
                                 </div>
-                                ${statusFilter === EXP_STATUS.ACTIVE ? `<div id="progress-section-${exp.idexp}" class="client-progress-section" style="display: none;"></div>` : ''}
                             </div>
                         `;
                     });
@@ -1025,7 +1025,7 @@
                 // For active experiments, fetch and display client progress bars
                 if (statusFilter === EXP_STATUS.ACTIVE) {
                     results.data.forEach(exp => {
-                        if (exp.running === 'Running') {
+                        if (exp.running === 'Submitted') {
                             fetchAndDisplayClientProgress(exp.idexp);
                         }
                     });

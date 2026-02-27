@@ -90,6 +90,9 @@ def _upsert_oauth_user(email, display_name, username_prefix):
     """
     user = Admin_users.query.filter_by(email=email).first()
     if user:
+        if user.max_submitted_experiments is None:
+            user.max_submitted_experiments = 3
+            db.session.commit()
         return user
 
     user = Admin_users(
@@ -101,6 +104,7 @@ def _upsert_oauth_user(email, display_name, username_prefix):
         llm="",
         llm_url="",
         profile_pic="",
+        max_submitted_experiments=3,
     )
     db.session.add(user)
     db.session.commit()

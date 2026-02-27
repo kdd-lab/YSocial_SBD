@@ -225,6 +225,11 @@ def dashboard():
         jupyter_by_exp=jupyter_by_exp,
         notebook=False,
         total_experiments=total_experiments,
+        user_submission_limit=(
+            user.max_submitted_experiments
+            if user.max_submitted_experiments is not None
+            else 3
+        ),
         # Telemetry notice
         show_telemetry_notice=show_telemetry_notice,
     )

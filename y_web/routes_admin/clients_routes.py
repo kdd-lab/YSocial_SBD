@@ -69,6 +69,17 @@ DISTRIBUTION_SCALE_FACTOR = 10.0  # Scale factor for gamma/lognormal distributio
 EXECUTION_DISABLED_MSG = "Experiment execution controls are disabled in this build."
 
 
+def _is_experiment_submitted(exp):
+    """Return True when experiment is currently submitted."""
+    return bool(
+        exp
+        and (
+            getattr(exp, "exp_status", "stopped") == "active"
+            or getattr(exp, "running", 0) == 1
+        )
+    )
+
+
 def allocate_topics_by_percentage(topics, topic_percentages):
     """
     Allocate topics to an agent based on specified interest percentages.
@@ -432,6 +443,12 @@ def clients(idexp):
 
     # get experiment
     exp = Exps.query.filter_by(idexp=idexp).first()
+    if _is_experiment_submitted(exp):
+        flash(
+            "This experiment is submitted. Unsubmit it before modifying clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
 
     # get only populations already associated with this experiment
     pop_exp_associations = Population_Experiment.query.filter_by(id_exp=idexp).all()
@@ -656,40 +673,38 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     elif llm_backend == "vllm":
         llm_config = {
             "backend": "vllm",
-            "model": form_data.get("llm_model", "AMead10/Llama-3.2-3B-Instruct-AWQ"),
+            "model": "AMead10/Llama-3.2-3B-Instruct-AWQ",
             "temperature": float(form_data.get("llm_temperature", "0.9")),
-            "max_tokens": int(form_data.get("llm_max_tokens", "256")),
-            "max_model_len": int(form_data.get("llm_max_model_len", "4096")),
-            "tensor_parallel_size": int(form_data.get("llm_tensor_parallel_size", "1")),
-            "gpu_memory_utilization": float(
-                form_data.get("llm_gpu_memory_utilization", "0.15")
-            ),
-            "enable_flashattention": form_data.get("llm_enable_flashattention")
-            == "true",
-            "num_actors": int(form_data.get("llm_num_actors", "4")),
-            "gpu_per_actor": float(form_data.get("llm_gpu_per_actor", "1.0")),
-            "reuse_actors": form_data.get("llm_reuse_actors") == "true",
-            "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
+            "max_tokens": 256,
+            "max_model_len": 4096,
+            "tensor_parallel_size": 1,
+            "gpu_memory_utilization": 0.15,
+            "enable_flashattention": False,
+            "num_actors": 4,
+            "gpu_per_actor": 1.0,
+            "reuse_actors": False,
+            "actor_name_prefix": "ysim_llm",
         }
 
         # Only include llm_v_config if Image Transcription is enabled
         if enable_image_transcription:
             llm_v_config = {
-                "model": form_data.get("llm_v_model", "openbmb/MiniCPM-V-2_6-int4"),
+                "model": "openbmb/MiniCPM-V-2_6-int4",
                 "temperature": float(form_data.get("llm_v_temperature", "0.5")),
-                "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
-                "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
-                "gpu_memory_utilization": float(
-                    form_data.get("llm_v_gpu_memory_utilization", "0.15")
-                ),
+                "max_tokens": 300,
+                "max_model_len": 4096,
+                "gpu_memory_utilization": 0.15,
             }
         else:
             llm_v_config = None
     else:  # ollama
+        ollama_model = form_data.get("user_type", "llama3.2")
+        if ollama_model not in {"llama3.2", "minicpm-v"}:
+            ollama_model = "llama3.2"
         llm_config = {
             "address": llm,
             "port": 11434,
-            "model": form_data.get("user_type", "llama3.2"),
+            "model": ollama_model,
             "temperature": float(form_data.get("llm_temperature", "0.7")),
             "llm_api_key": "NULL",
             "llm_max_tokens": -1,
@@ -1410,6 +1425,12 @@ def create_client():
 
     # Check if LLM agents are enabled for this experiment
     exp = Exps.query.filter_by(idexp=exp_id).first()
+    if _is_experiment_submitted(exp):
+        flash(
+            "This experiment is submitted. Unsubmit it before modifying clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=exp_id))
 
     # For HPC clients, use simplified config generation
     if is_hpc:
@@ -1451,30 +1472,19 @@ def create_client():
     else:
         opinions_enabled = False
 
-    # Get LLM parameters from form, or use defaults if LLM agents are disabled
-    if llm_agents_enabled:
-        llm = request.form.get("llm")
-        llm_api_key = request.form.get("llm_api_key")
-        llm_max_tokens = request.form.get("llm_max_tokens")
-        llm_temperature = request.form.get("llm_temperature")
-        llm_v_agent = request.form.get("llm_v_agent")
-        llm_v = request.form.get("llm_v")
-        llm_v_api_key = request.form.get("llm_v_api_key")
-        llm_v_max_tokens = request.form.get("llm_v_max_tokens")
-        llm_v_temperature = request.form.get("llm_v_temperature")
-        user_type = request.form.get("user_type")
-    else:
-        # Use default values when LLM agents are disabled
-        llm = "http://127.0.0.1:11434/v1"
-        llm_api_key = "NULL"
-        llm_max_tokens = "-1"
-        llm_temperature = "1.5"
-        llm_v_agent = "minicpm-v"
-        llm_v = "http://127.0.0.1:11434/v1"
-        llm_v_api_key = "NULL"
-        llm_v_max_tokens = "300"
-        llm_v_temperature = "0.5"
-        user_type = ""
+    # Use fixed defaults for all LLM fields except model selection and temperature.
+    llm = "http://127.0.0.1:11434/v1"
+    llm_api_key = "NULL"
+    llm_max_tokens = "-1"
+    llm_temperature = request.form.get("llm_temperature", "1.5")
+    llm_v_agent = "minicpm-v"
+    llm_v = "http://127.0.0.1:11434/v1"
+    llm_v_api_key = "NULL"
+    llm_v_max_tokens = "300"
+    llm_v_temperature = "0.5"
+    user_type = request.form.get("user_type", "llama3.2") if llm_agents_enabled else ""
+    if user_type not in {"llama3.2", "minicpm-v"}:
+        user_type = "llama3.2"
 
     crecsys = request.form.get("recsys_type")
     frecsys = request.form.get("frecsys_type")
@@ -2353,6 +2363,17 @@ def delete_client(uid):
     check_privileges(current_user.username)
 
     client = Client.query.filter_by(id=uid).first()
+    if not client:
+        flash("Client not found.", "error")
+        return redirect(request.referrer or url_for("experiments.settings"))
+    exp = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(exp):
+        flash(
+            "This experiment is submitted. Unsubmit it before deleting clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
+
     exp_id = client.id_exp
     pop_id = client.population_id
 
@@ -2654,6 +2675,13 @@ def set_network(uid):
 
     # get client
     client = Client.query.filter_by(id=uid).first()
+    exp = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(exp):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
 
     # get populations for client uid
     populations = Population.query.filter_by(id=client.population_id).all()
@@ -2760,6 +2788,13 @@ def upload_network(uid):
 
     # get client
     client = Client.query.filter_by(id=uid).first()
+    exp = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(exp):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
 
     # get the client experiment
     exp = Exps.query.filter_by(idexp=client.id_exp).first()
@@ -2923,6 +2958,12 @@ def update_agents_activity(uid):
     # get client details
     client = Client.query.filter_by(id=uid).first()
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(experiment):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
     population = Population.query.filter_by(id=client.population_id).first()
 
     from y_web.utils.path_utils import get_writable_path
@@ -2953,6 +2994,12 @@ def reset_agents_activity(uid):
     # get client details
     client = Client.query.filter_by(id=uid).first()
     experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(experiment):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
     population = Population.query.filter_by(id=client.population_id).first()
 
     from y_web.utils.path_utils import get_writable_path
@@ -3067,6 +3114,13 @@ def update_agent_archetypes(uid):
     if not client:
         flash("Client not found.", "error")
         return redirect(request.referrer)
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(experiment):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
 
     # Update client with new values
     client.archetype_validator = archetype_validator
@@ -3149,6 +3203,13 @@ def reset_agent_archetypes(uid):
     if not client:
         flash("Client not found.", "error")
         return redirect(request.referrer)
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(experiment):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
 
     # Reset to default Bluesky values
     client.archetype_validator = 0.52
@@ -3226,6 +3287,13 @@ def update_recsys(uid):
     frecsys_type = request.form.get("frecsys_type")
 
     client = Client.query.filter_by(id=uid).first()
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(experiment):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
 
     # Update client's recsys settings
     client.crecsys = recsys_type
@@ -3261,6 +3329,13 @@ def update_llm(uid):
     user_type = request.form.get("user_type")
 
     client = Client.query.filter_by(id=uid).first()
+    experiment = Exps.query.filter_by(idexp=client.id_exp).first()
+    if _is_experiment_submitted(experiment):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=client.id_exp))
 
     # get populations for client uid
     population = Population.query.filter_by(id=client.population_id).first()
@@ -3513,6 +3588,12 @@ def set_opinion_distributions():
     if not exp:
         flash("Experiment not found.", "error")
         return redirect(url_for("experiments.settings"))
+    if _is_experiment_submitted(exp):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating clients.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=idexp))
 
     client = Client.query.filter_by(id=client_id).first()
     if not client or client.id_exp != int(idexp):

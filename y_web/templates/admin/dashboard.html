@@ -174,7 +174,7 @@
 {% endmacro %}
 
 {# Compact macro for rendering experiment boxes (without client details - for completed/stopped experiments) #}
-{% macro render_compact_experiment_box(experiments, section_color) %}
+{% macro render_compact_experiment_box(experiments, section_color, status_name='stopped') %}
     {% for exp in experiments %}
     {# Check if any client in this experiment has infinite duration (days = -1) #}
     {% set ns = namespace(has_infinite_client=false, client_count=0) %}
@@ -210,7 +210,13 @@
                     <a href="/admin/experiment_details/{{ experiments[exp]['experiment'].idexp }}" class="link-tooltip" title="Details">
                         <i class="mdi mdi-open-in-new" style="font-size: 14px; color: #039be5;"></i>
                     </a>
-                    {% if experiments[exp]['experiment'].status == 0 %}
+                    {% if status_name == 'running' %}
+                    <a class="link-tooltip" href="javascript:void(0);"
+                       onclick="if(confirm('Unsubmit this experiment and move it back to Configured?')) { window.location.href='/admin/unsubmit_experiment/{{ experiments[exp]['experiment'].idexp }}'; }"
+                       title="Unsubmit">
+                        <i class="mdi mdi-undo-variant" style="font-size: 16px; color: #f59e0b;"></i>
+                    </a>
+                    {% elif experiments[exp]['experiment'].status == 0 %}
                     <a class="link-tooltip" href="javascript:void(0);" 
                        onclick="if(confirm('Are you sure you want to delete this experiment? This action cannot be undone.')) { window.location.href='/admin/delete_simulation/{{ experiments[exp]['experiment'].idexp }}'; }" 
                        title="Delete">
@@ -241,7 +247,7 @@
         </div>
         <div id="{{ group_id }}" class="group-content" style="margin-top: 8px; display: {% if collapsed %}none{% else %}block{% endif %};">
             {% if is_compact %}
-                {{ render_compact_experiment_box(experiments, section_color) }}
+                {{ render_compact_experiment_box(experiments, section_color, status_name) }}
             {% else %}
                 {{ render_experiment_box(experiments, section_color) }}
             {% endif %}
@@ -274,19 +280,19 @@
                     <!--Dashboard box-->
                     {% if total_experiments > 0 %}
                     
-                    <!-- Currently Running Experiments (Active) - Full width -->
+                    <!-- Submitted Experiments (Active) - Full width -->
                     {% if len(running_experiments) > 0 %}
                     <div class="dashboard-box" id="box-running-experiments">
                          <h3 class="title is-5 is-thin" style="display: flex; align-items: center; gap: 10px;">
                             <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #28a745;"></span>
-                            Currently Running Experiments
+                            Submitted Experiments
                             <span style="font-size: 0.7em; color: #666; font-weight: normal;">({{ total_running }} total)</span>
                          </h3>
                          <p style="font-size: 0.9em; color: #666; margin-bottom: 1em;">
-                            Active experiments grouped by their project group. Click on a group header to expand/collapse.
+                            Submitted experiments grouped by their project group. Click on a group header to expand/collapse.
                         </p>
                         <div id="running-experiments-container">
-                            {{ render_grouped_experiments(running_experiments_by_group, '#28a745', 'running', false, false) }}
+                            {{ render_grouped_experiments(running_experiments_by_group, '#28a745', 'running', true, false) }}
                         </div>
                     </div>
                     {% endif %}
@@ -405,9 +411,9 @@
                                 
                                 if (container && data.experiments) {
                                     // Use compact rendering for completed/stopped, full for running
-                                    const renderFunc = status === 'running' 
-                                        ? (exp) => renderExperimentBoxFromData(exp, sectionColor, {}, false, false)
-                                        : (exp) => renderCompactExperimentBoxFromData(exp, sectionColor);
+                                    const renderFunc = status === 'running'
+                                        ? (exp) => renderCompactExperimentBoxFromData(exp, sectionColor, 'running')
+                                        : (exp) => renderCompactExperimentBoxFromData(exp, sectionColor, status);
                                     const html = data.experiments.map(renderFunc).join('');
                                     container.innerHTML = html || '<p style="color: #666; text-align: center;">No experiments in this category</p>';
                                 }
@@ -433,8 +439,8 @@
                         <h3 class="title is-5 is-thin">Quick Reference Guide</h3>
                         <div class="help-block">
                             <p>
-                                <b>Running a YSocial Experiment</b><br>
-                                Follow these steps to set up and run a simulation:
+                                <b>Configure YSocial Experiment</b><br>
+                                Follow these steps to set up a simulation:
                             </p>
                             <hr>
                             <p>
@@ -455,8 +461,8 @@
                             </p>
                             <hr>
                             <p>
-                                <b>4. Run the Simulation</b><br>
-                                Start the experiment and run the clients to begin your simulation.
+                                <b>4. Submit the Simulation</b><br>
+                                Submit the simulation for asynchronous execution. At most <b>{{ user_submission_limit }}</b> experiments can be submitted at the same time for your account.
                             </p>
                             <hr>
                             <div style="text-align: center; padding-top: 5px;">
@@ -488,33 +494,6 @@
 
 </div>
 
-<!-- Floating Services Indicator - Compact Side by Side -->
-<div id="services-indicator" style="position: fixed; bottom: 15px; right: 15px; z-index: 1000; background: rgba(255, 255, 255, 0.95); border-radius: 6px; padding: 8px 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); backdrop-filter: blur(10px); border: 1px solid rgba(0,0,0,0.08);">
-    <div style="display: flex; flex-direction: row; gap: 12px; align-items: center;">
-        <!-- Database Status -->
-        <div style="display: flex; align-items: center; gap: 6px;" title="{{ dbtype }}{% if db_server %} ({{ db_server }}:{{ dbport }}){% endif %}">
-            <i class="mdi mdi-database" style="font-size: 16px; color: #555;"></i>
-            <span style="font-size: 0.8em; color: #444; font-weight: 500;">{{ dbtype }}</span>
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: {% if db_conn %}#22c55e{% else %}#ef4444{% endif %};"></span>
-        </div>
-        {% if llm_backend['backend'] is not none %}
-        <!-- Separator -->
-        <div style="width: 1px; height: 16px; background: rgba(0,0,0,0.15);"></div>
-        <!-- LLM Server Status -->
-        <div style="display: flex; align-items: center; gap: 6px;" title="LLM Server: {{ llm_backend['backend']|upper }}">
-            <i class="mdi mdi-brain" style="font-size: 16px; color: #555;"></i>
-            <span style="font-size: 0.8em; color: #444; font-weight: 500;">{{ llm_backend['backend']|upper }}</span>
-            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: {% if llm_backend['status'] %}#22c55e{% else %}#ef4444{% endif %};"></span>
-            {% if llm_backend['backend'] == 'ollama' and not llm_backend['status'] %}
-            <a href="/admin/start_ollama/" title="Start Ollama" style="margin-left: 2px;">
-                <i class="mdi mdi-play-circle-outline" style="font-size: 16px; color: #22c55e;"></i>
-            </a>
-            {% endif %}
-        </div>
-        {% endif %}
-    </div>
-</div>
-
 <script>
     // Experiment server control functions
     function startExperimentServer(expId) {
@@ -536,7 +515,7 @@
     }
     
     // Render a compact experiment box from JSON data (for completed/stopped)
-    function renderCompactExperimentBoxFromData(exp, sectionColor) {
+    function renderCompactExperimentBoxFromData(exp, sectionColor, status = 'stopped') {
         const hasInfiniteClient = exp.clients.some(client => client.days === -1);
         const clientCount = exp.clients.length;
         
@@ -546,12 +525,18 @@
         const clientCountBadge = clientCount > 0 ?
             `<span style="background: #e0e0e0; color: #666; font-size: 0.6em; padding: 0 4px; border-radius: 6px; line-height: 1.4;" title="Clients">${clientCount}</span>` : '';
         
-        const deleteExpButton = exp.status === 0 ?
+        const actionButton = status === 'running' ?
+            `<a class="link-tooltip" href="javascript:void(0);" 
+               onclick="if(confirm('Unsubmit this experiment and move it back to Configured?')) { window.location.href='/admin/unsubmit_experiment/${exp.idexp}'; }" 
+               title="Unsubmit">
+                <i class="mdi mdi-undo-variant" style="font-size: 16px; color: #f59e0b;"></i>
+            </a>` :
+            (exp.status === 0 ?
             `<a class="link-tooltip" href="javascript:void(0);" 
                onclick="if(confirm('Are you sure you want to delete this experiment? This action cannot be undone.')) { window.location.href='/admin/delete_simulation/${exp.idexp}'; }" 
                title="Delete">
                 <i class="mdi mdi-delete" style="font-size: 16px;"></i>
-            </a>` : '';
+            </a>` : '');
         
         const ownerBadge = exp.owner ? 
             `<span style="background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%); color: white; font-size: 0.6em; padding: 0 4px; border-radius: 6px; font-weight: 600; line-height: 1.4;" title="Owner">${exp.owner}</span>` : '';
@@ -578,7 +563,7 @@
                         <a href="/admin/experiment_details/${exp.idexp}" class="link-tooltip" title="Details">
                             <i class="mdi mdi-open-in-new" style="font-size: 14px; color: #039be5;"></i>
                         </a>
-                        ${deleteExpButton}
+                        ${actionButton}
                     </span>
                 </div>
             </div>
@@ -718,7 +703,7 @@
                 
                 const container = document.getElementById('running-experiments-container');
                 if (container) {
-                    const html = data.experiments.map(exp => renderExperimentBoxFromData(exp, '#28a745', {}, false, false)).join('');
+                    const html = data.experiments.map(exp => renderCompactExperimentBoxFromData(exp, '#28a745', 'running')).join('');
                     container.innerHTML = html || '<p style="color: #666; text-align: center;">No experiments</p>';
                 }
                 
@@ -750,7 +735,7 @@
                 
                 const container = document.getElementById('completed-experiments-container');
                 if (container) {
-                    const html = data.experiments.map(exp => renderCompactExperimentBoxFromData(exp, '#17a2b8')).join('');
+                    const html = data.experiments.map(exp => renderCompactExperimentBoxFromData(exp, '#17a2b8', 'completed')).join('');
                     container.innerHTML = html || '<p style="color: #666; text-align: center;">No experiments</p>';
                 }
                 
@@ -782,7 +767,7 @@
                 
                 const container = document.getElementById('stopped-experiments-container');
                 if (container) {
-                    const html = data.experiments.map(exp => renderCompactExperimentBoxFromData(exp, '#6c757d')).join('');
+                    const html = data.experiments.map(exp => renderCompactExperimentBoxFromData(exp, '#6c757d', 'stopped')).join('');
                     container.innerHTML = html || '<p style="color: #666; text-align: center;">No experiments</p>';
                 }
                 

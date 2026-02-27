@@ -686,6 +686,60 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run exp_group column migration: {e}")
 
+        try:
+            # Run migration to add results_download_link column to exps table if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_results_download_link_column import (
+                    migrate_sqlite as migrate_results_link_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_results_link_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_results_download_link_column import (
+                    migrate_postgresql as migrate_results_link_postgresql,
+                )
+
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_results_link_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run results_download_link column migration: {e}")
+
+        try:
+            # Run migration to add max_submitted_experiments column to admin_users if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_max_submitted_experiments_column import (
+                    migrate_sqlite as migrate_max_submitted_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_max_submitted_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_max_submitted_experiments_column import (
+                    migrate_postgresql as migrate_max_submitted_postgresql,
+                )
+
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_max_submitted_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run max_submitted_experiments column migration: {e}")
+
         # Run agent archetypes migration
         try:
             if db_type == "sqlite":

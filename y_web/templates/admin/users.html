@@ -70,6 +70,17 @@
     return {};
   };
 
+  const maxSubmittedEditableCellAttributes = (data, row, col) => {
+    if (row && currentUserRole === 'admin') {
+      return {
+        contentEditable: 'true',
+        'data-element-id': row.cells[0].data,
+        'data-column-id': col.id
+      };
+    }
+    return {};
+  };
+
   new gridjs.Grid({
     columns: [
       { id: 'id', hidden: true },
@@ -84,13 +95,14 @@
       },
       { id: 'last_seen', name: 'Last Seen', sort: false, hidden: true },
       { id: 'role', name: 'Role', sort: true, attributes: roleEditableCellAttributes },
+      { id: 'max_submitted_experiments', name: 'Max Submitted', sort: true, attributes: maxSubmittedEditableCellAttributes },
       {
         id: 'actions',
         name: 'Actions',
         sort: false,
         formatter: (cell, row) => {
           const id = row.cells[0].data;
-          const role = row.cells[5].data;  // assumes role is in the 6th column (index 5)
+          const role = row.cells[5].data;
           const isAdmin = role.toLowerCase() === 'admin';
 
           const deleteButton = isAdmin
@@ -130,7 +142,7 @@
       multiColumn: true,
       server: {
         url: (prev, columns) => {
-          const columnIds = ['id', 'username', 'email', 'password', 'last_seen', 'role'];
+          const columnIds = ['id', 'username', 'email', 'password', 'last_seen', 'role', 'max_submitted_experiments'];
           const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
           return updateUrl(prev, { sort });
         },
@@ -235,6 +247,14 @@
                                         </div>
                                     </div>
                                     <input type="hidden" name="llm" value="">
+                                    {% if current_user_role == 'admin' %}
+                                    <div class="box-line">
+                                        <span class="left">Max Submitted Experiments</span>
+                                        <span class="right" style="width: 70%;"><input type="number" min="0" name="max_submitted_experiments" class="input" value="3"></span>
+                                    </div>
+                                    {% else %}
+                                    <input type="hidden" name="max_submitted_experiments" value="3">
+                                    {% endif %}
                                 </div>
                                 <div class="box-line">
                                         <span class="left">Profile Picture <small>(url, optional)</small></span>
@@ -349,12 +369,17 @@
                             <hr>
                             <p>
                                 <b>Researcher</b><br>
-                                Full admin panel access. Can manage experiments and participate in simulations. Can only create regular users (not admin or researcher).
+                                Access to configuration pages and owned experiments. Can only create regular users (not admin or researcher).
                             </p>
                             <hr>
                             <p>
                                 <b>User</b><br>
                                 Limited access to assigned experiments only. Cannot access admin panel.
+                            </p>
+                            <hr>
+                            <p>
+                                <b>Submission Limit</b><br>
+                                Admin users can set the maximum number of submitted experiments per account. The default is 3.
                             </p>
 
                         </div>

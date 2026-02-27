@@ -1903,6 +1903,13 @@ def delete_simulation(exp_id):
     """Delete simulation."""
     exp = Exps.query.filter_by(idexp=exp_id).first()
     if exp:
+        if getattr(exp, "exp_status", "stopped") == "active" or exp.running == 1:
+            flash(
+                "This experiment is submitted. Unsubmit it before deleting it.",
+                "warning",
+            )
+            return redirect(url_for("experiments.experiment_details", uid=exp_id))
+
         # remove the experiment folder
         # check database type
         if current_app.config["SQLALCHEMY_BINDS"]["db_exp"].startswith("sqlite"):
@@ -2141,7 +2148,7 @@ def experiments_data():
                 "platform_type": exp.platform_type,
                 "owner": exp.owner,
                 "web": "Loaded" if exp.status == 1 else "Not loaded",
-                "running": "Running" if exp.running == 1 else "Stopped",
+                "running": "Submitted" if exp.running == 1 else "Stopped",
                 "exp_status": getattr(exp, "exp_status", "stopped"),
                 "jupyter_status": "Inactive",
                 "annotations": exp.annotations if exp.annotations else "",
@@ -2342,6 +2349,142 @@ def experiment_details(uid):
         notebooks=False,
         telemetry_enabled=telemetry_enabled,
     )
+
+
+@experiments.route("/admin/submit_experiment/<int:uid>", methods=["POST"])
+@login_required
+def submit_experiment(uid):
+    """
+    Toggle asynchronous execution submission state for an experiment.
+
+    Transitions:
+    - Configured ("stopped"/"scheduled") -> Submitted ("active")
+    - Submitted ("active") -> Configured ("stopped")
+    """
+    check_privileges(current_user.username)
+
+    exp = Exps.query.filter_by(idexp=uid).first()
+    if not exp:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    action = request.form.get("action", "").strip().lower()
+    exp_status = getattr(exp, "exp_status", "stopped")
+
+    if action == "submit":
+        has_clients = Client.query.filter_by(id_exp=uid).first() is not None
+        if not has_clients:
+            flash(
+                "Cannot submit experiment: create at least one client first.",
+                "warning",
+            )
+            return redirect(url_for("experiments.experiment_details", uid=uid))
+
+        current_admin_user = Admin_users.query.filter_by(
+            username=current_user.username
+        ).first()
+        if current_admin_user and current_admin_user.role == "researcher":
+            quota = (
+                current_admin_user.max_submitted_experiments
+                if current_admin_user.max_submitted_experiments is not None
+                else 3
+            )
+            submitted_count = Exps.query.filter_by(
+                owner=current_user.username, exp_status="active"
+            ).count()
+            if submitted_count >= quota:
+                flash(
+                    f"Submission limit reached: you can have at most {quota} submitted experiments at the same time.",
+                    "warning",
+                )
+                return redirect(url_for("experiments.experiment_details", uid=uid))
+
+        if exp_status in ("stopped", "scheduled") and exp.running == 0:
+            exp.exp_status = "active"
+            exp.running = 1
+            db.session.commit()
+            flash(f"Experiment '{exp.exp_name}' submitted for asynchronous execution.")
+        else:
+            flash(
+                "Experiment can be submitted only when it is in Configured state.",
+                "warning",
+            )
+    elif action == "unsubmit":
+        if exp_status == "active" or exp.running == 1:
+            exp.exp_status = "stopped"
+            exp.running = 0
+            db.session.commit()
+            flash(f"Experiment '{exp.exp_name}' unsubmitted.", "info")
+        else:
+            flash("Experiment is not currently submitted.", "warning")
+    else:
+        flash("Invalid submission action.", "error")
+
+    return redirect(url_for("experiments.experiment_details", uid=uid))
+
+
+@experiments.route("/admin/unsubmit_experiment/<int:uid>")
+@login_required
+def unsubmit_experiment(uid):
+    """
+    Convenience endpoint to unsubmit an experiment from Submitted to Configured.
+    """
+    check_privileges(current_user.username)
+
+    exp = Exps.query.filter_by(idexp=uid).first()
+    if not exp:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    exp_status = getattr(exp, "exp_status", "stopped")
+    if exp_status == "active" or exp.running == 1:
+        exp.exp_status = "stopped"
+        exp.running = 0
+        db.session.commit()
+        flash(f"Experiment '{exp.exp_name}' unsubmitted.", "info")
+    else:
+        flash("Experiment is not currently submitted.", "warning")
+
+    return redirect(request.referrer or url_for("experiments.settings"))
+
+
+@experiments.route("/admin/complete_experiment/<int:uid>", methods=["POST"])
+@login_required
+def complete_experiment(uid):
+    """
+    Mark experiment as completed with a results download link (admin only).
+    """
+    admin_user = Admin_users.query.filter_by(username=current_user.username).first()
+    if not admin_user or admin_user.role != "admin":
+        flash("Only Admin users can set experiments as Completed.", "error")
+        return redirect(url_for("experiments.experiment_details", uid=uid))
+
+    exp = Exps.query.filter_by(idexp=uid).first()
+    if not exp:
+        flash("Experiment not found.", "error")
+        return redirect(url_for("experiments.settings"))
+
+    results_link = (request.form.get("results_download_link") or "").strip()
+    if not results_link:
+        flash("Please provide a results download link.", "warning")
+        return redirect(url_for("experiments.experiment_details", uid=uid))
+
+    if not (
+        results_link.startswith("http://") or results_link.startswith("https://")
+    ):
+        flash("Results link must start with http:// or https://", "warning")
+        return redirect(url_for("experiments.experiment_details", uid=uid))
+
+    exp.exp_status = "completed"
+    exp.running = 0
+    exp.results_download_link = results_link
+    db.session.commit()
+
+    flash(
+        f"Experiment '{exp.exp_name}' marked as Completed with results link.",
+        "success",
+    )
+    return redirect(url_for("experiments.experiment_details", uid=uid))
 
 
 @experiments.route("/admin/test_remote_server/<int:exp_id>", methods=["POST"])
@@ -3242,6 +3385,15 @@ def update_prompts(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+    if (
+        experiment
+        and (getattr(experiment, "exp_status", "stopped") == "active" or experiment.running == 1)
+    ):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating prompts.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=uid))
     # get the prompts file for the experiment
     prompts_filename = os.path.join(
         BASE_DIR,
@@ -3273,6 +3425,15 @@ def update_prompts_hpc(uid):
 
     # get experiment details
     experiment = Exps.query.filter_by(idexp=uid).first()
+    if (
+        experiment
+        and (getattr(experiment, "exp_status", "stopped") == "active" or experiment.running == 1)
+    ):
+        flash(
+            "This experiment is submitted. Unsubmit it before updating prompts.",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=uid))
 
     if not experiment:
         flash("Experiment not found.", "error")

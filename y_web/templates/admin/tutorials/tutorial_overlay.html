@@ -127,7 +127,7 @@
                 transition: all 0.3s;
                 border: 1px solid #e6e6e6;
             ">
-                <span>4</span> Run
+                <span>4</span> Submit
             </div>
         </div>
         
@@ -288,8 +288,8 @@
                     <i class="mdi mdi-flask" style="color: #039be5;"></i> Create Your Experiment
                 </h3>
                 <p style="color: #666; margin: 0 0 20px 0; font-size: 0.9em;">
-                    An experiment defines the simulation environment.
-                    For more options, visit the <a href="/admin/settings" style="color: #039be5;">Settings</a> page.
+                    An experiment defines the simulation configuration.
+                    For more options, visit the <a href="/admin/experiments" style="color: #039be5;">Experiments</a> page.
                 </p>
                 
                 <div style="display: flex; flex-direction: column; gap: 15px;">
@@ -308,7 +308,7 @@
                         " required>
                     </div>
                     
-                    <div id="tut-llm-section" style="
+                    <div id="tut-llm-section" style="display: none;
                         background: #f5f5f5;
                         padding: 15px;
                         border-radius: 8px;
@@ -384,7 +384,7 @@
                     <i class="mdi mdi-cog" style="color: #039be5;"></i> Configure Your Client
                 </h3>
                 <p style="color: #666; margin: 0 0 20px 0; font-size: 0.9em;">
-                    A client runs the simulation with your population.
+                    A client defines how the simulation will execute with your population.
                     For advanced settings, visit the client details page after creation.
                 </p>
                 
@@ -586,7 +586,6 @@
                             <li>✔️ Explore <mark>advanced population settings</mark>  <small> (e.g., personality traits & toxicity) </small></li>
                             <li>✔️ Experiment with <mark>recommendation</mark> algorithms</li>
                             <li>✔️ Create <mark>multiple clients</mark> to compare simulation scenarios</li>
-                            <li>✔️ Play with <mark>Hybrid Human-LLM</mark> Simulations</li>
                             <li>✔️ Navigate the Experiment with an OSN like interface</li>
                             <li>✔️ Use <mark>ySights</mark> to analyze simulation results <small>(available in developer/docker mode)</small></li>
                         </ul>
@@ -594,7 +593,7 @@
                     
                     <p style="color: #888; font-size: 0.85em; margin-top: 15px;">
                         <i class="mdi mdi-information-outline"></i>
-                        Click "Run Simulation" to start both the experiment server and your client!
+                        Click "Submit Experiment" to mark this configuration as submitted.
                     </p>
                 </div>
             </div>
@@ -1457,7 +1456,7 @@
         if (currentStep === 3) {
             nextBtn.innerHTML = 'Create Simulation <i class="mdi mdi-check"></i>';
         } else if (currentStep === 4) {
-            nextBtn.innerHTML = '<i class="mdi mdi-play"></i> Run Simulation';
+            nextBtn.innerHTML = '<i class="mdi mdi-send"></i> Submit Experiment';
             nextBtn.style.background = 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)';
             nextBtn.style.boxShadow = '0 2px 6px rgba(34, 197, 94, 0.3)';
         } else {
@@ -1550,7 +1549,7 @@
             // Submit the form to create experiment
             createExperiment();
         } else if (currentStep === 4) {
-            // Run the simulation
+            // Submit the experiment
             runSimulation();
         }
     }
@@ -1649,11 +1648,11 @@
         });
     }
     
-    // Run the simulation (start server and client)
+    // Submit the experiment from the tutorial flow.
     function runSimulation() {
         const nextBtn = document.getElementById('tutorial-next-btn');
         nextBtn.disabled = true;
-        nextBtn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Starting...';
+        nextBtn.innerHTML = '<i class="mdi mdi-loading mdi-spin"></i> Submitting...';
         
         // Use the new JSON API endpoint to start both server and client
         fetch('/admin/tutorial/run_simulation', {
