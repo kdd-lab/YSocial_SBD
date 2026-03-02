@@ -81,6 +81,17 @@
     return {};
   };
 
+  const adminNumericEditableCellAttributes = (data, row, col) => {
+    if (row && currentUserRole === 'admin') {
+      return {
+        contentEditable: 'true',
+        'data-element-id': row.cells[0].data,
+        'data-column-id': col.id
+      };
+    }
+    return {};
+  };
+
   new gridjs.Grid({
     columns: [
       { id: 'id', hidden: true },
@@ -96,6 +107,8 @@
       { id: 'last_seen', name: 'Last Seen', sort: false, hidden: true },
       { id: 'role', name: 'Role', sort: true, attributes: roleEditableCellAttributes },
       { id: 'max_submitted_experiments', name: 'Max Submitted', sort: true, attributes: maxSubmittedEditableCellAttributes },
+      { id: 'max_agents_per_population', name: 'Max Agents/Population', sort: true, attributes: adminNumericEditableCellAttributes },
+      { id: 'max_clients_per_experiment', name: 'Max Clients/Experiment', sort: true, attributes: adminNumericEditableCellAttributes },
       {
         id: 'actions',
         name: 'Actions',
@@ -142,7 +155,7 @@
       multiColumn: true,
       server: {
         url: (prev, columns) => {
-          const columnIds = ['id', 'username', 'email', 'password', 'last_seen', 'role', 'max_submitted_experiments'];
+          const columnIds = ['id', 'username', 'email', 'password', 'last_seen', 'role', 'max_submitted_experiments', 'max_agents_per_population', 'max_clients_per_experiment'];
           const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
           return updateUrl(prev, { sort });
         },
@@ -252,8 +265,18 @@
                                         <span class="left">Max Submitted Experiments</span>
                                         <span class="right" style="width: 70%;"><input type="number" min="0" name="max_submitted_experiments" class="input" value="3"></span>
                                     </div>
+                                    <div class="box-line">
+                                        <span class="left">Max Agents / Population</span>
+                                        <span class="right" style="width: 70%;"><input type="number" min="1" name="max_agents_per_population" class="input" value="1000"></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Max Clients / Experiment</span>
+                                        <span class="right" style="width: 70%;"><input type="number" min="1" name="max_clients_per_experiment" class="input" value="1"></span>
+                                    </div>
                                     {% else %}
                                     <input type="hidden" name="max_submitted_experiments" value="3">
+                                    <input type="hidden" name="max_agents_per_population" value="1000">
+                                    <input type="hidden" name="max_clients_per_experiment" value="1">
                                     {% endif %}
                                 </div>
                                 <div class="box-line">

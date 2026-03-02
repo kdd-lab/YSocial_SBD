@@ -47,6 +47,7 @@ from y_web.models import (
     Population_Experiment,
     PopulationActivityProfile,
     Topic_List,
+    Admin_users,
     User_mgmt,
 )
 from y_web.utils import (
@@ -1425,6 +1426,20 @@ def create_client():
 
     # Check if LLM agents are enabled for this experiment
     exp = Exps.query.filter_by(idexp=exp_id).first()
+    owner_admin_user = Admin_users.query.filter_by(username=exp.owner).first() if exp else None
+    max_clients_per_experiment = (
+        owner_admin_user.max_clients_per_experiment
+        if owner_admin_user and owner_admin_user.max_clients_per_experiment is not None
+        else 1
+    )
+    current_clients_count = Client.query.filter_by(id_exp=exp_id).count()
+    if current_clients_count >= max_clients_per_experiment:
+        flash(
+            f"Client limit reached for this experiment ({max_clients_per_experiment}).",
+            "warning",
+        )
+        return redirect(url_for("experiments.experiment_details", uid=exp_id))
+
     if _is_experiment_submitted(exp):
         flash(
             "This experiment is submitted. Unsubmit it before modifying clients.",

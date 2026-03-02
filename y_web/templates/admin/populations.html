@@ -353,8 +353,14 @@
                                     <div class="box-line">
                                         <span class="left">Population Size <span style="color: red;">*</span></span>
                                         <div class="slider-timeline">
-                                            <input id="n_agents" name="n_agents" type="number" value="100" min="1" class="input" required>
+                                            <input id="n_agents" name="n_agents" type="number" value="100" min="1" max="{{ max_agents_per_population }}" class="input" required>
                                         </div>
+                                    </div>
+                                    <div class="box-line" style="padding-top: 0;">
+                                        <span class="left"></span>
+                                        <span class="right" style="width: 70%; font-size: 0.85em; color: #6b7280;">
+                                            Max allowed for your account: {{ max_agents_per_population }} agents.
+                                        </span>
                                     </div>
                                     </div><!-- End section-basic-info -->
 
@@ -1444,12 +1450,15 @@
                                         function validateFormFields() {
                                             const popName = document.getElementById('pop_name').value.trim();
                                             const nAgents = document.getElementById('n_agents').value;
+                                            const maxAgents = parseInt(document.getElementById('n_agents').getAttribute('max') || '1000', 10);
                                             const hasEducation = Object.keys(multiSelectData.education_levels).length > 0;
                                             const hasPolitical = Object.keys(multiSelectData.political_leanings).length > 0;
                                             const hasToxicity = Object.keys(multiSelectData.toxicity_levels).length > 0;
                                             
                                             const submitBtn = document.getElementById('create_population_btn');
-                                            const isValid = popName && nAgents && hasEducation && hasPolitical && hasToxicity;
+                                            const nAgentsInt = parseInt(nAgents, 10);
+                                            const withinLimit = !isNaN(nAgentsInt) && nAgentsInt >= 1 && nAgentsInt <= maxAgents;
+                                            const isValid = popName && nAgents && withinLimit && hasEducation && hasPolitical && hasToxicity;
                                             
                                             submitBtn.disabled = !isValid;
                                             

@@ -41,6 +41,7 @@ from y_web.models import (
     Profession,
     Topic_List,
     Toxicity_Levels,
+    Admin_users,
 )
 from y_web.utils import (
     generate_population,
@@ -107,6 +108,31 @@ def create_population():
     user_type = request.form.get("user_type")
 
     llm = request.form.get("host_llm")
+
+    try:
+        n_agents_int = int(n_agents)
+    except (TypeError, ValueError):
+        flash("Population size must be a valid integer.", "error")
+        return redirect("/admin/populations")
+
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+    max_agents_limit = (
+        current_admin_user.max_agents_per_population
+        if current_admin_user and current_admin_user.max_agents_per_population is not None
+        else 1000
+    )
+
+    if n_agents_int < 1:
+        flash("Population size must be at least 1.", "error")
+        return redirect("/admin/populations")
+    if n_agents_int > max_agents_limit:
+        flash(
+            f"Population size exceeds your limit ({max_agents_limit} agents per population).",
+            "warning",
+        )
+        return redirect("/admin/populations")
 
     # Get gender distribution
     male_percentage = int(request.form.get("male_percentage", "50"))
@@ -189,7 +215,7 @@ def create_population():
     population = Population(
         name=name,
         descr=descr,
-        size=n_agents,
+        size=n_agents_int,
         llm=user_type,
         age_min=None,
         age_max=None,
@@ -336,6 +362,14 @@ def populations():
     toxicity_levels = Toxicity_Levels.query.all()
     age_classes = AgeClass.query.all()
     activity_profiles = ActivityProfile.query.all()
+    current_admin_user = Admin_users.query.filter_by(
+        username=current_user.username
+    ).first()
+    max_agents_per_population = (
+        current_admin_user.max_agents_per_population
+        if current_admin_user and current_admin_user.max_agents_per_population is not None
+        else 1000
+    )
 
     # Get unique profession backgrounds
     profession_backgrounds = (
@@ -358,6 +392,7 @@ def populations():
         age_classes=age_classes,
         activity_profiles=activity_profiles,
         profession_backgrounds=profession_backgrounds,
+        max_agents_per_population=max_agents_per_population,
     )
 
 

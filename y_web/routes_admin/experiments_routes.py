@@ -1534,9 +1534,7 @@ def create_experiment():
     exp_name = request.form.get("exp_name")
     exp_descr = request.form.get("exp_descr")
     platform_type = request.form.get("platform_type")
-    simulator_type = request.form.get(
-        "simulator_type", "Standard"
-    )  # Default to Standard
+    simulator_type = "HPC"
     exp_group = request.form.get("exp_group", "").strip()  # Get experiment group
 
     # Remote experiment configuration
@@ -2326,6 +2324,13 @@ def experiment_details(uid):
 
     # get experiment clients
     clients = Client.query.filter_by(id_exp=uid).all()
+    owner_admin_user = Admin_users.query.filter_by(username=experiment.owner).first()
+    max_clients_per_experiment = (
+        owner_admin_user.max_clients_per_experiment
+        if owner_admin_user and owner_admin_user.max_clients_per_experiment is not None
+        else 1
+    )
+    can_add_more_clients = len(clients) < max_clients_per_experiment
 
     # get client execution data to check if clients have been run
     client_executions = {}
@@ -2360,6 +2365,8 @@ def experiment_details(uid):
         jupyter_instance=None,
         notebooks=False,
         telemetry_enabled=telemetry_enabled,
+        max_clients_per_experiment=max_clients_per_experiment,
+        can_add_more_clients=can_add_more_clients,
     )
 
 

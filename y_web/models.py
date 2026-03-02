@@ -398,6 +398,8 @@ class Admin_users(UserMixin, db.Model):
     tutorial_shown = db.Column(db.Boolean, default=False)
     exp_details_tutorial_shown = db.Column(db.Boolean, default=False)
     max_submitted_experiments = db.Column(db.Integer, nullable=False, default=3)
+    max_agents_per_population = db.Column(db.Integer, nullable=False, default=1000)
+    max_clients_per_experiment = db.Column(db.Integer, nullable=False, default=1)
 
     def get_id(self):
         """Return user ID with 'admin_' prefix for Flask-Login."""
@@ -434,7 +436,7 @@ class Exps(db.Model):
     server_pid = db.Column(db.Integer, nullable=True, default=None)
     llm_agents_enabled = db.Column(db.Integer, nullable=False, default=1)
     exp_status = db.Column(db.String(20), nullable=False, default="stopped")
-    simulator_type = db.Column(db.String(20), nullable=False, default="Standard")
+    simulator_type = db.Column(db.String(20), nullable=False, default="HPC")
     is_remote = db.Column(db.Integer, nullable=False, default=0)
     exp_group = db.Column(db.String(100), nullable=True, default="")
     results_download_link = db.Column(db.String(500), nullable=True, default="")

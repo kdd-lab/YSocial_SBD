@@ -90,8 +90,17 @@ def _upsert_oauth_user(email, display_name, username_prefix):
     """
     user = Admin_users.query.filter_by(email=email).first()
     if user:
+        updated = False
         if user.max_submitted_experiments is None:
             user.max_submitted_experiments = 3
+            updated = True
+        if user.max_agents_per_population is None:
+            user.max_agents_per_population = 1000
+            updated = True
+        if user.max_clients_per_experiment is None:
+            user.max_clients_per_experiment = 1
+            updated = True
+        if updated:
             db.session.commit()
         return user
 
@@ -105,6 +114,8 @@ def _upsert_oauth_user(email, display_name, username_prefix):
         llm_url="",
         profile_pic="",
         max_submitted_experiments=3,
+        max_agents_per_population=1000,
+        max_clients_per_experiment=1,
     )
     db.session.add(user)
     db.session.commit()

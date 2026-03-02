@@ -402,10 +402,15 @@
 
                             <div style="text-align: center; margin-top: 10px;">
                                  <hr style="margin-bottom: 5px; margin-top: 5px;">
-                                {% if not is_submitted %}
+                                {% if not is_submitted and can_add_more_clients %}
                                 <a class="link-tooltip" href="/admin/clients/{{ experiment.idexp }}" title="Add Client">
                                     <i class="mdi mdi-plus-circle-outline" style="font-size: 24px;"></i>
                                 </a>
+                                {% elif not is_submitted and not can_add_more_clients %}
+                                <i class="mdi mdi-lock-outline" style="font-size: 24px; color: #bbb;" title="Client limit reached"></i>
+                                <div style="font-size: 0.8em; color: #6b7280; margin-top: 6px;">
+                                    Limit reached: max {{ max_clients_per_experiment }} client{% if max_clients_per_experiment != 1 %}s{% endif %} per experiment.
+                                </div>
                                 {% else %}
                                 <i class="mdi mdi-lock-outline" style="font-size: 24px; color: #bbb;" title="Submitted: client updates are locked"></i>
                                 {% endif %}

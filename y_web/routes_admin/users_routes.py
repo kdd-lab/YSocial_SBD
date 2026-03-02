@@ -118,7 +118,14 @@ def users_data():
         for s in sort.split(","):
             direction = s[0]
             name = s[1:]
-            if name not in ["username", "role", "email", "max_submitted_experiments"]:
+            if name not in [
+                "username",
+                "role",
+                "email",
+                "max_submitted_experiments",
+                "max_agents_per_population",
+                "max_clients_per_experiment",
+            ]:
                 name = "username"
             col = getattr(Admin_users, name)
             if direction == "-":
@@ -148,6 +155,12 @@ def users_data():
                 "max_submitted_experiments": user.max_submitted_experiments
                 if user.max_submitted_experiments is not None
                 else 3,
+                "max_agents_per_population": user.max_agents_per_population
+                if user.max_agents_per_population is not None
+                else 1000,
+                "max_clients_per_experiment": user.max_clients_per_experiment
+                if user.max_clients_per_experiment is not None
+                else 1,
             }
             for user in res
         ],
@@ -211,6 +224,30 @@ def update():
             if parsed_value < 0:
                 abort(400, "max_submitted_experiments must be >= 0")
             data["max_submitted_experiments"] = parsed_value
+    if "max_agents_per_population" in data:
+        if current_admin_user.role != "admin":
+            del data["max_agents_per_population"]
+        else:
+            raw_value = str(data["max_agents_per_population"]).strip()
+            try:
+                parsed_value = int(raw_value)
+            except (TypeError, ValueError):
+                abort(400, "max_agents_per_population must be an integer")
+            if parsed_value < 1:
+                abort(400, "max_agents_per_population must be >= 1")
+            data["max_agents_per_population"] = parsed_value
+    if "max_clients_per_experiment" in data:
+        if current_admin_user.role != "admin":
+            del data["max_clients_per_experiment"]
+        else:
+            raw_value = str(data["max_clients_per_experiment"]).strip()
+            try:
+                parsed_value = int(raw_value)
+            except (TypeError, ValueError):
+                abort(400, "max_clients_per_experiment must be an integer")
+            if parsed_value < 1:
+                abort(400, "max_clients_per_experiment must be >= 1")
+            data["max_clients_per_experiment"] = parsed_value
 
     for field in [
         "username",
@@ -219,6 +256,8 @@ def update():
         "last_seen",
         "role",
         "max_submitted_experiments",
+        "max_agents_per_population",
+        "max_clients_per_experiment",
     ]:
         if field in data:
             setattr(user, field, data[field])
@@ -308,6 +347,8 @@ def add_user():
     llm = request.form.get("llm")
     profile_pic = request.form.get("profile_pic")
     raw_max_submitted = request.form.get("max_submitted_experiments", "3").strip()
+    raw_max_agents = request.form.get("max_agents_per_population", "1000").strip()
+    raw_max_clients = request.form.get("max_clients_per_experiment", "1").strip()
 
     try:
         max_submitted_experiments = int(raw_max_submitted)
@@ -319,8 +360,32 @@ def add_user():
         flash("Max submitted experiments must be greater than or equal to 0.", "error")
         return redirect(url_for("users.user_data"))
 
+    try:
+        max_agents_per_population = int(raw_max_agents)
+    except ValueError:
+        flash("Max agents per population must be an integer.", "error")
+        return redirect(url_for("users.user_data"))
+
+    if max_agents_per_population < 1:
+        flash("Max agents per population must be greater than or equal to 1.", "error")
+        return redirect(url_for("users.user_data"))
+
+    try:
+        max_clients_per_experiment = int(raw_max_clients)
+    except ValueError:
+        flash("Max clients per experiment must be an integer.", "error")
+        return redirect(url_for("users.user_data"))
+
+    if max_clients_per_experiment < 1:
+        flash(
+            "Max clients per experiment must be greater than or equal to 1.", "error"
+        )
+        return redirect(url_for("users.user_data"))
+
     if current_admin_user.role != "admin":
         max_submitted_experiments = 3
+        max_agents_per_population = 1000
+        max_clients_per_experiment = 1
 
     # Enforce role restrictions: researchers can only create 'user' role
     if current_admin_user.role != "admin" and role in ["admin", "researcher"]:
@@ -338,6 +403,8 @@ def add_user():
         llm=llm,
         profile_pic=profile_pic,
         max_submitted_experiments=max_submitted_experiments,
+        max_agents_per_population=max_agents_per_population,
+        max_clients_per_experiment=max_clients_per_experiment,
     )
 
     db.session.add(user)
@@ -827,6 +894,8 @@ def bulk_create_users():
                 role=role,
                 last_seen="",
                 max_submitted_experiments=3,
+                max_agents_per_population=1000,
+                max_clients_per_experiment=1,
             )
             db.session.add(new_user)
             created += 1

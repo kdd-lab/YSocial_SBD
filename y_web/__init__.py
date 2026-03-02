@@ -800,6 +800,33 @@ def create_app(db_type="sqlite", desktop_mode=False):
         except Exception as e:
             print(f"Failed to run max_submitted_experiments column migration: {e}")
 
+        try:
+            # Run migration to add per-user limits columns to admin_users if needed
+            if db_type == "sqlite":
+                from y_web.migrations.add_user_limits_columns import (
+                    migrate_sqlite as migrate_user_limits_sqlite,
+                )
+
+                dashboard_db_path = app.config.get("DASHBOARD_DB_PATH")
+                if dashboard_db_path:
+                    migrate_user_limits_sqlite(dashboard_db_path)
+            elif db_type == "postgresql":
+                from y_web.migrations.add_user_limits_columns import (
+                    migrate_postgresql as migrate_user_limits_postgresql,
+                )
+
+                pg_host = os.getenv("PG_HOST", "localhost")
+                pg_port = os.getenv("PG_PORT", "5432")
+                pg_database = os.getenv("PG_DBNAME", "dashboard")
+                pg_user = os.getenv("PG_USER", "postgres")
+                pg_password = os.getenv("PG_PASSWORD", "")
+                if pg_password:
+                    migrate_user_limits_postgresql(
+                        pg_host, pg_port, pg_database, pg_user, pg_password
+                    )
+        except Exception as e:
+            print(f"Failed to run admin user limits columns migration: {e}")
+
         # Run agent archetypes migration
         try:
             if db_type == "sqlite":
