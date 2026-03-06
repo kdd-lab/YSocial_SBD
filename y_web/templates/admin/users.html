@@ -109,6 +109,9 @@
       { id: 'max_submitted_experiments', name: 'Max Submitted', sort: true, attributes: maxSubmittedEditableCellAttributes },
       { id: 'max_agents_per_population', name: 'Max Agents/Population', sort: true, attributes: adminNumericEditableCellAttributes },
       { id: 'max_clients_per_experiment', name: 'Max Clients/Experiment', sort: true, attributes: adminNumericEditableCellAttributes },
+      { id: 'max_client_days', name: 'Max Sim Days', sort: true, attributes: adminNumericEditableCellAttributes },
+      { id: 'max_client_new_agents_pct', name: 'Max New Agents %', sort: true, attributes: adminNumericEditableCellAttributes },
+      { id: 'max_client_churn_pct', name: 'Max Churn %', sort: true, attributes: adminNumericEditableCellAttributes },
       {
         id: 'actions',
         name: 'Actions',
@@ -155,7 +158,7 @@
       multiColumn: true,
       server: {
         url: (prev, columns) => {
-          const columnIds = ['id', 'username', 'email', 'password', 'last_seen', 'role', 'max_submitted_experiments', 'max_agents_per_population', 'max_clients_per_experiment'];
+          const columnIds = ['id', 'username', 'email', 'password', 'last_seen', 'role', 'max_submitted_experiments', 'max_agents_per_population', 'max_clients_per_experiment', 'max_client_days', 'max_client_new_agents_pct', 'max_client_churn_pct'];
           const sort = columns.map(col => (col.direction === 1 ? '+' : '-') + columnIds[col.index]);
           return updateUrl(prev, { sort });
         },
@@ -273,10 +276,25 @@
                                         <span class="left">Max Clients / Experiment</span>
                                         <span class="right" style="width: 70%;"><input type="number" min="1" name="max_clients_per_experiment" class="input" value="1"></span>
                                     </div>
+                                    <div class="box-line">
+                                        <span class="left">Max Simulation Days</span>
+                                        <span class="right" style="width: 70%;"><input type="number" min="1" name="max_client_days" class="input" value="30"></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Max New Agents %</span>
+                                        <span class="right" style="width: 70%;"><input type="number" min="0" max="100" step="1" name="max_client_new_agents_pct" class="input" value="5"></span>
+                                    </div>
+                                    <div class="box-line">
+                                        <span class="left">Max Churn %</span>
+                                        <span class="right" style="width: 70%;"><input type="number" min="0" max="100" step="1" name="max_client_churn_pct" class="input" value="5"></span>
+                                    </div>
                                     {% else %}
                                     <input type="hidden" name="max_submitted_experiments" value="3">
                                     <input type="hidden" name="max_agents_per_population" value="1000">
                                     <input type="hidden" name="max_clients_per_experiment" value="1">
+                                    <input type="hidden" name="max_client_days" value="30">
+                                    <input type="hidden" name="max_client_new_agents_pct" value="5">
+                                    <input type="hidden" name="max_client_churn_pct" value="5">
                                     {% endif %}
                                 </div>
                                 <div class="box-line">

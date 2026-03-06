@@ -1444,11 +1444,11 @@ def generate_hpc_config(
     # Build database configuration section
     database_config = {
         "type": db_type,
+        # Keep sqlite branch always present to preserve stable key structure.
+        "sqlite": {"filename": "simulation.db"},
     }
 
-    if db_type == "sqlite":
-        database_config["sqlite"] = {"filename": "simulation.db"}
-    elif db_type == "postgresql":
+    if db_type == "postgresql":
         if db_config_dict:
             database_config["postgresql"] = db_config_dict
         else:

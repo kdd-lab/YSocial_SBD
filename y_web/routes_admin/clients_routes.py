@@ -81,6 +81,28 @@ def _is_experiment_submitted(exp):
     )
 
 
+def _get_client_limits_for_experiment(exp):
+    """Resolve per-owner client limits for an experiment."""
+    owner_admin_user = Admin_users.query.filter_by(username=exp.owner).first() if exp else None
+    return {
+        "max_client_days": (
+            owner_admin_user.max_client_days
+            if owner_admin_user and owner_admin_user.max_client_days is not None
+            else 30
+        ),
+        "max_client_new_agents_pct": (
+            owner_admin_user.max_client_new_agents_pct
+            if owner_admin_user and owner_admin_user.max_client_new_agents_pct is not None
+            else 0.05
+        ),
+        "max_client_churn_pct": (
+            owner_admin_user.max_client_churn_pct
+            if owner_admin_user and owner_admin_user.max_client_churn_pct is not None
+            else 0.05
+        ),
+    }
+
+
 def allocate_topics_by_percentage(topics, topic_percentages):
     """
     Allocate topics to an agent based on specified interest percentages.
@@ -474,6 +496,22 @@ def clients(idexp):
     llm_agents_enabled = (
         exp.llm_agents_enabled if hasattr(exp, "llm_agents_enabled") else True
     )
+    owner_admin_user = Admin_users.query.filter_by(username=exp.owner).first()
+    max_client_days = (
+        owner_admin_user.max_client_days
+        if owner_admin_user and owner_admin_user.max_client_days is not None
+        else 30
+    )
+    max_client_new_agents_pct = (
+        owner_admin_user.max_client_new_agents_pct
+        if owner_admin_user and owner_admin_user.max_client_new_agents_pct is not None
+        else 0.05
+    )
+    max_client_churn_pct = (
+        owner_admin_user.max_client_churn_pct
+        if owner_admin_user and owner_admin_user.max_client_churn_pct is not None
+        else 0.05
+    )
 
     # Check simulator type to render appropriate template
     simulator_type = (
@@ -503,6 +541,9 @@ def clients(idexp):
         frecsys=frecsys,
         llm_agents_enabled=llm_agents_enabled,
         topics=topics_list,
+        max_client_days=max_client_days,
+        max_client_new_agents_pct=max_client_new_agents_pct,
+        max_client_churn_pct=max_client_churn_pct,
     )
 
 
@@ -519,6 +560,8 @@ def generate_hpc_client_config(
     emotion_annotation,
     enable_toxicity,
     perspective_api_key,
+    recommendations_config=None,
+    opinion_dynamics_config=None,
     server_address=None,
     server_port=None,
 ):
@@ -539,11 +582,14 @@ def generate_hpc_client_config(
         "simulation": simulation_config,
         "agents": agents_config,
         "logging": logging_config,
+        "recommendations": recommendations_config or {"default_limit": 12},
     }
 
-    # Only include llm_v in config if it's provided (VLLM: when Image Transcription is enabled; Ollama: always included)
+    # Keep llm_v optional (present only when configured).
     if llm_v_config is not None:
         config["llm_v"] = llm_v_config
+    if opinion_dynamics_config is not None:
+        config["opinion_dynamics"] = opinion_dynamics_config
 
     return config
 
@@ -568,14 +614,53 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         flash("Client name already exists.", "error")
         return redirect(request.referrer)
 
+    limits = _get_client_limits_for_experiment(exp)
+    max_client_days = limits["max_client_days"]
+    max_client_new_agents_pct = limits["max_client_new_agents_pct"]
+    max_client_churn_pct = limits["max_client_churn_pct"]
+
+    # Extract and validate constrained simulation fields
+    try:
+        days = int(form_data.get("days", "10"))
+    except (TypeError, ValueError):
+        flash("Simulation Length (days) must be a valid integer.", "error")
+        return redirect(request.referrer)
+    if days < 1 or days > max_client_days:
+        flash(
+            f"Simulation Length (days) must be between 1 and {max_client_days}.",
+            "warning",
+        )
+        return redirect(request.referrer)
+
+    try:
+        percentage_new_agents_iteration = float(
+            form_data.get("percentage_new_agents_iteration", "0.0")
+        )
+    except (TypeError, ValueError):
+        flash("% New Agents (daily) must be a valid number.", "error")
+        return redirect(request.referrer)
+    if not (0 <= percentage_new_agents_iteration <= max_client_new_agents_pct):
+        flash(
+            f"% New Agents (daily) must be between 0 and {max_client_new_agents_pct * 100:.0f}%.",
+            "warning",
+        )
+        return redirect(request.referrer)
+
+    try:
+        percentage_removed_agents_iteration = float(
+            form_data.get("percentage_removed_agents_iteration", "0.0")
+        )
+    except (TypeError, ValueError):
+        flash("% Daily Churn must be a valid number.", "error")
+        return redirect(request.referrer)
+    if not (0 <= percentage_removed_agents_iteration <= max_client_churn_pct):
+        flash(
+            f"% Daily Churn must be between 0 and {max_client_churn_pct * 100:.0f}%.",
+            "warning",
+        )
+        return redirect(request.referrer)
+
     # Extract all form data
-    days = int(form_data.get("days", "3"))
-    percentage_new_agents_iteration = float(
-        form_data.get("percentage_new_agents_iteration", "0.0")
-    )
-    percentage_removed_agents_iteration = float(
-        form_data.get("percentage_removed_agents_iteration", "0.0")
-    )
     max_length_thread_reading = int(form_data.get("max_length_thread_reading", "5"))
     reading_from_follower_ratio = float(
         form_data.get("reading_from_follower_ratio", "0.6")
@@ -676,25 +761,30 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
             "backend": "vllm",
             "model": "AMead10/Llama-3.2-3B-Instruct-AWQ",
             "temperature": float(form_data.get("llm_temperature", "0.9")),
-            "max_tokens": 256,
-            "max_model_len": 4096,
-            "tensor_parallel_size": 1,
-            "gpu_memory_utilization": 0.15,
-            "enable_flashattention": False,
-            "num_actors": 4,
-            "gpu_per_actor": 1.0,
-            "reuse_actors": False,
-            "actor_name_prefix": "ysim_llm",
+            "max_tokens": int(form_data.get("llm_max_tokens", "256")),
+            "max_model_len": int(form_data.get("llm_max_model_len", "4096")),
+            "tensor_parallel_size": int(form_data.get("llm_tensor_parallel_size", "1")),
+            "gpu_memory_utilization": float(
+                form_data.get("llm_gpu_memory_utilization", "0.15")
+            ),
+            "enable_flashattention": form_data.get("llm_enable_flashattention")
+            == "true",
+            "num_actors": int(form_data.get("llm_num_actors", "4")),
+            "gpu_per_actor": float(form_data.get("llm_gpu_per_actor", "1.0")),
+            "reuse_actors": form_data.get("llm_reuse_actors") == "true",
+            "actor_name_prefix": form_data.get("llm_actor_name_prefix", "ysim_llm"),
         }
 
-        # Only include llm_v_config if Image Transcription is enabled
+        # Include llm_v only when image transcription is enabled.
         if enable_image_transcription:
             llm_v_config = {
                 "model": "openbmb/MiniCPM-V-2_6-int4",
                 "temperature": float(form_data.get("llm_v_temperature", "0.5")),
-                "max_tokens": 300,
-                "max_model_len": 4096,
-                "gpu_memory_utilization": 0.15,
+                "max_tokens": int(form_data.get("llm_v_max_tokens", "300")),
+                "max_model_len": int(form_data.get("llm_v_max_model_len", "4096")),
+                "gpu_memory_utilization": float(
+                    form_data.get("llm_v_gpu_memory_utilization", "0.15")
+                ),
             }
         else:
             llm_v_config = None
@@ -812,6 +902,7 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
     enable_sentiment = "sentiment" in annotations
     emotion_annotation = "emotion" in annotations
     enable_toxicity = "toxicity" in annotations
+    opinions_enabled = "opinions" in annotations
     perspective_api_key = (
         exp.perspective_api if hasattr(exp, "perspective_api") else None
     )
@@ -870,15 +961,15 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         },
         "batch_size": batch_size,
         "churn": {
-            "enabled": True,
-            "churn_probability": 0.01,
+            "enabled": percentage_removed_agents_iteration > 0,
+            "churn_probability": percentage_removed_agents_iteration,
             "inactivity_threshold": 5,
-            "churn_percentage": 0.1,
+            "churn_percentage": percentage_removed_agents_iteration,
         },
         "new_agents": {
-            "enabled": True,
-            "probability_new_agents": 0.01,
-            "percentage_new_agents": 0.01,
+            "enabled": percentage_new_agents_iteration > 0,
+            "probability_new_agents": percentage_new_agents_iteration,
+            "percentage_new_agents": percentage_new_agents_iteration,
         },
     }
 
@@ -890,6 +981,52 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         "enable_console_log": True,
         "enable_llm_usage_log": True,
     }
+    recommendations_config = {
+        "default_limit": int(form_data.get("recommendations_default_limit", "12"))
+    }
+
+    # Opinion dynamics configuration at creation time (root key for HPC config).
+    if opinions_enabled:
+        update_rule = form_data.get("update_rule", "llm_evaluation")
+        opinion_dynamics_config = {"enabled": True, "model_name": update_rule}
+        if update_rule == "bounded_confidence":
+            bc_epsilon = request.form.get("bc_epsilon", "0.25")
+            bc_mu = request.form.get("bc_mu", "0.5")
+            bc_theta = request.form.get("bc_theta", "0.0")
+            bc_cold_start = request.form.get("bc_cold_start", "neutral")
+            opinion_dynamics_config["parameters"] = {
+                "epsilon": float(bc_epsilon),
+                "mu": float(bc_mu),
+                "theta": float(bc_theta),
+                "cold_start": bc_cold_start,
+            }
+        elif update_rule == "llm_evaluation":
+            llm_cold_start = request.form.get("llm_cold_start", "neutral")
+            llm_evaluation_scope = request.form.get(
+                "llm_evaluation_scope", "interlocutor_only"
+            )
+            opinion_dynamics_config["note"] = (
+                "Uses LLM-based opinion evaluation with natural language reasoning. Requires LLM agents."
+            )
+            opinion_dynamics_config["parameters"] = {
+                "evaluation_scope": llm_evaluation_scope,
+                "cold_start": llm_cold_start,
+                "note": f"evaluation_scope='{llm_evaluation_scope}' considers opinions of followed users. cold_start='{llm_cold_start}' initializes new opinions at 0.5.",
+            }
+
+        opinion_groups = OpinionGroup.query.order_by(OpinionGroup.lower_bound).all()
+        opinion_groups_dict = {}
+        for group in opinion_groups:
+            opinion_groups_dict[group.name.rstrip()] = [
+                group.lower_bound,
+                group.upper_bound,
+            ]
+        opinion_dynamics_config["opinion_groups"] = opinion_groups_dict
+    else:
+        opinion_dynamics_config = {
+            "enabled": False,
+            "note": "Opinion dynamics disabled for this experiment. No opinion evolution occurs during simulation.",
+        }
 
     # Generate HPC client config
     # For remote experiments, include server address and port
@@ -909,6 +1046,8 @@ def create_hpc_client(exp, name, descr, population_id, form_data):
         emotion_annotation=emotion_annotation,
         enable_toxicity=enable_toxicity,
         perspective_api_key=perspective_api_key,
+        recommendations_config=recommendations_config,
+        opinion_dynamics_config=opinion_dynamics_config,
         server_address=server_address,
         server_port=server_port,
     )
@@ -1440,6 +1579,11 @@ def create_client():
         )
         return redirect(url_for("experiments.experiment_details", uid=exp_id))
 
+    limits = _get_client_limits_for_experiment(exp)
+    max_client_days = limits["max_client_days"]
+    max_client_new_agents_pct = limits["max_client_new_agents_pct"]
+    max_client_churn_pct = limits["max_client_churn_pct"]
+
     if _is_experiment_submitted(exp):
         flash(
             "This experiment is submitted. Unsubmit it before modifying clients.",
@@ -1534,11 +1678,8 @@ def create_client():
     # Validate numeric fields
     try:
         days = int(days)
-        # days = -1 means infinite/run-until-stopped
-        if days != -1 and days < 1:
-            errors.append(
-                "Days must be at least 1, or use -1 for infinite duration (run until stopped)"
-            )
+        if days < 1 or days > max_client_days:
+            errors.append(f"Days must be between 1 and {max_client_days}")
     except (ValueError, TypeError):
         errors.append("Days must be a valid integer")
     try:
@@ -1592,6 +1733,18 @@ def create_client():
     for field_name, value in probabilities.items():
         if value is not None and not (0 <= value <= 1):
             errors.append(f"{field_name} must be between 0 and 1")
+    if (
+        percentage_new_agents_iteration is not None
+        and percentage_new_agents_iteration > max_client_new_agents_pct
+    ):
+        errors.append(
+            f"% New Agents (daily) must be <= {max_client_new_agents_pct * 100:.0f}%"
+        )
+    if (
+        percentage_removed_agents_iteration is not None
+        and percentage_removed_agents_iteration > max_client_churn_pct
+    ):
+        errors.append(f"% Daily Churn must be <= {max_client_churn_pct * 100:.0f}%")
 
     if errors:
         for error in errors:

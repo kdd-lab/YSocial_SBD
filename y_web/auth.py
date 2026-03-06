@@ -100,6 +100,15 @@ def _upsert_oauth_user(email, display_name, username_prefix):
         if user.max_clients_per_experiment is None:
             user.max_clients_per_experiment = 1
             updated = True
+        if user.max_client_days is None:
+            user.max_client_days = 30
+            updated = True
+        if user.max_client_new_agents_pct is None:
+            user.max_client_new_agents_pct = 0.05
+            updated = True
+        if user.max_client_churn_pct is None:
+            user.max_client_churn_pct = 0.05
+            updated = True
         if updated:
             db.session.commit()
         return user
@@ -116,6 +125,9 @@ def _upsert_oauth_user(email, display_name, username_prefix):
         max_submitted_experiments=3,
         max_agents_per_population=1000,
         max_clients_per_experiment=1,
+        max_client_days=30,
+        max_client_new_agents_pct=0.05,
+        max_client_churn_pct=0.05,
     )
     db.session.add(user)
     db.session.commit()

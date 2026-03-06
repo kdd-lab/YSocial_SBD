@@ -47,6 +47,17 @@ PASSWORD_SPECIAL_CHARS_PATTERN = r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\\/;'`~]"
 EMAIL_PATTERN = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
 
+def _parse_percent_ratio(raw_value, field_name):
+    """Parse a percentage value (0-100) into a 0-1 ratio."""
+    try:
+        parsed = float(str(raw_value).strip())
+    except (TypeError, ValueError):
+        raise ValueError(f"{field_name} must be a number")
+    if not (0 <= parsed <= 100):
+        raise ValueError(f"{field_name} must be between 0 and 100")
+    return parsed / 100.0
+
+
 @users.route("/admin/users")
 @login_required
 def user_data():
@@ -125,6 +136,9 @@ def users_data():
                 "max_submitted_experiments",
                 "max_agents_per_population",
                 "max_clients_per_experiment",
+                "max_client_days",
+                "max_client_new_agents_pct",
+                "max_client_churn_pct",
             ]:
                 name = "username"
             col = getattr(Admin_users, name)
@@ -161,6 +175,29 @@ def users_data():
                 "max_clients_per_experiment": user.max_clients_per_experiment
                 if user.max_clients_per_experiment is not None
                 else 1,
+                "max_client_days": user.max_client_days
+                if user.max_client_days is not None
+                else 30,
+                "max_client_new_agents_pct": int(
+                    round(
+                        (
+                            user.max_client_new_agents_pct
+                            if user.max_client_new_agents_pct is not None
+                            else 0.05
+                        )
+                        * 100
+                    )
+                ),
+                "max_client_churn_pct": int(
+                    round(
+                        (
+                            user.max_client_churn_pct
+                            if user.max_client_churn_pct is not None
+                            else 0.05
+                        )
+                        * 100
+                    )
+                ),
             }
             for user in res
         ],
@@ -248,6 +285,38 @@ def update():
             if parsed_value < 1:
                 abort(400, "max_clients_per_experiment must be >= 1")
             data["max_clients_per_experiment"] = parsed_value
+    if "max_client_days" in data:
+        if current_admin_user.role != "admin":
+            del data["max_client_days"]
+        else:
+            raw_value = str(data["max_client_days"]).strip()
+            try:
+                parsed_value = int(raw_value)
+            except (TypeError, ValueError):
+                abort(400, "max_client_days must be an integer")
+            if parsed_value < 1:
+                abort(400, "max_client_days must be >= 1")
+            data["max_client_days"] = parsed_value
+    if "max_client_new_agents_pct" in data:
+        if current_admin_user.role != "admin":
+            del data["max_client_new_agents_pct"]
+        else:
+            try:
+                data["max_client_new_agents_pct"] = _parse_percent_ratio(
+                    data["max_client_new_agents_pct"], "max_client_new_agents_pct"
+                )
+            except ValueError as e:
+                abort(400, str(e))
+    if "max_client_churn_pct" in data:
+        if current_admin_user.role != "admin":
+            del data["max_client_churn_pct"]
+        else:
+            try:
+                data["max_client_churn_pct"] = _parse_percent_ratio(
+                    data["max_client_churn_pct"], "max_client_churn_pct"
+                )
+            except ValueError as e:
+                abort(400, str(e))
 
     for field in [
         "username",
@@ -258,6 +327,9 @@ def update():
         "max_submitted_experiments",
         "max_agents_per_population",
         "max_clients_per_experiment",
+        "max_client_days",
+        "max_client_new_agents_pct",
+        "max_client_churn_pct",
     ]:
         if field in data:
             setattr(user, field, data[field])
@@ -349,6 +421,11 @@ def add_user():
     raw_max_submitted = request.form.get("max_submitted_experiments", "3").strip()
     raw_max_agents = request.form.get("max_agents_per_population", "1000").strip()
     raw_max_clients = request.form.get("max_clients_per_experiment", "1").strip()
+    raw_max_client_days = request.form.get("max_client_days", "30").strip()
+    raw_max_client_new_agents_pct = request.form.get(
+        "max_client_new_agents_pct", "5"
+    ).strip()
+    raw_max_client_churn_pct = request.form.get("max_client_churn_pct", "5").strip()
 
     try:
         max_submitted_experiments = int(raw_max_submitted)
@@ -382,10 +459,38 @@ def add_user():
         )
         return redirect(url_for("users.user_data"))
 
+    try:
+        max_client_days = int(raw_max_client_days)
+    except ValueError:
+        flash("Max simulation days must be an integer.", "error")
+        return redirect(url_for("users.user_data"))
+    if max_client_days < 1:
+        flash("Max simulation days must be greater than or equal to 1.", "error")
+        return redirect(url_for("users.user_data"))
+
+    try:
+        max_client_new_agents_pct = _parse_percent_ratio(
+            raw_max_client_new_agents_pct, "Max new agents %"
+        )
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("users.user_data"))
+
+    try:
+        max_client_churn_pct = _parse_percent_ratio(
+            raw_max_client_churn_pct, "Max churn %"
+        )
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("users.user_data"))
+
     if current_admin_user.role != "admin":
         max_submitted_experiments = 3
         max_agents_per_population = 1000
         max_clients_per_experiment = 1
+        max_client_days = 30
+        max_client_new_agents_pct = 0.05
+        max_client_churn_pct = 0.05
 
     # Enforce role restrictions: researchers can only create 'user' role
     if current_admin_user.role != "admin" and role in ["admin", "researcher"]:
@@ -405,6 +510,9 @@ def add_user():
         max_submitted_experiments=max_submitted_experiments,
         max_agents_per_population=max_agents_per_population,
         max_clients_per_experiment=max_clients_per_experiment,
+        max_client_days=max_client_days,
+        max_client_new_agents_pct=max_client_new_agents_pct,
+        max_client_churn_pct=max_client_churn_pct,
     )
 
     db.session.add(user)
@@ -896,6 +1004,9 @@ def bulk_create_users():
                 max_submitted_experiments=3,
                 max_agents_per_population=1000,
                 max_clients_per_experiment=1,
+                max_client_days=30,
+                max_client_new_agents_pct=0.05,
+                max_client_churn_pct=0.05,
             )
             db.session.add(new_user)
             created += 1

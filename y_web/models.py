@@ -400,6 +400,9 @@ class Admin_users(UserMixin, db.Model):
     max_submitted_experiments = db.Column(db.Integer, nullable=False, default=3)
     max_agents_per_population = db.Column(db.Integer, nullable=False, default=1000)
     max_clients_per_experiment = db.Column(db.Integer, nullable=False, default=1)
+    max_client_days = db.Column(db.Integer, nullable=False, default=30)
+    max_client_new_agents_pct = db.Column(db.REAL, nullable=False, default=0.05)
+    max_client_churn_pct = db.Column(db.REAL, nullable=False, default=0.05)
 
     def get_id(self):
         """Return user ID with 'admin_' prefix for Flask-Login."""
