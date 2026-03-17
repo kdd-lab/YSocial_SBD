@@ -200,72 +200,156 @@
                         </form>
                         {% else %}
                         <!-- Normal Login Form -->
-                        <form method="POST" action="/login" style="width: 100%; max-width: 400px;">
-                            <div class="login-form">
+                        {% set auth_mode = request.args.get('mode', 'login') %}
+                        <div style="width: 100%; max-width: 440px;">
+                            {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                            {% set category, message = messages[0] %}
+                            <div class="notification {% if category == 'success' %}is-success{% else %}is-danger{% endif %}" style="margin-bottom: 1rem;">
+                                {{ message }}
+                            </div>
+                            {% endif %}
+                            {% endwith %}
 
-                                {% with messages = get_flashed_messages() %}
-                                {% if messages %}
-                                <div class="notification is-danger">
-                                    {{ messages[0] }}
-                                </div>
+                            <div style="display: grid; gap: 1rem;">
+                                {% if auth_mode != 'signup' %}
+                                <form method="POST" action="/login"
+                                      style="padding: 1.5rem; border: 1px solid #eceff4; border-radius: 14px; background: #fff;">
+                                    <div class="login-form">
+                                        <h3 style="margin-bottom: 1rem; font-size: 1.1rem; font-weight: 700; color: #2c3e50;">Login</h3>
+
+                                        <div class="field" style="margin-bottom: 1rem;">
+                                            <div class="control">
+                                                <input
+                                                        class="input email-input"
+                                                        type="email"
+                                                        name="email"
+                                                        placeholder="Your email"
+                                                        autofocus=""
+                                                        style="padding: 0.75rem 1rem 0.75rem 3rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem; transition: border-color 0.2s ease;"
+                                                />
+                                                <div class="input-icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);">
+                                                    <i data-feather="user"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="field" style="margin-bottom: 1rem;">
+                                            <div class="control">
+                                                <input
+                                                        class="input password-input"
+                                                        type="password"
+                                                        placeholder="Your password"
+                                                        name="password"
+                                                        style="padding: 0.75rem 1rem 0.75rem 3rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem; transition: border-color 0.2s ease;"
+                                                />
+                                                <div class="input-icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);">
+                                                    <i data-feather="lock"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="field">
+                                            <label class="checkbox">
+                                                <input type="checkbox" name="remember">
+                                                Remember me
+                                            </label>
+                                        </div>
+                                        <div class="field" style="margin-top: 1.25rem;">
+                                            <div class="control">
+                                                <button
+                                                        class="button is-solid primary-button raised is-rounded is-fullwidth"
+                                                        style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 600; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(50, 115, 220, 0.3);"
+                                                >
+                                                    Login
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="field" style="margin-top: 1rem; text-align: center;">
+                                            <a href="{{ url_for('auth.login', mode='signup') }}"
+                                               style="font-size: 0.92rem; color: #3273dc; font-weight: 500;">
+                                                Create new account
+                                            </a>
+                                        </div>
+                                    </div>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="/signup"
+                                      style="padding: 1.5rem; border: 1px solid #eceff4; border-radius: 14px; background: #fff;">
+                                    <div class="login-form">
+                                        <h3 style="margin-bottom: 0.4rem; font-size: 1.1rem; font-weight: 700; color: #2c3e50;">Create Researcher Account</h3>
+                                        <p style="margin-bottom: 1rem; font-size: 0.9rem; color: #6b7280;">
+                                            Create a local account with researcher role.
+                                        </p>
+
+                                        <div class="field" style="margin-bottom: 1rem;">
+                                            <div class="control">
+                                                <input
+                                                        class="input"
+                                                        type="text"
+                                                        name="username"
+                                                        placeholder="Username"
+                                                        maxlength="15"
+                                                        style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem;"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="field" style="margin-bottom: 1rem;">
+                                            <div class="control">
+                                                <input
+                                                        class="input"
+                                                        type="email"
+                                                        name="email"
+                                                        placeholder="Email"
+                                                        style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem;"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="field" style="margin-bottom: 1rem;">
+                                            <div class="control">
+                                                <input
+                                                        class="input"
+                                                        type="password"
+                                                        name="password"
+                                                        placeholder="Password"
+                                                        style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem;"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="field" style="margin-bottom: 1rem;">
+                                            <div class="control">
+                                                <input
+                                                        class="input"
+                                                        type="password"
+                                                        name="confirm_password"
+                                                        placeholder="Confirm password"
+                                                        style="padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem;"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="field">
+                                            <div class="control">
+                                                <button
+                                                        class="button is-light is-fullwidth"
+                                                        style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; border: 1px solid #dcdfe5; color: #2c3e50;"
+                                                >
+                                                    Create account
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="field" style="margin-top: 1rem; text-align: center;">
+                                            <a href="{{ url_for('auth.login') }}"
+                                               style="font-size: 0.92rem; color: #3273dc; font-weight: 500;">
+                                                Back to sign in
+                                            </a>
+                                        </div>
+                                    </div>
+                                </form>
                                 {% endif %}
-                                {% endwith %}
 
-                                <div class="field" style="margin-bottom: 1.5rem;">
-                                    <div class="control">
-                                        <input
-                                                class="input email-input"
-                                                type="email"
-                                                name="email"
-                                                placeholder="Your email"
-                                                autofocus=""
-                                                style="padding: 0.75rem 1rem 0.75rem 3rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem; transition: border-color 0.2s ease;"
-                                        />
-                                        <div class="input-icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);">
-                                            <i data-feather="user"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="field" style="margin-bottom: 1.5rem;">
-                                    <div class="control">
-                                        <input
-                                                class="input password-input"
-                                                type="password"
-                                                placeholder="Your Password"
-                                                name="password"
-                                                style="padding: 0.75rem 1rem 0.75rem 3rem; border-radius: 8px; border: 1px solid #e0e0e0; font-size: 1rem; transition: border-color 0.2s ease;"
-                                        />
-                                        <div class="input-icon" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);">
-                                            <i data-feather="lock"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="field">
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="remember">
-                                        Remember me
-                                    </label>
-                                </div>
-                                <div class="field" style="margin-top: 2rem;">
-                                    <div class="control">
-                                        <button
-                                                class="button is-solid primary-button raised is-rounded is-fullwidth"
-                                                style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 600; transition: all 0.2s ease; box-shadow: 0 4px 12px rgba(50, 115, 220, 0.3);"
-                                        >
-                                            Login
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style="margin: 1.25rem 0; text-align: center; color: #95a5a6; font-size: 0.9rem;">
-                                    or
-                                </div>
-
+                                {# OAuth temporarily disabled.
                                 <div class="field" style="margin-bottom: 0.75rem;">
                                     <div class="control">
                                         <a href="{{ url_for('auth.social_login') }}"
-                                           class="button is-light is-fullwidth"
-                                           style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; border: 1px solid #dcdfe5; color: #2c3e50;">
+                                           class="button is-light is-fullwidth">
                                             Continue with Social Account
                                         </a>
                                     </div>
@@ -274,14 +358,14 @@
                                 <div class="field">
                                     <div class="control">
                                         <a href="{{ url_for('auth.orcid_login') }}"
-                                           class="button is-light is-fullwidth"
-                                           style="padding: 0.875rem 1.5rem; border-radius: 8px; font-size: 0.95rem; font-weight: 600; border: 1px solid #dcdfe5; color: #2c3e50;">
+                                           class="button is-light is-fullwidth">
                                             Continue with ORCID
                                         </a>
                                     </div>
                                 </div>
+                                #}
                             </div>
-                        </form>
+                        </div>
                         {% endif %}
                     </div>
                 </div>

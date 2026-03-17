@@ -43,6 +43,18 @@ def _build_unique_username(raw_name, prefix):
     return candidate
 
 
+def _default_researcher_limits():
+    """Return the default per-account limits for researcher self-signup."""
+    return {
+        "max_submitted_experiments": 3,
+        "max_agents_per_population": 1000,
+        "max_clients_per_experiment": 1,
+        "max_client_days": 30,
+        "max_client_new_agents_pct": 0.05,
+        "max_client_churn_pct": 0.05,
+    }
+
+
 def _social_config():
     """Read social provider settings from environment variables."""
     provider = current_app.config.get(
@@ -122,12 +134,7 @@ def _upsert_oauth_user(email, display_name, username_prefix):
         llm="",
         llm_url="",
         profile_pic="",
-        max_submitted_experiments=3,
-        max_agents_per_population=1000,
-        max_clients_per_experiment=1,
-        max_client_days=30,
-        max_client_new_agents_pct=0.05,
-        max_client_churn_pct=0.05,
+        **_default_researcher_limits(),
     )
     db.session.add(user)
     db.session.commit()
@@ -219,6 +226,56 @@ def login_post():
         return redirect(url_for("auth.login"))
 
     return _login_admin_or_user(user, remember=remember)
+
+
+@auth.route("/signup", methods=["POST"])
+def signup_post():
+    """Create a local researcher account, then return to sign-in mode."""
+    username = (request.form.get("username") or "").strip()
+    email = (request.form.get("email") or "").strip().lower()
+    password = request.form.get("password") or ""
+    confirm_password = request.form.get("confirm_password") or ""
+
+    if not username or not email or not password:
+        flash("Username, email, and password are required.")
+        return redirect(url_for("auth.login", mode="signup"))
+
+    if len(username) > 15:
+        flash("Username must be at most 15 characters.")
+        return redirect(url_for("auth.login", mode="signup"))
+
+    if Admin_users.query.filter_by(username=username).first():
+        flash("Username already in use.")
+        return redirect(url_for("auth.login", mode="signup"))
+
+    if Admin_users.query.filter_by(email=email).first():
+        flash("Email already in use.")
+        return redirect(url_for("auth.login", mode="signup"))
+
+    if password != confirm_password:
+        flash("Passwords do not match.")
+        return redirect(url_for("auth.login", mode="signup"))
+
+    if len(password) < 8:
+        flash("Password must be at least 8 characters long.")
+        return redirect(url_for("auth.login", mode="signup"))
+
+    user = Admin_users(
+        username=username,
+        email=email,
+        password=generate_password_hash(password),
+        last_seen="",
+        role="researcher",
+        llm="",
+        llm_url="",
+        profile_pic="",
+        **_default_researcher_limits(),
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    flash("Researcher account created successfully. You can now sign in.", "success")
+    return redirect(url_for("auth.login"))
 
 
 @auth.route("/login/social")
