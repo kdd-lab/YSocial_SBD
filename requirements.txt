@@ -15,7 +15,6 @@ faker
 numpy
 networkx
 nltk
-perspective
 
 # Database driver (PostgreSQL support)
 psycopg2-binary
