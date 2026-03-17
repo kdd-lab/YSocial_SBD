@@ -26,7 +26,7 @@ services:
                 aliases:
                     - ysocial
         ports:
-            - 5001:5000  # Host port 5001 -> Container port 5000
+            - 8080:5000  # Host port 8080 -> Container port 5000
 
         command: python /app/y_social.py --host 0.0.0.0 --port 5000
 
